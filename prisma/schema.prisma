@@ -38,6 +38,14 @@ enum IndicatorScope {
   @@map("indicator_scope")
 }
 
+enum IndicatorValueType {
+  score
+  percentage
+  number
+
+  @@map("indicator_value_type")
+}
+
 model Sector {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug          String         @unique
@@ -137,6 +145,8 @@ model Indicator {
   stateIndicatorId  String?         @map("state_indicator_id") @db.Uuid
   name              String
   description       String?
+  valueType         IndicatorValueType @default(number) @map("value_type")
+  scoreOptions      Json?           @map("score_options")
   unit              String          @default("%")
   direction         Direction       @default(higher_is_better)
   targetValue       Decimal?        @map("target_value") @db.Decimal

@@ -2,6 +2,7 @@ import { DemoModeNotice, Flash } from "@/components/forms";
 import ResultWizard from "@/components/manage/ResultWizard";
 import { ActionLink, Crumbs, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { resolveIndicatorScoreOptions } from "@/lib/indicator-input";
 import { importResultsCsv, saveResultsBatch } from "../actions";
 
 export const metadata = { title: "Record results" };
@@ -54,6 +55,8 @@ export default async function ResultsEntryPage({
     name: i.name,
     unit: i.unit,
     scope: i.indicator_scope,
+    valueType: i.value_type,
+    scoreOptions: resolveIndicatorScoreOptions(i) ?? [],
     targetLabel: i.target_value != null ? `target ${i.target_value}${i.unit === "%" ? "%" : ""}` : "",
   }));
 

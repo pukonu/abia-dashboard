@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode } from "@/lib/data-mode";
+import {
+  normalizeIndicatorValueType,
+  parseLegacyScoreOptions,
+  parseScoreOptionsText,
+  resolveIndicatorScoreOptions,
+} from "@/lib/indicator-input";
 import { getDataset } from "@/lib/manage-config";
 import { ensureEvidenceBucket, evidenceBucket, getAdminClient } from "@/lib/supabase-admin";
 
@@ -52,6 +58,50 @@ function normalizeIndicatorRow(backTo: string, row: Record<string, unknown>, id?
     if (id && row.state_indicator_id === id) fail(backTo, "An indicator cannot roll up into itself.");
   } else {
     row.state_indicator_id = null;
+  }
+
+   const valueType = row.value_type;
+   if (valueType === "score") {
+    const structured =
+      parseScoreOptionsText(typeof row.score_options === "string" ? row.score_options : null) ??
+      parseLegacyScoreOptions(typeof row.description === "string" ? row.description : null);
+    if (!structured) {
+      fail(
+        backTo,
+        "Score-type indicators need at least two score options, e.g. 'Yes = 100' and 'No = 0'."
+      );
+    }
+    row.score_options = structured;
+  } else {
+    row.score_options = null;
+  }
+}
+
+function validateIndicatorValue(
+  backTo: string,
+  indicator: { name?: string | null; value_type?: string | null; score_options?: unknown; description?: string | null; unit?: string | null },
+  value: number
+) {
+  const valueType = normalizeIndicatorValueType({
+    value_type: indicator.value_type as never,
+    score_options: indicator.score_options as never,
+    description: indicator.description ?? null,
+    unit: indicator.unit ?? undefined,
+  });
+  if (valueType === "percentage" && (value < 0 || value > 100)) {
+    fail(backTo, `${indicator.name ?? "Percentage indicator"} must be between 0 and 100.`);
+  }
+  if (valueType === "score") {
+    const options = resolveIndicatorScoreOptions({
+      score_options: indicator.score_options as never,
+      description: indicator.description ?? null,
+    });
+    if (options?.length) {
+      const allowed = new Set(options.map((option) => option.value));
+      if (!allowed.has(value)) {
+        fail(backTo, `${indicator.name ?? "Score indicator"} must use one of its configured option scores.`);
+      }
+    }
   }
 }
 
@@ -194,6 +244,40 @@ async function upsertResult(
   return inserted.error ? { error: inserted.error.message } : { id: inserted.data.id };
 }
 
+async function uploadResultEvidence(
+  admin: SupabaseClient,
+  resultId: string,
+  files: File[],
+  caption: string | null,
+  backTo: string
+): Promise<number> {
+  if (!files.length) return 0;
+
+  await ensureEvidenceBucket(admin);
+  let uploaded = 0;
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) {
+      fail(backTo, `"${file.name}" is not an image — evidence must be images.`);
+    }
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const path = `${resultId}/${Date.now()}-${safeName}`;
+    const up = await admin.storage.from(evidenceBucket()).upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+    if (up.error) fail(backTo, `Result saved, but evidence upload failed: ${up.error.message}`);
+    const ins = await admin.from("result_evidence").insert({
+      result_id: resultId,
+      storage_path: path,
+      caption,
+    });
+    if (ins.error) fail(backTo, `Result saved, but evidence record failed: ${ins.error.message}`);
+    uploaded++;
+  }
+
+  return uploaded;
+}
+
 async function cascadeStateResultFromEntity(
   admin: SupabaseClient,
   indicatorId: string,
@@ -261,7 +345,7 @@ export async function saveResult(formData: FormData) {
 
   const indicator = await admin
     .from("indicators")
-    .select("id, indicator_scope")
+    .select("id, name, indicator_scope, value_type, score_options, description, unit")
     .eq("id", indicator_id)
     .single();
   if (indicator.error) fail(backTo, `Could not load indicator: ${indicator.error.message}`);
@@ -271,6 +355,7 @@ export async function saveResult(formData: FormData) {
   if (indicator.data.indicator_scope !== "entity" && entity_id) {
     fail(backTo, "State-level indicators must be saved without an entity.");
   }
+  validateIndicatorValue(backTo, indicator.data, abia_value);
 
   const saved = await upsertResult(admin, {
     indicator_id,
@@ -287,32 +372,14 @@ export async function saveResult(formData: FormData) {
     if (cascade.error) fail(backTo, `Result saved, but state rollup failed: ${cascade.error}`);
   }
 
-  // Evidence images (optional, multiple)
   const files = formData.getAll("evidence").filter((f): f is File => f instanceof File && f.size > 0);
-  let uploaded = 0;
-  if (files.length) {
-    await ensureEvidenceBucket(admin);
-    const caption = strOrNull(formData.get("evidence_caption"));
-    for (const file of files) {
-      if (!file.type.startsWith("image/")) {
-        fail(backTo, `"${file.name}" is not an image — evidence must be images.`);
-      }
-      const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-      const path = `${saved.id}/${Date.now()}-${safeName}`;
-      const up = await admin.storage.from(evidenceBucket()).upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-      if (up.error) fail(backTo, `Result saved, but evidence upload failed: ${up.error.message}`);
-      const ins = await admin.from("result_evidence").insert({
-        result_id: saved.id,
-        storage_path: path,
-        caption,
-      });
-      if (ins.error) fail(backTo, `Result saved, but evidence record failed: ${ins.error.message}`);
-      uploaded++;
-    }
-  }
+  const uploaded = await uploadResultEvidence(
+    admin,
+    saved.id,
+    files,
+    strOrNull(formData.get("evidence_caption")),
+    backTo
+  );
 
   ok(backTo, `Result saved${uploaded ? ` with ${uploaded} evidence image${uploaded === 1 ? "" : "s"}` : ""}.`);
 }
@@ -346,18 +413,20 @@ export async function saveResultsBatch(formData: FormData) {
 
   const indicators = await admin
     .from("indicators")
-    .select("id, indicator_scope")
+    .select("id, name, indicator_scope, value_type, score_options, description, unit")
     .in("id", rows.map((r) => r.indicatorId));
   if (indicators.error) fail(backTo, `Could not load indicators: ${indicators.error.message}`);
-  const scopeById = new Map(indicators.data.map((i) => [i.id, i.indicator_scope]));
+  const indicatorById = new Map(indicators.data.map((i) => [i.id, i]));
 
   let saved = 0;
+  let uploaded = 0;
   const cascadeIds = new Set<string>();
   for (const row of rows) {
-    const scope = scopeById.get(row.indicatorId);
-    if (!scope) fail(backTo, "One of the submitted indicators no longer exists.");
-    if (scope === "entity" && !entity_id) fail(backTo, "Entity-level indicators require an entity.");
-    if (scope !== "entity" && entity_id) fail(backTo, "State-level indicators must be saved without an entity.");
+    const indicator = indicatorById.get(row.indicatorId);
+    if (!indicator) fail(backTo, "One of the submitted indicators no longer exists.");
+    if (indicator.indicator_scope === "entity" && !entity_id) fail(backTo, "Entity-level indicators require an entity.");
+    if (indicator.indicator_scope !== "entity" && entity_id) fail(backTo, "State-level indicators must be saved without an entity.");
+    validateIndicatorValue(backTo, indicator, row.value);
 
     const result = await upsertResult(admin, {
       indicator_id: row.indicatorId,
@@ -371,8 +440,15 @@ export async function saveResultsBatch(formData: FormData) {
     if ("error" in result) {
       fail(backTo, `Saved ${saved} result${saved === 1 ? "" : "s"}, then failed: ${result.error}`);
     }
+    uploaded += await uploadResultEvidence(
+      admin,
+      result.id,
+      formData.getAll(`evidence_${row.indicatorId}`).filter((f): f is File => f instanceof File && f.size > 0),
+      strOrNull(formData.get(`evidence_caption_${row.indicatorId}`)),
+      backTo
+    );
     saved++;
-    if (scope === "entity") cascadeIds.add(row.indicatorId);
+    if (indicator.indicator_scope === "entity") cascadeIds.add(row.indicatorId);
   }
 
   for (const indicatorId of cascadeIds) {
@@ -380,7 +456,10 @@ export async function saveResultsBatch(formData: FormData) {
     if (cascade.error) fail(backTo, `Results saved, but state rollup failed: ${cascade.error}`);
   }
 
-  ok(backTo, `Saved ${saved} result${saved === 1 ? "" : "s"}.`);
+  ok(
+    backTo,
+    `Saved ${saved} result${saved === 1 ? "" : "s"}${uploaded ? ` with ${uploaded} evidence image${uploaded === 1 ? "" : "s"}` : ""}.`
+  );
 }
 
 /* ------------------------------------------------------------------ */

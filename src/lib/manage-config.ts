@@ -1,4 +1,5 @@
 import type { DashboardData } from "./types";
+import { formatScoreOptionsText } from "./indicator-input";
 
 export type FieldType = "text" | "number" | "textarea" | "select";
 
@@ -65,6 +66,12 @@ const DIRECTION_OPTIONS = [
 const INDICATOR_SCOPE_OPTIONS = [
   { value: "state", label: "State-level indicator" },
   { value: "entity", label: "Entity-level indicator" },
+];
+
+const INDICATOR_VALUE_TYPE_OPTIONS = [
+  { value: "score", label: "Score (choose from options)" },
+  { value: "percentage", label: "Percentage" },
+  { value: "number", label: "Number" },
 ];
 
 export const DATASETS: DatasetSpec[] = [
@@ -213,6 +220,14 @@ export const DATASETS: DatasetSpec[] = [
       { name: "state_indicator_id", label: "Rolls up into", type: "select", optionsFrom: "state_indicators", help: "Choose the state-level indicator for entity indicators. Leave empty for state-level indicators." },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Immunization coverage (Penta-3)" },
       { name: "description", label: "Description", type: "textarea" },
+      { name: "value_type", label: "Value type", type: "select", required: true, options: INDICATOR_VALUE_TYPE_OPTIONS },
+      {
+        name: "score_options",
+        label: "Score options",
+        type: "textarea",
+        help: "For score-type indicators, one option per line, e.g. 'Yes = 100' or 'A. Fully met = 100'",
+        placeholder: "Yes = 100\nNo = 0",
+      },
       { name: "unit", label: "Unit", type: "text", required: true, placeholder: "%, per 1,000, NGN bn…" },
       { name: "direction", label: "Direction", type: "select", required: true, options: DIRECTION_OPTIONS },
       { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach" },
@@ -290,6 +305,10 @@ export function childRows(
 /** Human-readable value for a record field (resolves select references). */
 export function displayValue(data: DashboardData, field: FieldSpec, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
+  if (field.name === "score_options") {
+    const formatted = formatScoreOptionsText(value);
+    return formatted || "—";
+  }
   const opts = field.optionsFrom ? optionsFor(data, field.optionsFrom) : field.options;
   if (opts) return opts.find((o) => o.value === String(value))?.label ?? String(value);
   return typeof value === "number" ? value.toLocaleString() : String(value);

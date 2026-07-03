@@ -1,8 +1,9 @@
 "use client";
 
-import { Building2, Check, ChevronLeft, Landmark } from "lucide-react";
+import { Building2, Check, ChevronLeft, Landmark, Paperclip } from "lucide-react";
 import { useMemo, useState } from "react";
 import { inputClass } from "@/components/forms";
+import type { IndicatorScoreOption, IndicatorValueType } from "@/lib/types";
 
 export interface WizardSector {
   id: string;
@@ -29,6 +30,8 @@ export interface WizardIndicator {
   name: string;
   unit: string;
   scope: "state" | "entity";
+  valueType: IndicatorValueType;
+  scoreOptions: IndicatorScoreOption[];
   targetLabel: string;
 }
 
@@ -116,6 +119,8 @@ export default function ResultWizard({
   const [periodId, setPeriodId] = useState<string>(periods[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [filledCount, setFilledCount] = useState(0);
+  const [filledRowIds, setFilledRowIds] = useState<string[]>([]);
+  const [openEvidenceRowIds, setOpenEvidenceRowIds] = useState<string[]>([]);
 
   const sector = sectors.find((s) => s.id === sectorId) ?? null;
   const mda = mdas.find((m) => m.id === mdaId) ?? null;
@@ -176,16 +181,31 @@ export default function ResultWizard({
 
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  const recountFilled = (form: HTMLFormElement) => {
-    let n = 0;
-    for (const el of Array.from(form.elements)) {
-      if (el instanceof HTMLInputElement && el.name.startsWith("value_") && el.value.trim() !== "") n++;
+  const resetRows = () => {
+    setFilledCount(0);
+    setFilledRowIds([]);
+    setOpenEvidenceRowIds([]);
+  };
+
+  const setRowFilled = (indicatorId: string, hasValue: boolean) => {
+    setFilledRowIds((prev) => {
+      const next = hasValue ? Array.from(new Set([...prev, indicatorId])) : prev.filter((id) => id !== indicatorId);
+      setFilledCount(next.length);
+      return next;
+    });
+    if (!hasValue) {
+      setOpenEvidenceRowIds((prev) => prev.filter((id) => id !== indicatorId));
     }
-    setFilledCount(n);
+  };
+
+  const toggleEvidenceRow = (indicatorId: string) => {
+    setOpenEvidenceRowIds((prev) =>
+      prev.includes(indicatorId) ? prev.filter((id) => id !== indicatorId) : [...prev, indicatorId]
+    );
   };
 
   return (
-    <form action={action} onInput={(e) => recountFilled(e.currentTarget)} className="card card-pad">
+    <form action={action} className="card card-pad">
       <fieldset disabled={disabled} className="disabled:opacity-60">
         <input type="hidden" name="entity_id" value={entityId ?? ""} />
 
@@ -208,7 +228,7 @@ export default function ResultWizard({
                     setSectorId(s.id);
                     setMdaId(null);
                     setEntityId(null);
-                    setFilledCount(0);
+                    resetRows();
                   }}
                   className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                     sectorId === s.id
@@ -234,7 +254,7 @@ export default function ResultWizard({
                     onClick={() => {
                       setMdaId(m.id);
                       setEntityId(null);
-                      setFilledCount(0);
+                      resetRows();
                       setStep(1);
                     }}
                     className={`w-full rounded-lg border px-4 py-2.5 text-left transition-colors ${
@@ -264,7 +284,7 @@ export default function ResultWizard({
                 type="button"
                 onClick={() => {
                   setEntityId("");
-                  setFilledCount(0);
+                  resetRows();
                   setStep(2);
                 }}
                 className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
@@ -291,7 +311,7 @@ export default function ResultWizard({
                       onChange={(e) => {
                         if (e.target.value) {
                           setEntityId(e.target.value);
-                          setFilledCount(0);
+                          resetRows();
                           setStep(2);
                         }
                       }}
@@ -372,6 +392,10 @@ export default function ResultWizard({
                         group={g}
                         statewide={statewide}
                         isVisible={(i) => matches(g, i)}
+                        filledRowIds={filledRowIds}
+                        openEvidenceRowIds={openEvidenceRowIds}
+                        onValueChange={setRowFilled}
+                        onToggleEvidence={toggleEvidenceRow}
                       />
                     ))}
                   </tbody>
@@ -418,10 +442,18 @@ function SectionRows({
   group,
   statewide,
   isVisible,
+  filledRowIds,
+  openEvidenceRowIds,
+  onValueChange,
+  onToggleEvidence,
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
   statewide: boolean;
   isVisible: (i: WizardIndicator) => boolean;
+  filledRowIds: string[];
+  openEvidenceRowIds: string[];
+  onValueChange: (indicatorId: string, hasValue: boolean) => void;
+  onToggleEvidence: (indicatorId: string) => void;
 }) {
   const cols = statewide ? 4 : 3;
   const anyVisible = group.indicators.some(isVisible);
@@ -434,47 +466,141 @@ function SectionRows({
         </td>
       </tr>
       {group.indicators.map((i) => (
-        <tr
+        <RowBlock
           key={i.id}
-          className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50 ${isVisible(i) ? "" : "hidden"}`}
-        >
-          <td className="px-4 py-2 align-top">
-            <div className="text-[13px] leading-snug text-zinc-800">{i.name}</div>
-            <div className="mt-0.5 text-[11px] text-zinc-400">
-              {i.unit}
-              {i.targetLabel ? ` · ${i.targetLabel}` : ""}
-            </div>
-          </td>
+          indicator={i}
+          statewide={statewide}
+          visible={isVisible(i)}
+          hasValue={filledRowIds.includes(i.id)}
+          evidenceOpen={openEvidenceRowIds.includes(i.id)}
+          colSpan={cols}
+          onValueChange={onValueChange}
+          onToggleEvidence={onToggleEvidence}
+        />
+      ))}
+    </>
+  );
+}
+
+function RowBlock({
+  indicator,
+  statewide,
+  visible,
+  hasValue,
+  evidenceOpen,
+  colSpan,
+  onValueChange,
+  onToggleEvidence,
+}: {
+  indicator: WizardIndicator;
+  statewide: boolean;
+  visible: boolean;
+  hasValue: boolean;
+  evidenceOpen: boolean;
+  colSpan: number;
+  onValueChange: (indicatorId: string, hasValue: boolean) => void;
+  onToggleEvidence: (indicatorId: string) => void;
+}) {
+  return (
+    <>
+      <tr className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50 ${visible ? "" : "hidden"}`}>
+        <td className="px-4 py-2 align-top">
+          <div className="text-[13px] leading-snug text-zinc-800">{indicator.name}</div>
+          <div className="mt-0.5 text-[11px] text-zinc-400">
+            {indicator.unit}
+            {indicator.targetLabel ? ` · ${indicator.targetLabel}` : ""}
+          </div>
+        </td>
+        <td className="px-3 py-2 align-top">
+          {indicator.valueType === "score" && indicator.scoreOptions.length >= 2 ? (
+            <select
+              name={`value_${indicator.id}`}
+              defaultValue=""
+              onChange={(e) => onValueChange(indicator.id, e.target.value.trim() !== "")}
+              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+            >
+              <option value="">Select…</option>
+              {indicator.scoreOptions.map((option) => (
+                <option key={`${indicator.id}-${option.code ?? option.label}-${option.value}`} value={option.value}>
+                  {option.code ? `${option.code}. ` : ""}
+                  {option.label} ({option.value})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              step="any"
+              min={indicator.valueType === "percentage" ? 0 : undefined}
+              max={indicator.valueType === "percentage" ? 100 : undefined}
+              name={`value_${indicator.id}`}
+              placeholder="—"
+              onChange={(e) => onValueChange(indicator.id, e.target.value.trim() !== "")}
+              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+            />
+          )}
+        </td>
+        {statewide && (
           <td className="px-3 py-2 align-top">
             <input
               type="number"
               step="any"
-              name={`value_${i.id}`}
+              name={`nigeria_${indicator.id}`}
               placeholder="—"
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
             />
           </td>
-          {statewide && (
-            <td className="px-3 py-2 align-top">
-              <input
-                type="number"
-                step="any"
-                name={`nigeria_${i.id}`}
-                placeholder="—"
-                className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
-              />
-            </td>
+        )}
+        <td className="px-3 py-2 align-top">
+          <input
+            type="text"
+            name={`notes_${indicator.id}`}
+            placeholder="Optional"
+            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+          />
+          {hasValue && (
+            <button
+              type="button"
+              onClick={() => onToggleEvidence(indicator.id)}
+              className="mt-2 inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              <Paperclip className="h-3 w-3" strokeWidth={2} />
+              {evidenceOpen ? "Hide attachment" : "Attach evidence"}
+            </button>
           )}
-          <td className="px-3 py-2 align-top">
-            <input
-              type="text"
-              name={`notes_${i.id}`}
-              placeholder="Optional"
-              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
-            />
+        </td>
+      </tr>
+      {visible && hasValue && evidenceOpen && (
+        <tr className="border-b border-zinc-100 bg-zinc-50/40">
+          <td colSpan={colSpan} className="px-4 py-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Evidence images
+                </span>
+                <input
+                  type="file"
+                  name={`evidence_${indicator.id}`}
+                  accept="image/*"
+                  multiple
+                  className="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-950 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Caption
+                </span>
+                <input
+                  type="text"
+                  name={`evidence_caption_${indicator.id}`}
+                  placeholder="Optional caption"
+                  className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+                />
+              </label>
+            </div>
           </td>
         </tr>
-      ))}
+      )}
     </>
   );
 }

@@ -78,6 +78,7 @@ interface IndicatorSpec {
   name: string;
   unit: string;
   direction: Direction;
+  valueType?: "score" | "percentage" | "number";
   target: number;
   targetSource: string;
   weight?: number;
@@ -739,6 +740,8 @@ export function buildDemoData(): DashboardData {
             domain_id: domainId,
             indicator_scope: "state",
             name: ind.name,
+            value_type: ind.valueType ?? (ind.unit === "%" ? "percentage" : "number"),
+            score_options: null,
             unit: ind.unit,
             direction: ind.direction,
             target_value: ind.target,

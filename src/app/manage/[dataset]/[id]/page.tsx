@@ -6,6 +6,7 @@ import GhostTitleField from "@/components/manage/GhostTitleField";
 import RecordFormModal from "@/components/manage/RecordFormModal";
 import { CardList, Crumbs, EmptyState, RowLink, Tabs } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { formatScoreOptionsText } from "@/lib/indicator-input";
 import {
   childRows,
   displayValue,
@@ -167,7 +168,13 @@ export default async function RecordDetailPage({
                   <FormField
                     field={f}
                     options={optionsByField(data, [f])[f.name]}
-                    defaultValue={record[f.name] == null ? "" : String(record[f.name])}
+                    defaultValue={
+                      f.name === "score_options"
+                        ? formatScoreOptionsText(record[f.name])
+                        : record[f.name] == null
+                          ? ""
+                          : String(record[f.name])
+                    }
                   />
                 </div>
               ))}

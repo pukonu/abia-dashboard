@@ -1,6 +1,13 @@
 export type Frequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 export type Direction = "higher_is_better" | "lower_is_better";
 export type IndicatorScope = "state" | "entity";
+export type IndicatorValueType = "score" | "percentage" | "number";
+
+export interface IndicatorScoreOption {
+  code?: string;
+  label: string;
+  value: number;
+}
 
 export interface Sector {
   id: string;
@@ -64,6 +71,8 @@ export interface Indicator {
   state_indicator_id?: string | null;
   name: string;
   description?: string | null;
+  value_type: IndicatorValueType;
+  score_options?: IndicatorScoreOption[] | null;
   unit: string;
   direction: Direction;
   target_value: number | null;

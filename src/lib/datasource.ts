@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode, isSupabaseConfigured } from "./data-mode";
 import { getDemoData } from "./demo-data";
+import { normalizeIndicatorValueType, resolveIndicatorScoreOptions } from "./indicator-input";
 import type { DashboardData, Indicator, Result, ResultEvidence } from "./types";
 
 /** Fetch every row of a table, paging past Supabase's 1,000-row response cap. */
@@ -94,6 +95,8 @@ export async function loadDashboardData(): Promise<DashboardData> {
         ...i,
         indicator_scope: i.indicator_scope ?? "state",
         state_indicator_id: i.state_indicator_id ?? null,
+        value_type: normalizeIndicatorValueType(i),
+        score_options: resolveIndicatorScoreOptions(i),
         target_value: i.target_value == null ? null : Number(i.target_value),
         weight: Number(i.weight ?? 1),
       })),

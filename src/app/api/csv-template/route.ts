@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadDashboardData } from "@/lib/datasource";
+import { formatScoreOptionsText } from "@/lib/indicator-input";
 
 function csvCell(v: string | number | null | undefined): string {
   const s = v == null ? "" : String(v);
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   }
 
   const header = [
-    "indicator_id", "indicator_name", "unit", "direction", "sector",
+    "indicator_id", "indicator_name", "value_type", "score_options", "unit", "direction", "sector",
     "time_period_id", "period_label",
     "entity_id", "entity_name", "lga",
     "abia_value", "nigeria_value", "target_value", "notes",
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     if (!thematic || !sector || !period) continue;
 
     const base = [
-      ind.id, ind.name, ind.unit, ind.direction, sector.name,
+      ind.id, ind.name, ind.value_type, formatScoreOptionsText(ind.score_options), ind.unit, ind.direction, sector.name,
       period.id, period.label,
     ];
 

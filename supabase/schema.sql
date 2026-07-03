@@ -51,6 +51,7 @@ create table if not exists entities (
 create type frequency as enum ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
 create type direction as enum ('higher_is_better', 'lower_is_better');
 create type indicator_scope as enum ('state', 'entity');
+create type indicator_value_type as enum ('score', 'percentage', 'number');
 
 create table if not exists thematic_areas (
   id          uuid primary key default gen_random_uuid(),
@@ -82,6 +83,8 @@ create table if not exists indicators (
   state_indicator_id uuid references indicators(id) on delete set null,
   name          text not null,
   description   text,
+  value_type    indicator_value_type not null default 'number',
+  score_options jsonb,
   unit          text not null default '%',       -- '%', 'per 1,000', 'count', 'NGN bn' …
   direction     direction not null default 'higher_is_better',
   target_value  numeric,                          -- default target (SDG/WHO/UN/state plan)

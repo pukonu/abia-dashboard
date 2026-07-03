@@ -118,6 +118,27 @@ def letter_to_score(letter, n_opts: int) -> float | None:
     return round(100 * (n_opts - 1 - idx) / (n_opts - 1), 2)
 
 
+def parse_score_options(options_text, n_opts: int) -> list[dict]:
+    lines = [line.strip() for line in str(options_text or "").splitlines() if line.strip()]
+    parsed = []
+    for line in lines:
+        m = re.match(r"^([A-E])\.\s*(.+)$", line, re.I)
+        if not m:
+            continue
+        parsed.append((m.group(1).upper(), m.group(2).strip()))
+    if len(parsed) < 2:
+        parsed = [(chr(ord("A") + idx), f"Option {chr(ord('A') + idx)}") for idx in range(n_opts)]
+    last = len(parsed) - 1
+    return [
+        {
+            "code": code,
+            "label": label,
+            "value": round(100 * (last - idx) / last, 2),
+        }
+        for idx, (code, label) in enumerate(parsed)
+    ]
+
+
 def parse_workbook():
     wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
     ws = wb["Assessment Questions"]
@@ -165,6 +186,7 @@ def parse_workbook():
                         "code": code.strip(),
                         "question": str(ws.cell(row, 3).value or "").strip(),
                         "options": options,
+                        "score_options": parse_score_options(options, n_opts),
                         "weight": float(ws.cell(row, 5).value or 0),
                         "rationale": ws.cell(row, 6).value,
                         "responses": responses,
@@ -236,6 +258,8 @@ def main():
                     "domain_id": domain_id,
                     "name": f"{q['code']} {q['question']}",
                     "description": description.strip(),
+                    "value_type": "score",
+                    "score_options": q["score_options"],
                     "unit": "%",
                     "direction": "higher_is_better",
                     "target_value": 100,
