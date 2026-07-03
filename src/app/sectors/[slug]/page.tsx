@@ -38,12 +38,12 @@ export default async function SectorPage({
     <>
       <Crumbs items={[{ href: "/sectors", label: "Sectors" }, { label: sector.name }]} />
       <PageHeader
-        eyebrow={`${sector.icon} Sector`}
+        eyebrow="Sector"
         title={sector.name}
         subtitle={sector.description}
         actions={
           <ActionLink href={`/api/reports/sector/${sector.slug}`} primary>
-            ↓ Sector report (PDF)
+            Sector report (PDF)
           </ActionLink>
         }
       />

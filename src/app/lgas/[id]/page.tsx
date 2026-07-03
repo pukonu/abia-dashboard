@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ScoreRadarChart } from "@/components/charts";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
@@ -35,12 +36,17 @@ export default async function LgaPage({
     <>
       <Crumbs items={[{ href: "/lgas", label: "LGAs" }, { label: lga.name }]} />
       <PageHeader
-        eyebrow={`⬢ ${lga.zone}`}
+        eyebrow={
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {lga.zone}
+          </span>
+        }
         title={lga.name}
         subtitle={`Population ≈ ${lga.population.toLocaleString()} · ${entities.length} measured entit${entities.length === 1 ? "y" : "ies"}`}
         actions={
           <ActionLink href={`/api/reports/lga/${lga.id}`} primary>
-            ↓ LGA report (PDF)
+            LGA report (PDF)
           </ActionLink>
         }
       />
@@ -86,7 +92,7 @@ export default async function LgaPage({
             {sectorBreakdown.map(({ sector, score, count }) => (
               <div key={sector.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="text-base">{sector.icon}</span>
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sector.color }} />
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-zinc-800">{sector.name}</div>
                     <div className="text-xs text-zinc-500">{count} entit{count === 1 ? "y" : "ies"}</div>
@@ -117,7 +123,7 @@ export default async function LgaPage({
                 <>
                   <div className="truncate text-sm font-medium text-zinc-900">{e.entity.name}</div>
                   <div className="mt-0.5 truncate text-xs text-zinc-500">
-                    {e.sector.icon} {e.entity.entity_type} · {e.mda.abbreviation} · {e.readings} readings
+                    {e.entity.entity_type} · {e.mda.abbreviation} · {e.readings} readings
                   </div>
                 </>
               }

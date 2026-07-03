@@ -53,7 +53,7 @@ export default async function IndicatorsPage({
                 : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
             }`}
           >
-            {s.icon} {s.name}
+            {s.name}
           </Link>
         ))}
       </div>
@@ -61,7 +61,7 @@ export default async function IndicatorsPage({
       {grouped.map(({ sector, items }) => (
         <section key={sector.id}>
           <SectionTitle>
-            {sector.icon} {sector.name} · {items.length} indicators
+            {sector.name} · {items.length} indicators
           </SectionTitle>
           <CardList>
             {items.map((i) => (

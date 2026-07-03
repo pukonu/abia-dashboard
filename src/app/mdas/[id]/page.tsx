@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeltaTag, ScoreBadge, ScoreRing } from "@/components/score";
@@ -30,7 +31,7 @@ export default async function MdaPage({
           { label: mda.abbreviation },
         ]}
       />
-      <PageHeader eyebrow={`${sector.icon} ${sector.name} sector`} title={mda.name} subtitle={mda.description} />
+      <PageHeader eyebrow={`${sector.name} sector`} title={mda.name} subtitle={mda.description} />
 
       <section className="card card-pad flex flex-wrap items-center gap-6">
         <ScoreRing score={mdaComputed?.score ?? null} size={116} />
@@ -92,8 +93,12 @@ export default async function MdaPage({
 
       <p className="mt-4 text-xs text-zinc-400">
         Looking for the full sector picture?{" "}
-        <Link href={`/sectors/${sector.slug}`} className="font-medium text-abia-dark hover:underline">
-          View the {sector.name} sector →
+        <Link
+          href={`/sectors/${sector.slug}`}
+          className="inline-flex items-center gap-1 font-medium text-abia-dark hover:underline"
+        >
+          View the {sector.name} sector
+          <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
         </Link>
       </p>
     </>

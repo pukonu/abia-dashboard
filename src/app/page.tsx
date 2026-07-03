@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ScoreRadarChart, TrendChart } from "@/components/charts";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
@@ -37,7 +38,7 @@ export default async function OverviewPage() {
         subtitle="One composite view of how the state is performing across every sector, benchmarked against national figures and official targets."
         actions={
           <ActionLink href="/api/reports/state" primary>
-            ↓ Download state report (PDF)
+            Download state report (PDF)
           </ActionLink>
         }
       />
@@ -83,10 +84,10 @@ export default async function OverviewPage() {
           >
             <div className="flex items-start justify-between gap-2">
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{ backgroundColor: `${sector.color}18` }}
               >
-                {sector.icon}
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: sector.color }} />
               </span>
               <ScoreBadge score={pair.score} />
             </div>
@@ -121,8 +122,12 @@ export default async function OverviewPage() {
         <div className="card card-pad">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="display text-base font-semibold text-zinc-900">LGA highlights</h2>
-            <Link href="/lgas" className="text-xs font-medium text-abia-dark hover:underline">
-              All 17 LGAs →
+            <Link
+              href="/lgas"
+              className="inline-flex items-center gap-1 text-xs font-medium text-abia-dark hover:underline"
+            >
+              All 17 LGAs
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
             </Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -171,7 +176,7 @@ export default async function OverviewPage() {
               <>
                 <div className="truncate text-sm font-medium text-zinc-900">{i.indicator.name}</div>
                 <div className="mt-0.5 truncate text-xs text-zinc-500">
-                  {i.sector.icon} {i.sector.name} · {i.domain.name} · Abia{" "}
+                  {i.sector.name} · {i.domain.name} · Abia{" "}
                   <strong>{fmtValue(i.latest?.abia ?? null, i.indicator.unit)}</strong> vs target{" "}
                   {fmtValue(i.latest?.target ?? null, i.indicator.unit)} ({i.indicator.target_source})
                 </div>

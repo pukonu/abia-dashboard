@@ -21,7 +21,7 @@ export default async function MdasPage() {
         return (
           <section key={s.id}>
             <SectionTitle>
-              {s.icon} {s.name}
+              {s.name}
             </SectionTitle>
             <CardList>
               {mdas.map((m) => (

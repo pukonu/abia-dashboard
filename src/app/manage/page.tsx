@@ -1,5 +1,14 @@
+import {
+  ArrowRight,
+  Database,
+  Layers,
+  PenLine,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { DemoModeNotice } from "@/components/forms";
+import { DatasetIcon } from "@/components/manage/dataset-icons";
+import StatCard from "@/components/manage/StatCard";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { DATASETS } from "@/lib/manage-config";
@@ -20,56 +29,127 @@ export default async function ManagePage() {
     "time-periods": data.timePeriods.length,
   };
 
+  const structureTotal =
+    counts.sectors + counts.lgas + counts.mdas + counts.entities;
+  const frameworkTotal =
+    counts["thematic-areas"] + counts.domains + counts.indicators + counts["time-periods"];
+  const configTotal = structureTotal + frameworkTotal;
+
   return (
     <>
       <PageHeader
         eyebrow="Administration"
-        title="Manage the dashboard"
-        subtitle="Configure every layer of the measurement framework, then record results — one at a time with evidence, or in bulk via CSV."
+        title="Management console"
+        subtitle="Configure the measurement framework, maintain government structure, and record performance data."
       />
       <DemoModeNotice show={data.mode !== "live"} />
 
-      <SectionTitle>Record results</SectionTitle>
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={Database}
+          label="Configuration records"
+          value={configTotal}
+          hint="Sectors through time periods"
+        />
+        <StatCard
+          icon={Layers}
+          label="Government structure"
+          value={structureTotal}
+          hint={`${counts.sectors} sectors · ${counts.entities} entities`}
+          accent="blue"
+        />
+        <StatCard
+          icon={Database}
+          label="Measurement framework"
+          value={frameworkTotal}
+          hint={`${counts.indicators} indicators configured`}
+          accent="green"
+        />
+        <StatCard
+          icon={PenLine}
+          label="Results recorded"
+          value={data.results.length}
+          hint="Indicator values entered"
+          accent="amber"
+        />
+      </div>
+
+      <SectionTitle hint="Capture performance data">Data entry</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Link href="/manage/results" className="card card-pad group transition-shadow hover:shadow-md">
-          <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
-            ✎ Enter a result
-          </div>
-          <p className="mt-1.5 text-sm text-zinc-500">
-            Record Abia&apos;s value for an indicator and period — with the national comparison,
-            a target override and evidence images.
-          </p>
-        </Link>
-        <Link href="/manage/results#csv" className="card card-pad group transition-shadow hover:shadow-md">
-          <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
-            ⇪ Bulk upload via CSV
-          </div>
-          <p className="mt-1.5 text-sm text-zinc-500">
-            Download the prefilled template, fill in the values, and upload to populate a whole
-            reporting period at once.
-          </p>
-        </Link>
-      </div>
-
-      <SectionTitle>Configure datasets</SectionTitle>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {DATASETS.map((d) => (
-          <Link key={d.slug} href={`/manage/${d.slug}`} className="card card-pad group transition-shadow hover:shadow-md">
-            <div className="flex items-baseline justify-between gap-2">
-              <div className="display text-base font-semibold text-zinc-900 group-hover:underline">{d.label}</div>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
-                {counts[d.slug] ?? 0}
-              </span>
+        <Link
+          href="/manage/results"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+            <PenLine className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Record results
             </div>
-            <p className="mt-1.5 line-clamp-2 text-sm text-zinc-500">{d.description}</p>
-          </Link>
-        ))}
+            <p className="mt-1 text-sm text-zinc-500">
+              Enter Abia values for indicators and periods, with optional evidence images.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
+        <Link
+          href="/manage/results#csv"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+            <Upload className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Bulk CSV upload
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Download a prefilled template and import a whole reporting period at once.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
       </div>
 
-      <p className="mt-6 text-xs leading-relaxed text-zinc-400">
+      {(
+        [
+          { id: "structure", title: "Government structure", hint: "Who delivers, and where" },
+          { id: "framework", title: "Measurement framework", hint: "What is measured, and when" },
+        ] as const
+      ).map((group) => (
+        <div key={group.id}>
+          <SectionTitle hint={group.hint}>{group.title}</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {DATASETS.filter((d) => d.group === group.id).map((d) => (
+              <Link
+                key={d.slug}
+                href={`/manage/${d.slug}`}
+                className="card card-pad group transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+                    <DatasetIcon slug={d.slug} />
+                  </span>
+                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                    {counts[d.slug] ?? 0}
+                  </span>
+                </div>
+                <div className="mt-3 display text-base font-semibold text-zinc-900 group-hover:underline">
+                  {d.label}
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm text-zinc-500">{d.description}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <p className="mt-8 text-xs leading-relaxed text-zinc-400">
         Schema changes (new columns, tables) are managed with Prisma — edit{" "}
-        <code>prisma/schema.prisma</code> and run <code>npm run db:migrate</code>. This area only
-        edits data, not structure.
+        <code className="rounded bg-zinc-100 px-1">prisma/schema.prisma</code> and run{" "}
+        <code className="rounded bg-zinc-100 px-1">npm run db:migrate</code>. This console only
+        edits data.
       </p>
     </>
   );

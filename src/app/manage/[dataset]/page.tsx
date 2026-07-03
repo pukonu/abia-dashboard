@@ -1,86 +1,147 @@
 import { notFound } from "next/navigation";
-import { DemoModeNotice, Flash, FormField } from "@/components/forms";
-import { Crumbs, PageHeader, SectionTitle } from "@/components/ui";
+import { DemoModeNotice, Flash } from "@/components/forms";
+import { DATASET_ICONS } from "@/components/manage/dataset-icons";
+import RecordFormModal from "@/components/manage/RecordFormModal";
+import StatCard from "@/components/manage/StatCard";
+import { CardList, Crumbs, EmptyState, PageHeader, RowLink, Tabs } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
-import { getDataset, optionsFor } from "@/lib/manage-config";
-import { createRecord, deleteRecord } from "../actions";
+import {
+  getDataset,
+  optionsByField,
+  singularLabel,
+} from "@/lib/manage-config";
+import { createRecord } from "../actions";
 
 export default async function DatasetPage({
   params,
   searchParams,
 }: {
   params: Promise<{ dataset: string }>;
-  searchParams: Promise<{ msg?: string; err?: string }>;
+  searchParams: Promise<{ tab?: string; msg?: string; err?: string }>;
 }) {
   const { dataset } = await params;
-  const { msg, err } = await searchParams;
+  const { tab: rawTab, msg, err } = await searchParams;
   const spec = getDataset(dataset);
   if (!spec) notFound();
 
   const data = await loadDashboardData();
   const live = data.mode === "live";
   const rows = spec.list(data);
-
+  const tab = rawTab === "records" ? "records" : "overview";
   const create = createRecord.bind(null, spec.slug);
-  const remove = deleteRecord.bind(null, spec.slug);
+  const fieldOpts = optionsByField(data, spec.fields);
+  const recent = rows.slice(0, 5);
 
   return (
     <>
       <Crumbs items={[{ href: "/manage", label: "Manage" }, { label: spec.label }]} />
-      <PageHeader eyebrow="Configuration" title={spec.label} subtitle={spec.description} />
+      <PageHeader
+        eyebrow="Configuration"
+        title={spec.label}
+        subtitle={spec.description}
+        actions={
+          <RecordFormModal
+            title={`Add ${singularLabel(spec)}`}
+            description={spec.description}
+            submitLabel={`Save ${singularLabel(spec)}`}
+            triggerLabel={`Add ${singularLabel(spec)}`}
+            action={create}
+            fields={spec.fields}
+            optionsByField={fieldOpts}
+            backTo={`/manage/${spec.slug}?tab=records`}
+            disabled={!live}
+            wide
+          />
+        }
+      />
       <Flash msg={msg} err={err} />
       <DemoModeNotice show={!live} />
 
-      <SectionTitle>Add a {spec.labelSingular.toLowerCase()}</SectionTitle>
-      <form action={create} className="card card-pad">
-        <fieldset disabled={!live} className="grid gap-4 disabled:opacity-60 sm:grid-cols-2">
-          {spec.fields.map((f) => (
-            <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
-              <FormField
-                field={f}
-                options={f.optionsFrom ? optionsFor(data, f.optionsFrom) : undefined}
-              />
-            </div>
-          ))}
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
-            >
-              Save {spec.labelSingular.toLowerCase()}
-            </button>
-          </div>
-        </fieldset>
-      </form>
+      <Tabs
+        active={tab}
+        items={[
+          { id: "overview", label: "Overview", href: `/manage/${spec.slug}` },
+          { id: "records", label: `All records (${rows.length})`, href: `/manage/${spec.slug}?tab=records` },
+        ]}
+      />
 
-      <SectionTitle hint={`${rows.length} record${rows.length === 1 ? "" : "s"}`}>
-        Existing {spec.label.toLowerCase()}
-      </SectionTitle>
-      {rows.length === 0 ? (
-        <div className="card card-pad text-center text-sm text-zinc-500">
-          Nothing here yet — add the first {spec.labelSingular.toLowerCase()} above.
-        </div>
+      {tab === "overview" ? (
+        <>
+          <div className="mb-6 grid gap-3 sm:grid-cols-3">
+            <StatCard
+              icon={DATASET_ICONS[spec.slug] ?? DATASET_ICONS.entities}
+              label="Total records"
+              value={rows.length}
+            />
+            {spec.children?.map((child) => {
+              const childSpec = getDataset(child.slug)!;
+              const childCount = childSpec.list(data).length;
+              return (
+                <StatCard
+                  key={child.slug}
+                  icon={DATASET_ICONS[child.slug] ?? DATASET_ICONS.entities}
+                  label={childSpec.label}
+                  value={childCount}
+                  hint={`Linked ${childSpec.label.toLowerCase()}`}
+                  accent="blue"
+                />
+              );
+            })}
+          </div>
+
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-zinc-900">Recent records</h2>
+            {rows.length > 5 && (
+              <a
+                href={`/manage/${spec.slug}?tab=records`}
+                className="text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:underline"
+              >
+                View all
+              </a>
+            )}
+          </div>
+
+          {recent.length === 0 ? (
+            <EmptyState>
+              No {spec.label.toLowerCase()} yet. Use &ldquo;Add {singularLabel(spec)}&rdquo; to
+              create the first record.
+            </EmptyState>
+          ) : (
+            <CardList>
+              {recent.map((row) => (
+                <RowLink
+                  key={row.id}
+                  href={`/manage/${spec.slug}/${row.id}`}
+                  left={
+                    <>
+                      <div className="truncate text-sm font-medium text-zinc-900">{row.title}</div>
+                      <div className="mt-0.5 truncate text-xs text-zinc-500">{row.subtitle}</div>
+                    </>
+                  }
+                />
+              ))}
+            </CardList>
+          )}
+        </>
+      ) : rows.length === 0 ? (
+        <EmptyState>
+          No records yet. Use &ldquo;Add {singularLabel(spec)}&rdquo; to get started.
+        </EmptyState>
       ) : (
-        <div className="card divide-y divide-zinc-100 overflow-hidden">
+        <CardList>
           {rows.map((row) => (
-            <div key={row.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-zinc-900">{row.title}</div>
-                <div className="mt-0.5 truncate text-xs text-zinc-500">{row.subtitle}</div>
-              </div>
-              <form action={remove}>
-                <input type="hidden" name="id" value={row.id} />
-                <button
-                  type="submit"
-                  disabled={!live}
-                  className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Delete
-                </button>
-              </form>
-            </div>
+            <RowLink
+              key={row.id}
+              href={`/manage/${spec.slug}/${row.id}`}
+              left={
+                <>
+                  <div className="truncate text-sm font-medium text-zinc-900">{row.title}</div>
+                  <div className="mt-0.5 truncate text-xs text-zinc-500">{row.subtitle}</div>
+                </>
+              }
+            />
           ))}
-        </div>
+        </CardList>
       )}
     </>
   );

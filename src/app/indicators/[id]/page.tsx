@@ -84,7 +84,7 @@ export default async function IndicatorPage({
         ]}
       />
       <PageHeader
-        eyebrow={`${sector.icon} ${thematicArea.name} · ${domain.name}`}
+        eyebrow={`${thematicArea.name} · ${domain.name}`}
         title={indicator.name}
         subtitle={`${FREQ_LABEL[thematicArea.frequency]} reporting · ${
           higherBetter ? "Higher is better" : "Lower is better"

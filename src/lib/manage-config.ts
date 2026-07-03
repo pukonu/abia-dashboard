@@ -14,15 +14,42 @@ export interface FieldSpec {
   optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains";
 }
 
+/** A related dataset shown as a tab on a record's detail page. */
+export interface ChildSpec {
+  /** slug of the child dataset */
+  slug: string;
+  /** column on the child that references the parent record's id */
+  foreignKey: string;
+}
+
 export interface DatasetSpec {
   slug: string;
   table: string;
   label: string;
   labelSingular: string;
   description: string;
+  /** section of the manage hub this dataset belongs to */
+  group: "structure" | "framework";
+  /** DashboardData collection holding this dataset's records */
+  collection: "sectors" | "lgas" | "mdas" | "entities" | "thematicAreas" | "domains" | "indicators" | "timePeriods";
   fields: FieldSpec[];
   /** builds the list rows shown under the form */
   list: (data: DashboardData) => Array<{ id: string; title: string; subtitle: string }>;
+  /** related datasets managed from this record's detail page */
+  children?: ChildSpec[];
+  /** field edited inline on the detail overview (defaults to "name") */
+  primaryField?: string;
+}
+
+/** Primary display/edit field for a dataset record. */
+export function primaryField(spec: DatasetSpec): string {
+  return spec.primaryField ?? "name";
+}
+
+/** Non-primary fields shown on the settings tab / overview detail grid. */
+export function secondaryFields(spec: DatasetSpec): FieldSpec[] {
+  const primary = primaryField(spec);
+  return spec.fields.filter((f) => f.name !== primary);
 }
 
 const FREQUENCY_OPTIONS = ["daily", "weekly", "monthly", "quarterly", "yearly"].map((f) => ({
@@ -42,15 +69,20 @@ export const DATASETS: DatasetSpec[] = [
     label: "Sectors",
     labelSingular: "Sector",
     description: "Top-level areas being measured — Health, Education, Security…",
+    group: "structure",
+    collection: "sectors",
+    children: [
+      { slug: "mdas", foreignKey: "sector_id" },
+      { slug: "thematic-areas", foreignKey: "sector_id" },
+    ],
     fields: [
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Health" },
       { name: "slug", label: "Slug", type: "text", required: true, placeholder: "e.g. health", help: "Lowercase identifier used in URLs" },
       { name: "description", label: "Description", type: "textarea" },
-      { name: "icon", label: "Icon (emoji)", type: "text", placeholder: "🏥" },
       { name: "color", label: "Accent color (hex)", type: "text", placeholder: "#14683c" },
       { name: "sort_order", label: "Sort order", type: "number", placeholder: "0" },
     ],
-    list: (d) => d.sectors.map((s) => ({ id: s.id, title: `${s.icon ?? ""} ${s.name}`.trim(), subtitle: s.slug })),
+    list: (d) => d.sectors.map((s) => ({ id: s.id, title: s.name, subtitle: s.slug })),
   },
   {
     slug: "lgas",
@@ -58,6 +90,9 @@ export const DATASETS: DatasetSpec[] = [
     label: "LGAs",
     labelSingular: "LGA",
     description: "The 17 Local Government Areas of Abia State.",
+    group: "structure",
+    collection: "lgas",
+    children: [{ slug: "entities", foreignKey: "lga_id" }],
     fields: [
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Aba South" },
       {
@@ -76,6 +111,9 @@ export const DATASETS: DatasetSpec[] = [
     label: "MDAs",
     labelSingular: "MDA",
     description: "Ministries, Departments & Agencies, each under a sector.",
+    group: "structure",
+    collection: "mdas",
+    children: [{ slug: "entities", foreignKey: "mda_id" }],
     fields: [
       { name: "sector_id", label: "Sector", type: "select", required: true, optionsFrom: "sectors" },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Ministry of Health" },
@@ -95,6 +133,8 @@ export const DATASETS: DatasetSpec[] = [
     label: "Entities",
     labelSingular: "Entity",
     description: "Concrete units being measured — a hospital, school, project — each under an MDA and located in an LGA.",
+    group: "structure",
+    collection: "entities",
     fields: [
       { name: "mda_id", label: "MDA", type: "select", required: true, optionsFrom: "mdas" },
       { name: "lga_id", label: "LGA", type: "select", required: true, optionsFrom: "lgas" },
@@ -115,6 +155,9 @@ export const DATASETS: DatasetSpec[] = [
     label: "Thematic Areas",
     labelSingular: "Thematic Area",
     description: "Measurement themes under a sector; the frequency here drives which time periods apply.",
+    group: "framework",
+    collection: "thematicAreas",
+    children: [{ slug: "domains", foreignKey: "thematic_area_id" }],
     fields: [
       { name: "sector_id", label: "Sector", type: "select", required: true, optionsFrom: "sectors" },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Primary Healthcare" },
@@ -135,6 +178,9 @@ export const DATASETS: DatasetSpec[] = [
     label: "Domains",
     labelSingular: "Domain",
     description: "Measurement domains under a thematic area.",
+    group: "framework",
+    collection: "domains",
+    children: [{ slug: "indicators", foreignKey: "domain_id" }],
     fields: [
       { name: "thematic_area_id", label: "Thematic area", type: "select", required: true, optionsFrom: "thematic_areas" },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Maternal & Child Health" },
@@ -154,6 +200,8 @@ export const DATASETS: DatasetSpec[] = [
     label: "Indicators & Targets",
     labelSingular: "Indicator",
     description: "What is actually measured under each domain, with its unit, direction and official target.",
+    group: "framework",
+    collection: "indicators",
     fields: [
       { name: "domain_id", label: "Domain", type: "select", required: true, optionsFrom: "domains" },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Immunization coverage (Penta-3)" },
@@ -177,6 +225,9 @@ export const DATASETS: DatasetSpec[] = [
     label: "Time Periods",
     labelSingular: "Time Period",
     description: "The reporting windows results are recorded against, per frequency.",
+    group: "framework",
+    collection: "timePeriods",
+    primaryField: "label",
     fields: [
       { name: "frequency", label: "Frequency", type: "select", required: true, options: FREQUENCY_OPTIONS },
       { name: "label", label: "Label", type: "text", required: true, placeholder: "e.g. 2026 Q3, Jul 2026, 2026" },
@@ -192,6 +243,62 @@ export const DATASETS: DatasetSpec[] = [
 
 export function getDataset(slug: string): DatasetSpec | undefined {
   return DATASETS.find((d) => d.slug === slug);
+}
+
+/** Singular label for use mid-sentence — keeps acronyms like MDA/LGA intact. */
+export function singularLabel(spec: DatasetSpec): string {
+  const s = spec.labelSingular;
+  return s === s.toUpperCase() ? s : s.toLowerCase();
+}
+
+/** Raw records of a dataset from the loaded dashboard snapshot. */
+export function recordsOf(data: DashboardData, spec: DatasetSpec): Array<Record<string, unknown>> {
+  return data[spec.collection] as unknown as Array<Record<string, unknown>>;
+}
+
+export function findRecord(
+  data: DashboardData,
+  spec: DatasetSpec,
+  id: string
+): Record<string, unknown> | undefined {
+  return recordsOf(data, spec).find((r) => String(r.id) === id);
+}
+
+/** Display rows of a child dataset scoped to one parent record. */
+export function childRows(
+  data: DashboardData,
+  child: ChildSpec,
+  parentId: string
+): Array<{ id: string; title: string; subtitle: string }> {
+  const spec = getDataset(child.slug);
+  if (!spec) return [];
+  const ids = new Set(
+    recordsOf(data, spec)
+      .filter((r) => String(r[child.foreignKey]) === parentId)
+      .map((r) => String(r.id))
+  );
+  return spec.list(data).filter((row) => ids.has(row.id));
+}
+
+/** Human-readable value for a record field (resolves select references). */
+export function displayValue(data: DashboardData, field: FieldSpec, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const opts = field.optionsFrom ? optionsFor(data, field.optionsFrom) : field.options;
+  if (opts) return opts.find((o) => o.value === String(value))?.label ?? String(value);
+  return typeof value === "number" ? value.toLocaleString() : String(value);
+}
+
+/** Select options keyed by field name — for modal forms. */
+export function optionsByField(
+  data: DashboardData,
+  fields: FieldSpec[]
+): Record<string, Array<{ value: string; label: string }>> {
+  const out: Record<string, Array<{ value: string; label: string }>> = {};
+  for (const f of fields) {
+    if (f.optionsFrom) out[f.name] = optionsFor(data, f.optionsFrom);
+    else if (f.options) out[f.name] = f.options;
+  }
+  return out;
 }
 
 export function optionsFor(

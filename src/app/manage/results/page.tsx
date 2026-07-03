@@ -112,7 +112,7 @@ export default async function ResultsEntryPage({
           <div className="sm:col-span-2">
             <button
               type="submit"
-              className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
+              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
             >
               Save result
             </button>
@@ -131,10 +131,10 @@ export default async function ResultsEntryPage({
         </ol>
         <div className="mt-4 flex flex-wrap gap-2">
           <ActionLink href="/api/csv-template" download>
-            ↓ Template — state-level results
+            Template — state-level results
           </ActionLink>
           <ActionLink href="/api/csv-template?scope=entities" download>
-            ↓ Template — entity-level results
+            Template — entity-level results
           </ActionLink>
         </div>
         <form action={importResultsCsv} className="mt-5 border-t border-zinc-100 pt-4">
@@ -148,7 +148,7 @@ export default async function ResultsEntryPage({
             />
             <button
               type="submit"
-              className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
+              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
             >
               Upload results
             </button>

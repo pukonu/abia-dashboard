@@ -29,7 +29,8 @@ function fail(backTo: string, message: string): never {
 
 function ok(backTo: string, message: string): never {
   revalidatePath("/", "layout");
-  redirect(`${backTo}?msg=${encodeURIComponent(message)}`);
+  const url = message ? `${backTo}?msg=${encodeURIComponent(message)}` : backTo;
+  redirect(url);
 }
 
 function numOrNull(v: FormDataEntryValue | null): number | null {
@@ -44,12 +45,18 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
   return s || null;
 }
 
+/** Optional `_back` field lets detail-page forms return to the tab they came from. */
+function resolveBack(formData: FormData, fallback: string): string {
+  const b = strOrNull(formData.get("_back"));
+  return b && b.startsWith("/manage") ? b : fallback;
+}
+
 /* ------------------------------------------------------------------ */
 /* Generic dataset create / delete                                     */
 /* ------------------------------------------------------------------ */
 
 export async function createRecord(slug: string, formData: FormData) {
-  const backTo = `/manage/${slug}`;
+  const backTo = resolveBack(formData, `/manage/${slug}`);
   const spec = getDataset(slug);
   if (!spec) fail("/manage", "Unknown dataset.");
   const admin = await requireAdmin(backTo);
@@ -70,7 +77,7 @@ export async function createRecord(slug: string, formData: FormData) {
 }
 
 export async function deleteRecord(slug: string, formData: FormData) {
-  const backTo = `/manage/${slug}`;
+  const backTo = resolveBack(formData, `/manage/${slug}`);
   const spec = getDataset(slug);
   if (!spec) fail("/manage", "Unknown dataset.");
   const admin = await requireAdmin(backTo);
@@ -81,6 +88,54 @@ export async function deleteRecord(slug: string, formData: FormData) {
   const { error } = await admin.from(spec.table).delete().eq("id", id);
   if (error) fail(backTo, `Could not delete: ${error.message}`);
   ok(backTo, `${spec.labelSingular} deleted.`);
+}
+
+export async function updateRecord(slug: string, id: string, formData: FormData) {
+  const backTo = resolveBack(formData, `/manage/${slug}/${id}`);
+  const spec = getDataset(slug);
+  if (!spec) fail("/manage", "Unknown dataset.");
+  const admin = await requireAdmin(backTo);
+
+  const row: Record<string, unknown> = {};
+  for (const field of spec.fields) {
+    const raw = formData.get(field.name);
+    const value = field.type === "number" ? numOrNull(raw) : strOrNull(raw);
+    if (field.required && value === null) {
+      fail(backTo, `${field.label} is required.`);
+    }
+    row[field.name] = value;
+  }
+
+  const { error } = await admin.from(spec.table).update(row).eq("id", id);
+  if (error) fail(backTo, `Could not save: ${error.message}`);
+  const quiet = formData.get("_quiet") === "1";
+  ok(backTo, quiet ? "" : `${spec.labelSingular} updated.`);
+}
+
+/** Partial update — only fields present in the submitted form are written. */
+export async function patchRecord(slug: string, id: string, formData: FormData) {
+  const backTo = resolveBack(formData, `/manage/${slug}/${id}`);
+  const spec = getDataset(slug);
+  if (!spec) fail("/manage", "Unknown dataset.");
+  const admin = await requireAdmin(backTo);
+
+  const row: Record<string, unknown> = {};
+  for (const field of spec.fields) {
+    if (!formData.has(field.name)) continue;
+    const raw = formData.get(field.name);
+    const value = field.type === "number" ? numOrNull(raw) : strOrNull(raw);
+    if (field.required && (value === null || value === "")) {
+      fail(backTo, `${field.label} is required.`);
+    }
+    row[field.name] = value;
+  }
+
+  if (Object.keys(row).length === 0) return;
+
+  const { error } = await admin.from(spec.table).update(row).eq("id", id);
+  if (error) fail(backTo, `Could not save: ${error.message}`);
+  const quiet = formData.get("_quiet") === "1";
+  ok(backTo, quiet ? "" : `${spec.labelSingular} updated.`);
 }
 
 /* ------------------------------------------------------------------ */

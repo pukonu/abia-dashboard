@@ -39,10 +39,10 @@ export default async function SectorsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex h-11 w-11 items-center justify-center rounded-xl text-xl"
+                    className="flex h-11 w-11 items-center justify-center rounded-xl"
                     style={{ backgroundColor: `${s.color}18` }}
                   >
-                    {s.icon}
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
                   </span>
                   <div>
                     <div className="text-base font-semibold text-zinc-900 group-hover:text-abia-dark">{s.name}</div>

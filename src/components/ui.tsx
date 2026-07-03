@@ -1,3 +1,4 @@
+import { ChevronRight, Download } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -76,7 +77,7 @@ export function RowLink({
       <div className="min-w-0 flex-1">{left}</div>
       <div className="flex shrink-0 items-center gap-3">
         {right}
-        <span className="text-zinc-300">›</span>
+        <ChevronRight className="h-4 w-4 text-zinc-300" strokeWidth={1.5} />
       </div>
     </Link>
   );
@@ -84,6 +85,33 @@ export function RowLink({
 
 export function CardList({ children }: { children: ReactNode }) {
   return <div className="card divide-y divide-zinc-100 overflow-hidden">{children}</div>;
+}
+
+/** Link-based tab bar; the active tab is driven by a search param. */
+export function Tabs({
+  items,
+  active,
+}: {
+  items: Array<{ id: string; label: string; href: string }>;
+  active: string;
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap gap-1 border-b border-zinc-200">
+      {items.map((t) => (
+        <Link
+          key={t.id}
+          href={t.href}
+          className={`-mb-px whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium transition-colors ${
+            active === t.id
+              ? "border-zinc-900 text-zinc-900"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
+        >
+          {t.label}
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 /** Understated button-style link, used for report downloads and CTAs. */
@@ -102,12 +130,13 @@ export function ActionLink({
     <a
       href={href}
       download={download}
-      className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-colors ${
         primary
           ? "bg-zinc-950 text-white hover:bg-zinc-800"
           : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
       }`}
     >
+      <Download className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
       {children}
     </a>
   );

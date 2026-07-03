@@ -1,18 +1,27 @@
 "use client";
 
+import {
+  Gauge,
+  Landmark,
+  LayoutDashboard,
+  LayoutGrid,
+  Map,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { DataMode } from "@/lib/types";
 
-const NAV = [
-  { href: "/", label: "Overview", icon: "◉" },
-  { href: "/sectors", label: "Sectors", icon: "▦" },
-  { href: "/lgas", label: "LGAs", icon: "⬢" },
-  { href: "/mdas", label: "MDAs", icon: "▤" },
-  { href: "/indicators", label: "Indicators", icon: "≣" },
-  { href: "/manage", label: "Manage", icon: "✎" },
+const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
+  { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/sectors", label: "Sectors", icon: LayoutGrid },
+  { href: "/lgas", label: "LGAs", icon: Map },
+  { href: "/mdas", label: "MDAs", icon: Landmark },
+  { href: "/indicators", label: "Indicators", icon: Gauge },
+  { href: "/manage", label: "Manage", icon: Settings },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -133,7 +142,7 @@ export default function AppShell({
                   : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
               }`}
             >
-              <span className="w-5 text-center text-base opacity-80">{item.icon}</span>
+              <item.icon className="h-[18px] w-[18px] shrink-0 opacity-80" strokeWidth={1.5} />
               {item.label}
             </Link>
           ))}
@@ -178,7 +187,7 @@ export default function AppShell({
               isActive(pathname, item.href) ? "text-zinc-950" : "text-zinc-400"
             }`}
           >
-            <span className="text-base leading-none">{item.icon}</span>
+            <item.icon className="h-5 w-5" strokeWidth={1.5} />
             {item.label}
           </Link>
         ))}

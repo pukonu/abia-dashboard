@@ -59,7 +59,7 @@ export default async function EntityPage({
         ]}
       />
       <PageHeader
-        eyebrow={`${ec.sector.icon} ${entity.entity_type}`}
+        eyebrow={entity.entity_type}
         title={entity.name}
         subtitle={`Run by ${ec.mda.name} · Located in ${ec.lga.name} LGA (${ec.lga.zone})`}
       />
