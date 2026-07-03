@@ -3,7 +3,7 @@
 
 This workbook defines *facility/entity-level* PHC indicators. We ignore
 domain 00.x ("Facility Identity & Catchment Context") and import domains
-01..09 under the Primary Healthcare thematic area.
+01..09 under the dedicated PHC facilities thematic area.
 
 For each workbook row we create:
   - one state-level rollup parent indicator
@@ -32,7 +32,8 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 XLSX_PATH = Path("/Users/prologic/Downloads/Abia_PHC_Facility_Indicator_Framework.xlsx")
 
-THEMATIC_AREA_ID = "b92bd03f-9f06-465b-bf8b-64cfb1ecedf7"  # Primary Healthcare
+HEALTH_SECTOR_SLUG = "health"
+THEMATIC_AREA_NAME = "Primary Healthcare Facilities (PHCs)"
 
 XML_NS = {
     "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -86,6 +87,9 @@ class Supabase:
             rows,
             prefer="return=representation,resolution=merge-duplicates",
         )
+
+    def select(self, path: str):
+        return self._call("GET", path)
 
 
 def load_sheet_rows(path: Path) -> list[list[str]]:
@@ -359,6 +363,28 @@ def main() -> int:
     env = load_env()
     sb = Supabase(env["NEXT_PUBLIC_SUPABASE_URL"], env["SUPABASE_SERVICE_ROLE_KEY"])
 
+    health_sector = sb.select(f"sectors?select=id,name&slug=eq.{HEALTH_SECTOR_SLUG}")[0]
+    thematic_area = sb.upsert(
+        "thematic_areas",
+        [
+            {
+                "sector_id": health_sector["id"],
+                "name": THEMATIC_AREA_NAME,
+                "description": "Facility-level PHC readiness, service delivery, quality, reporting and accountability indicators.",
+                "frequency": "quarterly",
+                "weight": 1,
+            }
+        ],
+        on_conflict="sector_id,name",
+    )[0]
+
+    domains = [
+        {
+            **domain,
+            "thematic_area_id": thematic_area["id"],
+        }
+        for domain in domains
+    ]
     domain_rows = sb.upsert("domains", domains, on_conflict="thematic_area_id,name")
     domain_id_by_name = {row["name"]: row["id"] for row in domain_rows}
 

@@ -22,9 +22,9 @@ function splitCode(name: string): { code: string | null; text: string } {
 export default async function IndicatorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sector?: string }>;
+  searchParams: Promise<{ sector?: string; thematic?: string }>;
 }) {
-  const { sector: sectorParam } = await searchParams;
+  const { sector: sectorParam, thematic: thematicParam } = await searchParams;
   const data = await loadDashboardData();
   const c = computeDashboard(data);
 
@@ -74,11 +74,27 @@ export default async function IndicatorsPage({
     })
     .filter((g) => g.count > 0);
 
+  const thematicCards = grouped.flatMap(({ sector, thematicGroups }) =>
+    thematicGroups.map(({ thematicArea, domains, score }) => ({
+      sector,
+      thematicArea,
+      domains,
+      score,
+      indicatorCount: domains.reduce((sum, domain) => sum + domain.items.length, 0),
+    }))
+  );
+
+  const selectedThematic = thematicCards.find(({ thematicArea }) => thematicArea.id === thematicParam) ?? null;
+
   return (
     <>
       <PageHeader
         title="Indicators"
-        subtitle="Every measured indicator with Abia's latest result, the national comparison and the official target."
+        subtitle={
+          selectedThematic
+            ? `${selectedThematic.thematicArea.name} indicators with Abia's latest result, the national comparison and the official target.`
+            : "Browse indicators by thematic area, then drill into the detailed view."
+        }
       />
 
       <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
@@ -105,84 +121,121 @@ export default async function IndicatorsPage({
         ))}
       </div>
 
-      {grouped.map(({ sector, count, thematicGroups }) => (
-        <section key={sector.id}>
-          <SectionTitle>
-            {sector.name} · {count} indicators
-          </SectionTitle>
-          <div className="space-y-8">
-            {thematicGroups.map(({ thematicArea, domains, score }) => (
-              <div key={thematicArea.id}>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      {!selectedThematic ? (
+        <>
+          <SectionTitle hint="Choose a thematic area to drill in">Thematic Areas</SectionTitle>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {thematicCards.map(({ sector, thematicArea, domains, score, indicatorCount }) => (
+              <Link
+                key={thematicArea.id}
+                href={`/indicators?${new URLSearchParams(
+                  [
+                    activeSector ? ["sector", activeSector.slug] : null,
+                    ["thematic", thematicArea.id],
+                  ].filter(Boolean) as string[][]
+                ).toString()}`}
+                className="card card-pad group transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="display text-base font-semibold text-zinc-900">{thematicArea.name}</h3>
-                    <p className="text-xs text-zinc-500">
-                      {domains.length} domain{domains.length === 1 ? "" : "s"} · reported {thematicArea.frequency}
-                    </p>
+                    <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      {sector.name}
+                    </div>
+                    <h3 className="mt-1 text-base font-semibold text-zinc-900 group-hover:text-abia-dark">
+                      {thematicArea.name}
+                    </h3>
                   </div>
-                  <ScoreBadge score={score} showLabel />
+                  <ScoreBadge score={score} />
                 </div>
-                <div className="space-y-4">
-                  {domains.map(({ domain, items, score: domainScore }) => (
-                    <section key={domain.id} className="card overflow-hidden">
-                      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
-                        <div className="min-w-0">
-                          <h4 className="display truncate text-sm font-semibold text-zinc-900">{domain.name}</h4>
-                          <BenchmarkLine
-                            abia={domainScore}
-                            nigeria={domain.benchmark_nigeria}
-                            target={domain.benchmark_target}
-                          />
-                          {domain.description && (
-                            <p className="mt-0.5 truncate text-xs text-zinc-500">{domain.description}</p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <span className="text-xs text-zinc-400">
-                            {items.length} indicator{items.length === 1 ? "" : "s"}
+                <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{thematicArea.description}</p>
+                <div className="mt-4 flex items-center justify-between text-xs text-zinc-400">
+                  <span>
+                    {domains.length} domain{domains.length === 1 ? "" : "s"}
+                  </span>
+                  <span>
+                    {indicatorCount} indicator{indicatorCount === 1 ? "" : "s"}
+                  </span>
+                  <span>{thematicArea.frequency}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : (
+        <section>
+          <SectionTitle hint={`${selectedThematic.sector.name} · ${selectedThematic.thematicArea.frequency} reporting`}>
+            {selectedThematic.thematicArea.name}
+          </SectionTitle>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-3xl text-sm text-zinc-500">{selectedThematic.thematicArea.description}</p>
+            <div className="flex items-center gap-3">
+              <ScoreBadge score={selectedThematic.score} showLabel />
+              <Link
+                href={activeSector ? `/indicators?sector=${activeSector.slug}` : "/indicators"}
+                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+              >
+                Back to thematic areas
+              </Link>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {selectedThematic.domains.map(({ domain, items, score: domainScore }) => (
+              <section key={domain.id} className="card overflow-hidden">
+                <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
+                  <div className="min-w-0">
+                    <h4 className="display truncate text-sm font-semibold text-zinc-900">{domain.name}</h4>
+                    <BenchmarkLine
+                      abia={domainScore}
+                      nigeria={domain.benchmark_nigeria}
+                      target={domain.benchmark_target}
+                    />
+                    {domain.description && (
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">{domain.description}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs text-zinc-400">
+                      {items.length} indicator{items.length === 1 ? "" : "s"}
+                    </span>
+                    <ScoreBadge score={domainScore} />
+                  </div>
+                </header>
+                <div className="divide-y divide-zinc-100">
+                  {items.map((i) => {
+                    const { code, text } = splitCode(i.indicator.name);
+                    return (
+                      <Link
+                        key={i.indicator.id}
+                        href={`/indicators/${i.indicator.id}`}
+                        className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
+                      >
+                        {code && (
+                          <span className="w-10 shrink-0 font-mono text-xs font-semibold text-zinc-400">
+                            {code}
                           </span>
-                          <ScoreBadge score={domainScore} />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm text-zinc-800">{text}</div>
+                          <IndicatorResultLine
+                            result={i.latest?.abia ?? null}
+                            nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
+                            target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
+                            unit={i.indicator.unit}
+                            targetSource={i.indicator.target_source}
+                          />
                         </div>
-                      </header>
-                      <div className="divide-y divide-zinc-100">
-                        {items.map((i) => {
-                          const { code, text } = splitCode(i.indicator.name);
-                          return (
-                            <Link
-                              key={i.indicator.id}
-                              href={`/indicators/${i.indicator.id}`}
-                              className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
-                            >
-                              {code && (
-                                <span className="w-10 shrink-0 font-mono text-xs font-semibold text-zinc-400">
-                                  {code}
-                                </span>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm text-zinc-800">{text}</div>
-                                <IndicatorResultLine
-                                  result={i.latest?.abia ?? null}
-                                  nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
-                                  target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
-                                  unit={i.indicator.unit}
-                                  targetSource={i.indicator.target_source}
-                                />
-                              </div>
-                              <span className="w-28 shrink-0 sm:w-36">
-                                <ScoreBar score={i.score} />
-                              </span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
+                        <span className="w-28 shrink-0 sm:w-36">
+                          <ScoreBar score={i.score} />
+                        </span>
+                      </Link>
+                    );
+                  })}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </section>
-      ))}
+      )}
     </>
   );
 }

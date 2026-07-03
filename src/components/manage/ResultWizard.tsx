@@ -61,6 +61,7 @@ export interface WizardExistingResult {
   abiaValue: number;
   nigeriaValue: number | null;
   notes: string | null;
+  evidenceCount: number;
 }
 
 type RowSaveAction = (
@@ -494,7 +495,11 @@ export default function ResultWizard({
             <div className="text-right">
               <div className="text-xs font-medium text-zinc-600">Rows save automatically when you leave them.</div>
               <div className="mt-0.5 text-[11px] text-zinc-400">
-                {filledCount > 0 ? `${filledCount} row${filledCount === 1 ? "" : "s"} currently filled` : "Start typing to save"}
+                {filledCount + existingResultByIndicator.size > 0
+                  ? `${filledCount + existingResultByIndicator.size} row${
+                      filledCount + existingResultByIndicator.size === 1 ? "" : "s"
+                    } currently filled`
+                  : "Start typing to save"}
               </div>
             </div>
           )}
@@ -680,6 +685,7 @@ function RowBlock({
   saveRowAction: RowSaveAction;
 }) {
   const rowHasValue = hasValue || existingResult !== null;
+  const existingEvidenceCount = existingResult?.evidenceCount ?? 0;
   const {
     rootRef,
     status,
@@ -780,6 +786,11 @@ function RowBlock({
         </td>
         <td className="px-3 py-2 align-top text-right">
           <div className="flex flex-col items-end gap-2">
+          {existingEvidenceCount > 0 && (
+            <span className="text-[11px] text-zinc-400">
+              {existingEvidenceCount} attachment{existingEvidenceCount === 1 ? "" : "s"}
+            </span>
+          )}
           {rowHasValue ? (
             <button
               type="button"
@@ -923,6 +934,7 @@ function MobileRowCard({
   saveRowAction: RowSaveAction;
 }) {
   const rowHasValue = hasValue || existingResult !== null;
+  const existingEvidenceCount = existingResult?.evidenceCount ?? 0;
   const {
     rootRef,
     status,
@@ -1028,18 +1040,25 @@ function MobileRowCard({
       </label>
 
       <div className="flex flex-wrap items-start justify-between gap-2">
-        {rowHasValue ? (
-          <button
-            type="button"
-            onClick={() => onToggleEvidence(indicator.id)}
-            className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
-          >
-            <Paperclip className="h-3 w-3" strokeWidth={2} />
-            {evidenceOpen ? "Hide attachment" : "Attach evidence"}
-          </button>
-        ) : (
-          <span className="pt-1 text-[11px] text-zinc-300">Add a value first</span>
-        )}
+        <div className="space-y-1">
+          {existingEvidenceCount > 0 && (
+            <div className="text-[11px] text-zinc-400">
+              {existingEvidenceCount} attachment{existingEvidenceCount === 1 ? "" : "s"}
+            </div>
+          )}
+          {rowHasValue ? (
+            <button
+              type="button"
+              onClick={() => onToggleEvidence(indicator.id)}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              <Paperclip className="h-3 w-3" strokeWidth={2} />
+              {evidenceOpen ? "Hide attachment" : "Attach evidence"}
+            </button>
+          ) : (
+            <span className="pt-1 text-[11px] text-zinc-300">Add a value first</span>
+          )}
+        </div>
         {(status !== "idle" || isPending) && (
           <span className={`max-w-40 text-right text-[11px] ${status === "error" ? "text-red-600" : "text-zinc-400"}`}>
             {isPending ? "Saving…" : statusText}

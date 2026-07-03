@@ -64,6 +64,11 @@ export default async function ResultsEntryPage({
     .sort((a, b) => b.start_date.localeCompare(a.start_date))
     .map((p) => ({ id: p.id, label: p.label, frequency: p.frequency }));
 
+  const evidenceCountByResultId = new Map<string, number>();
+  for (const item of data.evidence) {
+    evidenceCountByResultId.set(item.result_id, (evidenceCountByResultId.get(item.result_id) ?? 0) + 1);
+  }
+
   const existingResults = data.results.map((result) => ({
     indicatorId: result.indicator_id,
     timePeriodId: result.time_period_id,
@@ -71,6 +76,7 @@ export default async function ResultsEntryPage({
     abiaValue: result.abia_value,
     nigeriaValue: result.nigeria_value,
     notes: result.notes ?? null,
+    evidenceCount: evidenceCountByResultId.get(result.id) ?? 0,
   }));
 
   return (
