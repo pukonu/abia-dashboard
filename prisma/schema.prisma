@@ -1,0 +1,185 @@
+// Abia State Dashboard — Prisma schema
+// Prisma is the migration tool for the Supabase Postgres database:
+//   npx prisma migrate dev --name <change>   (development)
+//   npx prisma migrate deploy                (production)
+// Note: Supabase RLS policies are plain SQL — add them in a migration
+// (see supabase/schema.sql for the reference policies).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Frequency {
+  daily
+  weekly
+  monthly
+  quarterly
+  yearly
+
+  @@map("frequency")
+}
+
+enum Direction {
+  higher_is_better
+  lower_is_better
+
+  @@map("direction")
+}
+
+model Sector {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String         @unique
+  name          String
+  description   String?
+  icon          String?
+  color         String?
+  sortOrder     Int            @default(0) @map("sort_order")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  mdas          Mda[]
+  thematicAreas ThematicArea[]
+
+  @@map("sectors")
+}
+
+model Lga {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @unique
+  zone       String?
+  population Int?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  entities   Entity[]
+
+  @@map("lgas")
+}
+
+model Mda {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectorId     String   @map("sector_id") @db.Uuid
+  name         String
+  abbreviation String?
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  sector       Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  entities     Entity[]
+
+  @@unique([sectorId, name])
+  @@map("mdas")
+}
+
+model Entity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mdaId       String   @map("mda_id") @db.Uuid
+  lgaId       String   @map("lga_id") @db.Uuid
+  name        String
+  entityType  String?  @map("entity_type")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  mda         Mda      @relation(fields: [mdaId], references: [id], onDelete: Cascade)
+  lga         Lga      @relation(fields: [lgaId], references: [id], onDelete: Restrict)
+  results     Result[]
+
+  @@unique([mdaId, name])
+  @@index([lgaId], map: "idx_entities_lga")
+  @@index([mdaId], map: "idx_entities_mda")
+  @@map("entities")
+}
+
+model ThematicArea {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectorId    String    @map("sector_id") @db.Uuid
+  name        String
+  description String?
+  frequency   Frequency @default(quarterly)
+  weight      Decimal   @default(1) @db.Decimal
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  sector      Sector    @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  domains     Domain[]
+
+  @@unique([sectorId, name])
+  @@map("thematic_areas")
+}
+
+model Domain {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  thematicAreaId String       @map("thematic_area_id") @db.Uuid
+  name           String
+  description    String?
+  weight         Decimal      @default(1) @db.Decimal
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  thematicArea   ThematicArea @relation(fields: [thematicAreaId], references: [id], onDelete: Cascade)
+  indicators     Indicator[]
+
+  @@unique([thematicAreaId, name])
+  @@map("domains")
+}
+
+model Indicator {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  domainId     String    @map("domain_id") @db.Uuid
+  name         String
+  description  String?
+  unit         String    @default("%")
+  direction    Direction @default(higher_is_better)
+  targetValue  Decimal?  @map("target_value") @db.Decimal
+  targetSource String?   @map("target_source")
+  weight       Decimal   @default(1) @db.Decimal
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  domain       Domain    @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  results      Result[]
+
+  @@unique([domainId, name])
+  @@map("indicators")
+}
+
+model TimePeriod {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  frequency Frequency
+  label     String
+  startDate DateTime  @map("start_date") @db.Date
+  endDate   DateTime  @map("end_date") @db.Date
+  results   Result[]
+
+  @@unique([frequency, startDate])
+  @@map("time_periods")
+}
+
+model Result {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  indicatorId  String           @map("indicator_id") @db.Uuid
+  timePeriodId String           @map("time_period_id") @db.Uuid
+  entityId     String?          @map("entity_id") @db.Uuid
+  abiaValue    Decimal          @map("abia_value") @db.Decimal
+  nigeriaValue Decimal?         @map("nigeria_value") @db.Decimal
+  targetValue  Decimal?         @map("target_value") @db.Decimal
+  notes        String?
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime         @default(now()) @map("updated_at") @db.Timestamptz
+  indicator    Indicator        @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  timePeriod   TimePeriod       @relation(fields: [timePeriodId], references: [id], onDelete: Cascade)
+  entity       Entity?          @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  evidence     ResultEvidence[]
+
+  @@index([indicatorId], map: "idx_results_indicator")
+  @@index([timePeriodId], map: "idx_results_period")
+  @@index([entityId], map: "idx_results_entity")
+  @@map("results")
+}
+
+/// Evidence images backing a result, stored in the Supabase Storage
+/// bucket named by NEXT_PUBLIC_EVIDENCE_BUCKET.
+model ResultEvidence {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resultId    String   @map("result_id") @db.Uuid
+  storagePath String   @map("storage_path")
+  caption     String?
+  uploadedAt  DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
+  result      Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@index([resultId], map: "idx_result_evidence_result")
+  @@map("result_evidence")
+}

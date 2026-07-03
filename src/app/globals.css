@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f4f5; /* zinc-100 */
+  --foreground: #18181b; /* zinc-900 */
+  --abia-green: #14683c;
+  --abia-green-dark: #0c4f2c;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-abia: var(--abia-green);
+  --color-abia-dark: var(--abia-green-dark);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-fraunces), "Lora", Georgia, serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Executive cards */
+.card {
+  @apply rounded-2xl border border-zinc-200 bg-white shadow-sm;
+}
+
+.card-pad {
+  @apply p-4 sm:p-5;
+}
+
+/* Serif embellishment for headline figures and titles */
+.display {
+  @apply font-serif tracking-tight;
+}
+
+/* Hide scrollbars on horizontal scrollers while keeping them scrollable */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
