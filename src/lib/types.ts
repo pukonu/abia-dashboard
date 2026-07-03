@@ -96,6 +96,7 @@ export interface Result {
   abia_value: number;
   nigeria_value: number | null;
   target_value: number | null; // period override; falls back to indicator.target_value
+  notes?: string | null;
 }
 
 export interface ResultEvidence {

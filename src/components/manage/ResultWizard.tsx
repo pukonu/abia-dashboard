@@ -54,6 +54,15 @@ export interface WizardPeriod {
   frequency: string;
 }
 
+export interface WizardExistingResult {
+  indicatorId: string;
+  timePeriodId: string;
+  entityId: string | null;
+  abiaValue: number;
+  nigeriaValue: number | null;
+  notes: string | null;
+}
+
 type RowSaveAction = (
   formData: FormData
 ) => Promise<{ ok: true; uploaded: number } | { ok: false; error: string }>;
@@ -113,6 +122,7 @@ export default function ResultWizard({
   domains,
   thematicAreas,
   periods,
+  existingResults,
   saveRowAction,
   disabled = false,
 }: {
@@ -123,6 +133,7 @@ export default function ResultWizard({
   domains: WizardDomain[];
   thematicAreas: WizardThematicArea[];
   periods: WizardPeriod[];
+  existingResults: WizardExistingResult[];
   saveRowAction: RowSaveAction;
   disabled?: boolean;
 }) {
@@ -178,6 +189,20 @@ export default function ResultWizard({
   const matches = (g: { domain: WizardDomain; indicators: WizardIndicator[] }, i: WizardIndicator) =>
     !query || `${i.name} ${g.domain.name}`.toLowerCase().includes(query);
   const visibleCount = grid.reduce((n, g) => n + g.indicators.filter((i) => matches(g, i)).length, 0);
+  const existingResultKey = entityId === "" ? "__state__" : entityId ?? "__unset__";
+  const existingResultByIndicator = useMemo(
+    () =>
+      new Map(
+        existingResults
+          .filter(
+            (result) =>
+              result.timePeriodId === periodId &&
+              (result.entityId ?? "__state__") === existingResultKey
+          )
+          .map((result) => [result.indicatorId, result] as const)
+      ),
+    [existingResults, periodId, existingResultKey]
+  );
 
   /** Periods matching the sector's dominant frequency, falling back to all. */
   const gridPeriods = useMemo(() => {
@@ -408,6 +433,7 @@ export default function ResultWizard({
                       onToggleEvidence={toggleEvidenceRow}
                       entityId={entityId ?? ""}
                       timePeriodId={periodId}
+                      existingResultByIndicator={existingResultByIndicator}
                       saveRowAction={saveRowAction}
                     />
                   ))}
@@ -435,6 +461,7 @@ export default function ResultWizard({
                       onToggleEvidence={toggleEvidenceRow}
                       entityId={entityId ?? ""}
                       timePeriodId={periodId}
+                      existingResultByIndicator={existingResultByIndicator}
                       saveRowAction={saveRowAction}
                     />
                   ))}
@@ -487,6 +514,7 @@ function SectionRows({
   onToggleEvidence,
   entityId,
   timePeriodId,
+  existingResultByIndicator,
   saveRowAction,
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
@@ -498,6 +526,7 @@ function SectionRows({
   onToggleEvidence: (indicatorId: string) => void;
   entityId: string;
   timePeriodId: string;
+  existingResultByIndicator: Map<string, WizardExistingResult>;
   saveRowAction: RowSaveAction;
 }) {
   const cols = statewide ? 5 : 4;
@@ -514,7 +543,7 @@ function SectionRows({
       </tbody>
       {group.indicators.map((i) => (
         <RowBlock
-          key={i.id}
+          key={`${i.id}:${entityId}:${timePeriodId}`}
           indicator={i}
           statewide={statewide}
           visible={isVisible(i)}
@@ -525,6 +554,7 @@ function SectionRows({
           onToggleEvidence={onToggleEvidence}
           entityId={entityId}
           timePeriodId={timePeriodId}
+          existingResult={existingResultByIndicator.get(i.id) ?? null}
           saveRowAction={saveRowAction}
         />
       ))}
@@ -536,18 +566,20 @@ function useRowSaveState({
   indicator,
   entityId,
   timePeriodId,
+  existingResult,
   saveRowAction,
 }: {
   indicator: WizardIndicator;
   entityId: string;
   timePeriodId: string;
+  existingResult: WizardExistingResult | null;
   saveRowAction: RowSaveAction;
 }) {
   const rootRef = useRef<HTMLElement | null>(null);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [statusText, setStatusText] = useState("");
-  const [currentValue, setCurrentValue] = useState("");
+  const [currentValue, setCurrentValue] = useState(existingResult ? String(existingResult.abiaValue) : "");
   const [isPending, startTransition] = useTransition();
 
   const submitRow = (reason: "blur" | "files" | "change", force = false) => {
@@ -631,6 +663,7 @@ function RowBlock({
   onToggleEvidence,
   entityId,
   timePeriodId,
+  existingResult,
   saveRowAction,
 }: {
   indicator: WizardIndicator;
@@ -643,8 +676,10 @@ function RowBlock({
   onToggleEvidence: (indicatorId: string) => void;
   entityId: string;
   timePeriodId: string;
+  existingResult: WizardExistingResult | null;
   saveRowAction: RowSaveAction;
 }) {
+  const rowHasValue = hasValue || existingResult !== null;
   const {
     rootRef,
     status,
@@ -655,7 +690,7 @@ function RowBlock({
     markDirty,
     clearIfEmpty,
     submitRow,
-  } = useRowSaveState({ indicator, entityId, timePeriodId, saveRowAction });
+  } = useRowSaveState({ indicator, entityId, timePeriodId, existingResult, saveRowAction });
 
   return (
     <>
@@ -683,7 +718,7 @@ function RowBlock({
           {indicator.valueType === "score" && indicator.scoreOptions.length >= 2 ? (
             <select
               name={`value_${indicator.id}`}
-              defaultValue=""
+              defaultValue={existingResult ? String(existingResult.abiaValue) : ""}
               onChange={(e) => {
                 onValueChange(indicator.id, e.target.value.trim() !== "");
                 setCurrentValue(e.target.value);
@@ -709,6 +744,7 @@ function RowBlock({
               max={indicator.valueType === "percentage" ? 100 : undefined}
               name={`value_${indicator.id}`}
               placeholder="—"
+              defaultValue={existingResult ? String(existingResult.abiaValue) : ""}
               onChange={(e) => {
                 onValueChange(indicator.id, e.target.value.trim() !== "");
                 setCurrentValue(e.target.value);
@@ -726,6 +762,7 @@ function RowBlock({
               step="any"
               name={`nigeria_${indicator.id}`}
               placeholder="—"
+              defaultValue={existingResult?.nigeriaValue == null ? "" : String(existingResult.nigeriaValue)}
               onChange={markDirty}
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
             />
@@ -736,13 +773,14 @@ function RowBlock({
             type="text"
             name={`notes_${indicator.id}`}
             placeholder="Optional"
+            defaultValue={existingResult?.notes ?? ""}
             onChange={markDirty}
             className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
           />
         </td>
         <td className="px-3 py-2 align-top text-right">
           <div className="flex flex-col items-end gap-2">
-          {hasValue ? (
+          {rowHasValue ? (
             <button
               type="button"
               onClick={() => onToggleEvidence(indicator.id)}
@@ -766,7 +804,7 @@ function RowBlock({
           </div>
         </td>
       </tr>
-      {visible && hasValue && evidenceOpen && (
+      {visible && rowHasValue && evidenceOpen && (
         <tr className="border-b border-zinc-100 bg-zinc-50/40">
           <td colSpan={colSpan} className="px-4 py-3">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
@@ -817,6 +855,7 @@ function MobileSectionCards({
   onToggleEvidence,
   entityId,
   timePeriodId,
+  existingResultByIndicator,
   saveRowAction,
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
@@ -828,6 +867,7 @@ function MobileSectionCards({
   onToggleEvidence: (indicatorId: string) => void;
   entityId: string;
   timePeriodId: string;
+  existingResultByIndicator: Map<string, WizardExistingResult>;
   saveRowAction: RowSaveAction;
 }) {
   const visibleIndicators = group.indicators.filter(isVisible);
@@ -841,7 +881,7 @@ function MobileSectionCards({
       <div className="divide-y divide-zinc-100">
         {visibleIndicators.map((indicator) => (
           <MobileRowCard
-            key={`mobile-row-${indicator.id}`}
+            key={`mobile-row-${indicator.id}:${entityId}:${timePeriodId}`}
             indicator={indicator}
             statewide={statewide}
             hasValue={filledRowIds.includes(indicator.id)}
@@ -850,6 +890,7 @@ function MobileSectionCards({
             onToggleEvidence={onToggleEvidence}
             entityId={entityId}
             timePeriodId={timePeriodId}
+            existingResult={existingResultByIndicator.get(indicator.id) ?? null}
             saveRowAction={saveRowAction}
           />
         ))}
@@ -867,6 +908,7 @@ function MobileRowCard({
   onToggleEvidence,
   entityId,
   timePeriodId,
+  existingResult,
   saveRowAction,
 }: {
   indicator: WizardIndicator;
@@ -877,8 +919,10 @@ function MobileRowCard({
   onToggleEvidence: (indicatorId: string) => void;
   entityId: string;
   timePeriodId: string;
+  existingResult: WizardExistingResult | null;
   saveRowAction: RowSaveAction;
 }) {
+  const rowHasValue = hasValue || existingResult !== null;
   const {
     rootRef,
     status,
@@ -889,7 +933,7 @@ function MobileRowCard({
     markDirty,
     clearIfEmpty,
     submitRow,
-  } = useRowSaveState({ indicator, entityId, timePeriodId, saveRowAction });
+  } = useRowSaveState({ indicator, entityId, timePeriodId, existingResult, saveRowAction });
 
   return (
     <div
@@ -918,7 +962,7 @@ function MobileRowCard({
           {indicator.valueType === "score" && indicator.scoreOptions.length >= 2 ? (
             <select
               name={`value_${indicator.id}`}
-              defaultValue=""
+              defaultValue={existingResult ? String(existingResult.abiaValue) : ""}
               onChange={(e) => {
                 onValueChange(indicator.id, e.target.value.trim() !== "");
                 setCurrentValue(e.target.value);
@@ -944,6 +988,7 @@ function MobileRowCard({
               max={indicator.valueType === "percentage" ? 100 : undefined}
               name={`value_${indicator.id}`}
               placeholder="—"
+              defaultValue={existingResult ? String(existingResult.abiaValue) : ""}
               onChange={(e) => {
                 onValueChange(indicator.id, e.target.value.trim() !== "");
                 setCurrentValue(e.target.value);
@@ -962,6 +1007,7 @@ function MobileRowCard({
               step="any"
               name={`nigeria_${indicator.id}`}
               placeholder="—"
+              defaultValue={existingResult?.nigeriaValue == null ? "" : String(existingResult.nigeriaValue)}
               onChange={markDirty}
               className={`${inputClass} w-full`}
             />
@@ -975,13 +1021,14 @@ function MobileRowCard({
           type="text"
           name={`notes_${indicator.id}`}
           placeholder="Optional"
+          defaultValue={existingResult?.notes ?? ""}
           onChange={markDirty}
           className={`${inputClass} w-full`}
         />
       </label>
 
       <div className="flex flex-wrap items-start justify-between gap-2">
-        {hasValue ? (
+        {rowHasValue ? (
           <button
             type="button"
             onClick={() => onToggleEvidence(indicator.id)}
@@ -1000,7 +1047,7 @@ function MobileRowCard({
         )}
       </div>
 
-      {hasValue && evidenceOpen && (
+      {rowHasValue && evidenceOpen && (
         <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
           <div className="grid gap-3">
             <label className="block">

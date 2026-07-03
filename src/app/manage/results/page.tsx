@@ -64,6 +64,15 @@ export default async function ResultsEntryPage({
     .sort((a, b) => b.start_date.localeCompare(a.start_date))
     .map((p) => ({ id: p.id, label: p.label, frequency: p.frequency }));
 
+  const existingResults = data.results.map((result) => ({
+    indicatorId: result.indicator_id,
+    timePeriodId: result.time_period_id,
+    entityId: result.entity_id,
+    abiaValue: result.abia_value,
+    nigeriaValue: result.nigeria_value,
+    notes: result.notes ?? null,
+  }));
+
   return (
     <>
       <Crumbs items={[{ href: "/manage", label: "Manage" }, { label: "Results" }]} />
@@ -85,6 +94,7 @@ export default async function ResultsEntryPage({
         domains={wizardDomains}
         thematicAreas={wizardThematicAreas}
         periods={wizardPeriods}
+        existingResults={existingResults}
         saveRowAction={saveResultRow}
         disabled={!live}
       />
