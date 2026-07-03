@@ -48,6 +48,10 @@ export interface Domain {
   thematic_area_id: string;
   name: string;
   description?: string | null;
+  /** national comparison value, free text (e.g. "993 / 100,000 (UN MMEIG 2023)") */
+  benchmark_nigeria?: string | null;
+  /** official target, free text (e.g. "≤70 / 100,000") */
+  benchmark_target?: string | null;
   weight: number;
 }
 

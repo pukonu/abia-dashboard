@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ScoreBadge, ScoreBar } from "@/components/score";
+import { BenchmarkLine, ScoreBadge, ScoreBar } from "@/components/score";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import type { IndicatorComputed } from "@/lib/scoring";
@@ -126,6 +126,11 @@ export default async function IndicatorsPage({
                       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
                         <div className="min-w-0">
                           <h4 className="display truncate text-sm font-semibold text-zinc-900">{domain.name}</h4>
+                          <BenchmarkLine
+                            abia={domainScore}
+                            nigeria={domain.benchmark_nigeria}
+                            target={domain.benchmark_target}
+                          />
                           {domain.description && (
                             <p className="mt-0.5 truncate text-xs text-zinc-500">{domain.description}</p>
                           )}

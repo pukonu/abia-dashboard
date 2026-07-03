@@ -4,7 +4,7 @@
 Mapping (faithful to the workbook):
   DOMAIN XX blocks          -> domains under the Primary Healthcare thematic area
                                (weight from Domain Summary; Nigeria benchmark and
-                               WHO/SDG target kept in the domain description)
+                               WHO/SDG target in benchmark_nigeria/benchmark_target)
   Question rows (code,      -> indicators (weight from sheet; options + rationale
   question, options,           in the description; scored 0-100 against target 100)
   weight, rationale)
@@ -215,7 +215,8 @@ def main():
         {
             "thematic_area_id": THEMATIC_AREA_ID,
             "name": f"{d['num']:02d} — {d['name']}",
-            "description": f"Nigeria: {d['nigeria_raw']} · WHO/SDG target: {d['target_raw']}",
+            "benchmark_nigeria": str(d["nigeria_raw"]),
+            "benchmark_target": str(d["target_raw"]),
             "weight": d["weight"],
         }
         for d in domains

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Slide, SlideOption } from "@/components/entity-presentation";
 import { EntityPresentation } from "@/components/entity-presentation";
-import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
+import { BenchmarkLine, DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { Crumbs, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import type { IndicatorComputed } from "@/lib/scoring";
@@ -127,11 +127,17 @@ export default async function EntityPage({
     });
     for (const [gi, group] of domainGroups.entries()) {
       const numMatch = group.domain.name.match(/^(\d+)\s*—\s*(.*)$/);
+      const stateScore = c.domainScores.get(group.domain.id)?.score ?? null;
+      const benchmarkParts = [
+        stateScore != null ? `Abia ${fmt(stateScore, 1)}%` : null,
+        group.domain.benchmark_nigeria ? `Nigeria ${group.domain.benchmark_nigeria}` : null,
+        group.domain.benchmark_target ? `Target ${group.domain.benchmark_target}` : null,
+      ].filter(Boolean);
       slides.push({
         kind: "domain",
         number: numMatch?.[1] ?? String(gi + 1),
         name: numMatch?.[2] ?? group.domain.name,
-        benchmark: group.domain.description ?? null,
+        benchmark: benchmarkParts.length > 0 ? benchmarkParts.join(" · ") : (group.domain.description ?? null),
         score: group.score,
         questionCount: group.items.length,
         position: `${gi + 1} of ${domainGroups.length}`,
@@ -219,6 +225,11 @@ export default async function EntityPage({
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
                 <div className="min-w-0">
                   <h3 className="display truncate text-sm font-semibold text-zinc-900">{domain.name}</h3>
+                  <BenchmarkLine
+                    abia={c.domainScores.get(domain.id)?.score ?? null}
+                    nigeria={domain.benchmark_nigeria}
+                    target={domain.benchmark_target}
+                  />
                   {domain.description && (
                     <p className="mt-0.5 truncate text-xs text-zinc-500">{domain.description}</p>
                   )}

@@ -109,6 +109,10 @@ model Domain {
   thematicAreaId String       @map("thematic_area_id") @db.Uuid
   name           String
   description    String?
+  /// National comparison value, free text (e.g. "993 / 100,000 (UN MMEIG 2023)")
+  benchmarkNigeria String?    @map("benchmark_nigeria")
+  /// Official target, free text (e.g. "≤70 / 100,000")
+  benchmarkTarget  String?    @map("benchmark_target")
   weight         Decimal      @default(1) @db.Decimal
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   thematicArea   ThematicArea @relation(fields: [thematicAreaId], references: [id], onDelete: Cascade)

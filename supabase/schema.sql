@@ -67,6 +67,8 @@ create table if not exists domains (
   thematic_area_id uuid not null references thematic_areas(id) on delete cascade,
   name             text not null,
   description      text,
+  benchmark_nigeria text,                       -- national comparison value, free text
+  benchmark_target  text,                       -- official target, free text
   weight           numeric not null default 1,  -- weight within the thematic area
   created_at       timestamptz not null default now(),
   unique (thematic_area_id, name)

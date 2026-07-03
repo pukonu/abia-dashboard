@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
+import { BenchmarkLine, DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import type { IndicatorComputed } from "@/lib/scoring";
@@ -141,6 +141,11 @@ export default async function MdaPage({
                     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:px-5">
                       <div className="min-w-0">
                         <h4 className="display truncate text-sm font-semibold text-zinc-900">{domain.name}</h4>
+                        <BenchmarkLine
+                          abia={domainScore}
+                          nigeria={domain.benchmark_nigeria}
+                          target={domain.benchmark_target}
+                        />
                         {domain.description && (
                           <p className="mt-0.5 truncate text-xs text-zinc-500">{domain.description}</p>
                         )}

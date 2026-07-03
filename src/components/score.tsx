@@ -66,6 +66,36 @@ export function ScoreRing({
   );
 }
 
+/** Abia · Nigeria · Target comparison line for a domain benchmark. */
+export function BenchmarkLine({
+  abia,
+  nigeria,
+  target,
+}: {
+  abia: number | null;
+  nigeria?: string | null;
+  target?: string | null;
+}) {
+  if (abia == null && !nigeria && !target) return null;
+  return (
+    <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+      <span>
+        Abia <strong className="font-semibold text-zinc-800">{abia == null ? "—" : `${fmt(abia, 1)}%`}</strong>
+      </span>
+      {nigeria && (
+        <span>
+          Nigeria <strong className="font-semibold text-zinc-700">{nigeria}</strong>
+        </span>
+      )}
+      {target && (
+        <span>
+          Target <strong className="font-semibold text-zinc-700">{target}</strong>
+        </span>
+      )}
+    </p>
+  );
+}
+
 /** Horizontal progress bar variant, for dense lists. */
 export function ScoreBar({ score }: { score: number | null }) {
   const band = ratingFor(score);
