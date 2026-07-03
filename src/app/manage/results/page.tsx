@@ -3,7 +3,7 @@ import ResultWizard from "@/components/manage/ResultWizard";
 import { ActionLink, Crumbs, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { resolveIndicatorScoreOptions } from "@/lib/indicator-input";
-import { importResultsCsv, saveResultsBatch } from "../actions";
+import { importResultsCsv, saveResultRow } from "../actions";
 
 export const metadata = { title: "Record results" };
 
@@ -85,7 +85,7 @@ export default async function ResultsEntryPage({
         domains={wizardDomains}
         thematicAreas={wizardThematicAreas}
         periods={wizardPeriods}
-        action={saveResultsBatch}
+        saveRowAction={saveResultRow}
         disabled={!live}
       />
 

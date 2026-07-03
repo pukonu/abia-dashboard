@@ -29,6 +29,18 @@ async function requireAdmin(backTo: string): Promise<SupabaseClient> {
   return admin;
 }
 
+async function getInlineAdmin(): Promise<{ admin?: SupabaseClient; error?: string }> {
+  const mode = await getDataMode();
+  if (mode !== "live") {
+    return { error: "You are viewing demo data. Switch to Live mode to save real data." };
+  }
+  const admin = getAdminClient();
+  if (!admin) {
+    return { error: "SUPABASE_SERVICE_ROLE_KEY is not set in .env — writes are disabled." };
+  }
+  return { admin };
+}
+
 function fail(backTo: string, message: string): never {
   redirect(`${backTo}?err=${encodeURIComponent(message)}`);
 }
@@ -77,11 +89,10 @@ function normalizeIndicatorRow(backTo: string, row: Record<string, unknown>, id?
   }
 }
 
-function validateIndicatorValue(
-  backTo: string,
+function indicatorValueError(
   indicator: { name?: string | null; value_type?: string | null; score_options?: unknown; description?: string | null; unit?: string | null },
   value: number
-) {
+): string | null {
   const valueType = normalizeIndicatorValueType({
     value_type: indicator.value_type as never,
     score_options: indicator.score_options as never,
@@ -89,7 +100,7 @@ function validateIndicatorValue(
     unit: indicator.unit ?? undefined,
   });
   if (valueType === "percentage" && (value < 0 || value > 100)) {
-    fail(backTo, `${indicator.name ?? "Percentage indicator"} must be between 0 and 100.`);
+    return `${indicator.name ?? "Percentage indicator"} must be between 0 and 100.`;
   }
   if (valueType === "score") {
     const options = resolveIndicatorScoreOptions({
@@ -99,10 +110,20 @@ function validateIndicatorValue(
     if (options?.length) {
       const allowed = new Set(options.map((option) => option.value));
       if (!allowed.has(value)) {
-        fail(backTo, `${indicator.name ?? "Score indicator"} must use one of its configured option scores.`);
+        return `${indicator.name ?? "Score indicator"} must use one of its configured option scores.`;
       }
     }
   }
+  return null;
+}
+
+function validateIndicatorValue(
+  backTo: string,
+  indicator: { name?: string | null; value_type?: string | null; score_options?: unknown; description?: string | null; unit?: string | null },
+  value: number
+) {
+  const error = indicatorValueError(indicator, value);
+  if (error) fail(backTo, error);
 }
 
 /** Optional `_back` field lets detail-page forms return to the tab they came from. */
@@ -382,6 +403,66 @@ export async function saveResult(formData: FormData) {
   );
 
   ok(backTo, `Result saved${uploaded ? ` with ${uploaded} evidence image${uploaded === 1 ? "" : "s"}` : ""}.`);
+}
+
+export async function saveResultRow(
+  formData: FormData
+): Promise<{ ok: true; uploaded: number } | { ok: false; error: string }> {
+  const inline = await getInlineAdmin();
+  if (!inline.admin) return { ok: false, error: inline.error ?? "Writes are disabled." };
+  const admin = inline.admin;
+
+  const indicator_id = strOrNull(formData.get("indicator_id"));
+  const time_period_id = strOrNull(formData.get("time_period_id"));
+  const entity_id = strOrNull(formData.get("entity_id"));
+  const abia_value = numOrNull(formData.get("abia_value"));
+  if (!indicator_id || !time_period_id) {
+    return { ok: false, error: "Indicator and time period are required." };
+  }
+  if (abia_value === null) {
+    return { ok: false, error: "A value is required before this row can be saved." };
+  }
+
+  const indicator = await admin
+    .from("indicators")
+    .select("id, name, indicator_scope, value_type, score_options, description, unit")
+    .eq("id", indicator_id)
+    .single();
+  if (indicator.error) return { ok: false, error: `Could not load indicator: ${indicator.error.message}` };
+  if (indicator.data.indicator_scope === "entity" && !entity_id) {
+    return { ok: false, error: "Entity-level indicators require an entity." };
+  }
+  if (indicator.data.indicator_scope !== "entity" && entity_id) {
+    return { ok: false, error: "State-level indicators must be saved without an entity." };
+  }
+  const valueError = indicatorValueError(indicator.data, abia_value);
+  if (valueError) return { ok: false, error: valueError };
+
+  const saved = await upsertResult(admin, {
+    indicator_id,
+    time_period_id,
+    entity_id,
+    abia_value,
+    nigeria_value: numOrNull(formData.get("nigeria_value")),
+    target_value: numOrNull(formData.get("target_value")),
+    notes: strOrNull(formData.get("notes")),
+  });
+  if ("error" in saved) return { ok: false, error: `Could not save result: ${saved.error}` };
+
+  if (indicator.data.indicator_scope === "entity") {
+    const cascade = await cascadeStateResultFromEntity(admin, indicator_id, time_period_id);
+    if (cascade.error) return { ok: false, error: `Result saved, but state rollup failed: ${cascade.error}` };
+  }
+
+  const uploaded = await uploadResultEvidence(
+    admin,
+    saved.id,
+    formData.getAll("evidence").filter((f): f is File => f instanceof File && f.size > 0),
+    strOrNull(formData.get("evidence_caption")),
+    "/manage/results"
+  );
+  revalidatePath("/", "layout");
+  return { ok: true, uploaded };
 }
 
 /**

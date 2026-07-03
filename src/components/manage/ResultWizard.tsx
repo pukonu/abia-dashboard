@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Check, ChevronLeft, Landmark, Paperclip } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { inputClass } from "@/components/forms";
 import type { IndicatorScoreOption, IndicatorValueType } from "@/lib/types";
 
@@ -54,10 +54,25 @@ export interface WizardPeriod {
   frequency: string;
 }
 
+type RowSaveAction = (
+  formData: FormData
+) => Promise<{ ok: true; uploaded: number } | { ok: false; error: string }>;
+
 const STEPS = ["Sector & MDA", "Entity", "Data"] as const;
 
 const numericCompare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
+function formatMetricPreview(rawValue: string, unit: string): string {
+  if (!rawValue.trim()) return unit === "%" ? "xx%" : `xx ${unit}`;
+  const value = Number(rawValue);
+  const label = Number.isFinite(value) ? String(value) : rawValue.trim();
+  return unit === "%" ? `${label}%` : `${label} ${unit}`;
+}
+
+function hasMetricPreviewValue(rawValue: string): boolean {
+  return rawValue.trim().length > 0;
+}
 
 function StepDots({ current, onJump }: { current: number; onJump: (i: number) => void }) {
   return (
@@ -98,7 +113,7 @@ export default function ResultWizard({
   domains,
   thematicAreas,
   periods,
-  action,
+  saveRowAction,
   disabled = false,
 }: {
   sectors: WizardSector[];
@@ -108,7 +123,7 @@ export default function ResultWizard({
   domains: WizardDomain[];
   thematicAreas: WizardThematicArea[];
   periods: WizardPeriod[];
-  action: (formData: FormData) => void | Promise<void>;
+  saveRowAction: RowSaveAction;
   disabled?: boolean;
 }) {
   const [step, setStep] = useState(0);
@@ -205,13 +220,12 @@ export default function ResultWizard({
   };
 
   return (
-    <form action={action} className="card card-pad">
+    <div className="card card-pad">
       <fieldset disabled={disabled} className="disabled:opacity-60">
-        <input type="hidden" name="entity_id" value={entityId ?? ""} />
 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <StepDots current={step} onJump={setStep} />
-          {summary && <div className="truncate text-xs text-zinc-500">{summary}</div>}
+          {summary && <div className="w-full truncate text-xs text-zinc-500 sm:w-auto">{summary}</div>}
         </div>
 
         {/* Step 1 — sector & MDA */}
@@ -337,29 +351,34 @@ export default function ResultWizard({
         {/* Step 3 — data grid */}
         {step === 2 && (
           <div>
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-zinc-900">
-                  Enter values for {statewide ? "the whole state" : entity?.name}
+                  Enter values for{" "}
+                  {statewide ? (
+                    "the whole state"
+                  ) : (
+                    <span className="text-red-600">{entity?.name}</span>
+                  )}
                 </h3>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   Fill only the indicators you have data for — empty rows are skipped.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filter indicators…"
-                  className={`${inputClass} w-52`}
+                  className={`${inputClass} w-full sm:w-52`}
                 />
                 <select
                   name="time_period_id"
                   value={periodId}
                   onChange={(e) => setPeriodId(e.target.value)}
                   required
-                  className={`${inputClass} w-44`}
+                  className={`${inputClass} w-full sm:w-44`}
                 >
                   {gridPeriods.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -375,7 +394,25 @@ export default function ResultWizard({
                 No {statewide ? "state" : "entity"}-level indicators configured for {sector?.name ?? "this sector"} yet.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-zinc-200">
+              <>
+                <div className="space-y-4 md:hidden">
+                  {grid.map((g) => (
+                    <MobileSectionCards
+                      key={`mobile-${g.domain.id}`}
+                      group={g}
+                      statewide={statewide}
+                      isVisible={(i) => matches(g, i)}
+                      filledRowIds={filledRowIds}
+                      openEvidenceRowIds={openEvidenceRowIds}
+                      onValueChange={setRowFilled}
+                      onToggleEvidence={toggleEvidenceRow}
+                      entityId={entityId ?? ""}
+                      timePeriodId={periodId}
+                      saveRowAction={saveRowAction}
+                    />
+                  ))}
+                </div>
+                <div className="hidden overflow-hidden rounded-xl border border-zinc-200 md:block">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -383,29 +420,32 @@ export default function ResultWizard({
                       <th className="w-28 px-3 py-2.5">Value</th>
                       {statewide && <th className="w-28 px-3 py-2.5">Nigeria</th>}
                       <th className="w-48 px-3 py-2.5">Notes</th>
+                      <th className="w-40 px-3 py-2.5 text-right">Evidence</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {grid.map((g) => (
-                      <SectionRows
-                        key={g.domain.id}
-                        group={g}
-                        statewide={statewide}
-                        isVisible={(i) => matches(g, i)}
-                        filledRowIds={filledRowIds}
-                        openEvidenceRowIds={openEvidenceRowIds}
-                        onValueChange={setRowFilled}
-                        onToggleEvidence={toggleEvidenceRow}
-                      />
-                    ))}
-                  </tbody>
+                  {grid.map((g) => (
+                    <SectionRows
+                      key={g.domain.id}
+                      group={g}
+                      statewide={statewide}
+                      isVisible={(i) => matches(g, i)}
+                      filledRowIds={filledRowIds}
+                      openEvidenceRowIds={openEvidenceRowIds}
+                      onValueChange={setRowFilled}
+                      onToggleEvidence={toggleEvidenceRow}
+                      entityId={entityId ?? ""}
+                      timePeriodId={periodId}
+                      saveRowAction={saveRowAction}
+                    />
+                  ))}
                 </table>
+                </div>
                 {visibleCount === 0 && (
                   <p className="px-4 py-6 text-center text-xs text-zinc-500">
                     No indicators match “{search}” — rows you already filled are kept and will still be saved.
                   </p>
                 )}
-              </div>
+              </>
             )}
           </div>
         )}
@@ -424,17 +464,16 @@ export default function ResultWizard({
             <span />
           )}
           {step === 2 && gridIndicatorCount > 0 && (
-            <button
-              type="submit"
-              disabled={filledCount === 0}
-              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-            >
-              Save {filledCount > 0 ? `${filledCount} result${filledCount === 1 ? "" : "s"}` : "results"}
-            </button>
+            <div className="text-right">
+              <div className="text-xs font-medium text-zinc-600">Rows save automatically when you leave them.</div>
+              <div className="mt-0.5 text-[11px] text-zinc-400">
+                {filledCount > 0 ? `${filledCount} row${filledCount === 1 ? "" : "s"} currently filled` : "Start typing to save"}
+              </div>
+            </div>
           )}
         </div>
       </fieldset>
-    </form>
+    </div>
   );
 }
 
@@ -446,6 +485,9 @@ function SectionRows({
   openEvidenceRowIds,
   onValueChange,
   onToggleEvidence,
+  entityId,
+  timePeriodId,
+  saveRowAction,
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
   statewide: boolean;
@@ -454,17 +496,22 @@ function SectionRows({
   openEvidenceRowIds: string[];
   onValueChange: (indicatorId: string, hasValue: boolean) => void;
   onToggleEvidence: (indicatorId: string) => void;
+  entityId: string;
+  timePeriodId: string;
+  saveRowAction: RowSaveAction;
 }) {
-  const cols = statewide ? 4 : 3;
+  const cols = statewide ? 5 : 4;
   const anyVisible = group.indicators.some(isVisible);
   return (
     <>
-      <tr className={`border-b border-zinc-100 bg-zinc-50/70 ${anyVisible ? "" : "hidden"}`}>
-        <td colSpan={cols} className="px-4 py-2">
-          <span className="text-xs font-semibold text-zinc-800">{group.domain.name}</span>
-          {group.thematic && <span className="ml-2 text-[11px] text-zinc-400">{group.thematic.name}</span>}
-        </td>
-      </tr>
+      <tbody className={anyVisible ? "" : "hidden"}>
+        <tr className="border-b border-zinc-100 bg-zinc-50/70">
+          <td colSpan={cols} className="px-4 py-2">
+            <span className="text-xs font-semibold text-zinc-800">{group.domain.name}</span>
+            {group.thematic && <span className="ml-2 text-[11px] text-zinc-400">{group.thematic.name}</span>}
+          </td>
+        </tr>
+      </tbody>
       {group.indicators.map((i) => (
         <RowBlock
           key={i.id}
@@ -476,10 +523,101 @@ function SectionRows({
           colSpan={cols}
           onValueChange={onValueChange}
           onToggleEvidence={onToggleEvidence}
+          entityId={entityId}
+          timePeriodId={timePeriodId}
+          saveRowAction={saveRowAction}
         />
       ))}
     </>
   );
+}
+
+function useRowSaveState({
+  indicator,
+  entityId,
+  timePeriodId,
+  saveRowAction,
+}: {
+  indicator: WizardIndicator;
+  entityId: string;
+  timePeriodId: string;
+  saveRowAction: RowSaveAction;
+}) {
+  const rootRef = useRef<HTMLElement | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [statusText, setStatusText] = useState("");
+  const [currentValue, setCurrentValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const submitRow = (reason: "blur" | "files" | "change", force = false) => {
+    if (isPending || (!dirty && !force) || !rootRef.current) return;
+    const data = new FormData();
+    data.set("indicator_id", indicator.id);
+    data.set("time_period_id", timePeriodId);
+    data.set("entity_id", entityId);
+
+    const controls = rootRef.current.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[name]");
+    for (const control of controls) {
+      if (!control.name) continue;
+      const mappedName = control.name.startsWith(`value_${indicator.id}`)
+        ? "abia_value"
+        : control.name.startsWith(`nigeria_${indicator.id}`)
+          ? "nigeria_value"
+          : control.name.startsWith(`notes_${indicator.id}`)
+            ? "notes"
+            : control.name.startsWith(`evidence_caption_${indicator.id}`)
+              ? "evidence_caption"
+              : control.name.startsWith(`evidence_${indicator.id}`)
+                ? "evidence"
+                : null;
+      if (!mappedName) continue;
+      if (control instanceof HTMLInputElement && control.type === "file") {
+        for (const file of Array.from(control.files ?? [])) data.append(mappedName, file);
+        continue;
+      }
+      data.set(mappedName, control.value);
+    }
+    if (!String(data.get("abia_value") ?? "").trim()) return;
+
+    setStatus("saving");
+    setStatusText(reason === "files" ? "Uploading…" : "Saving…");
+    startTransition(async () => {
+      const result = await saveRowAction(data);
+      if (!result.ok) {
+        setStatus("error");
+        setStatusText(result.error);
+        return;
+      }
+      setDirty(false);
+      setStatus("saved");
+      setStatusText(
+        result.uploaded > 0
+          ? `Saved with ${result.uploaded} evidence image${result.uploaded === 1 ? "" : "s"}`
+          : "Saved"
+      );
+    });
+  };
+
+  const markDirty = () => setDirty(true);
+  const clearIfEmpty = (rawValue: string) => {
+    if (!rawValue.trim()) {
+      setStatus("idle");
+      setStatusText("");
+    }
+  };
+
+  return {
+    rootRef,
+    status,
+    statusText,
+    currentValue,
+    isPending,
+    setCurrentValue,
+    markDirty,
+    clearIfEmpty,
+    submitRow,
+  };
 }
 
 function RowBlock({
@@ -491,6 +629,9 @@ function RowBlock({
   colSpan,
   onValueChange,
   onToggleEvidence,
+  entityId,
+  timePeriodId,
+  saveRowAction,
 }: {
   indicator: WizardIndicator;
   statewide: boolean;
@@ -500,14 +641,41 @@ function RowBlock({
   colSpan: number;
   onValueChange: (indicatorId: string, hasValue: boolean) => void;
   onToggleEvidence: (indicatorId: string) => void;
+  entityId: string;
+  timePeriodId: string;
+  saveRowAction: RowSaveAction;
 }) {
+  const {
+    rootRef,
+    status,
+    statusText,
+    currentValue,
+    isPending,
+    setCurrentValue,
+    markDirty,
+    clearIfEmpty,
+    submitRow,
+  } = useRowSaveState({ indicator, entityId, timePeriodId, saveRowAction });
+
   return (
     <>
-      <tr className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50 ${visible ? "" : "hidden"}`}>
+      <tbody
+        ref={rootRef as React.RefObject<HTMLTableSectionElement>}
+        className={visible ? "" : "hidden"}
+        onBlurCapture={(event) => {
+          const next = event.relatedTarget;
+          if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+            submitRow("blur");
+          }
+        }}
+      >
+      <tr className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50">
         <td className="px-4 py-2 align-top">
           <div className="text-[13px] leading-snug text-zinc-800">{indicator.name}</div>
           <div className="mt-0.5 text-[11px] text-zinc-400">
-            {indicator.unit}
+            <span className={hasMetricPreviewValue(currentValue) ? "text-red-600" : undefined}>
+              {formatMetricPreview(currentValue, indicator.unit)}
+            </span>
             {indicator.targetLabel ? ` · ${indicator.targetLabel}` : ""}
           </div>
         </td>
@@ -516,7 +684,13 @@ function RowBlock({
             <select
               name={`value_${indicator.id}`}
               defaultValue=""
-              onChange={(e) => onValueChange(indicator.id, e.target.value.trim() !== "")}
+              onChange={(e) => {
+                onValueChange(indicator.id, e.target.value.trim() !== "");
+                setCurrentValue(e.target.value);
+                markDirty();
+                if (!e.target.value.trim()) return clearIfEmpty(e.target.value);
+                queueMicrotask(() => submitRow("change", true));
+              }}
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
             >
               <option value="">Select…</option>
@@ -535,7 +709,12 @@ function RowBlock({
               max={indicator.valueType === "percentage" ? 100 : undefined}
               name={`value_${indicator.id}`}
               placeholder="—"
-              onChange={(e) => onValueChange(indicator.id, e.target.value.trim() !== "")}
+              onChange={(e) => {
+                onValueChange(indicator.id, e.target.value.trim() !== "");
+                setCurrentValue(e.target.value);
+                markDirty();
+                clearIfEmpty(e.target.value);
+              }}
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
             />
           )}
@@ -547,6 +726,7 @@ function RowBlock({
               step="any"
               name={`nigeria_${indicator.id}`}
               placeholder="—"
+              onChange={markDirty}
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
             />
           </td>
@@ -556,9 +736,13 @@ function RowBlock({
             type="text"
             name={`notes_${indicator.id}`}
             placeholder="Optional"
+            onChange={markDirty}
             className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
           />
-          {hasValue && (
+        </td>
+        <td className="px-3 py-2 align-top text-right">
+          <div className="flex flex-col items-end gap-2">
+          {hasValue ? (
             <button
               type="button"
               onClick={() => onToggleEvidence(indicator.id)}
@@ -567,7 +751,19 @@ function RowBlock({
               <Paperclip className="h-3 w-3" strokeWidth={2} />
               {evidenceOpen ? "Hide attachment" : "Attach evidence"}
             </button>
+          ) : (
+            <span className="pt-1 text-[11px] text-zinc-300">Add a value first</span>
           )}
+          {(status !== "idle" || isPending) && (
+            <span
+              className={`max-w-36 text-right text-[11px] ${
+                status === "error" ? "text-red-600" : "text-zinc-400"
+              }`}
+            >
+              {isPending ? "Saving…" : statusText}
+            </span>
+          )}
+          </div>
         </td>
       </tr>
       {visible && hasValue && evidenceOpen && (
@@ -583,6 +779,10 @@ function RowBlock({
                   name={`evidence_${indicator.id}`}
                   accept="image/*"
                   multiple
+                  onChange={() => {
+                    markDirty();
+                    submitRow("files", true);
+                  }}
                   className="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-950 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800"
                 />
               </label>
@@ -594,6 +794,7 @@ function RowBlock({
                   type="text"
                   name={`evidence_caption_${indicator.id}`}
                   placeholder="Optional caption"
+                  onChange={markDirty}
                   className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
                 />
               </label>
@@ -601,6 +802,236 @@ function RowBlock({
           </td>
         </tr>
       )}
+      </tbody>
     </>
+  );
+}
+
+function MobileSectionCards({
+  group,
+  statewide,
+  isVisible,
+  filledRowIds,
+  openEvidenceRowIds,
+  onValueChange,
+  onToggleEvidence,
+  entityId,
+  timePeriodId,
+  saveRowAction,
+}: {
+  group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
+  statewide: boolean;
+  isVisible: (i: WizardIndicator) => boolean;
+  filledRowIds: string[];
+  openEvidenceRowIds: string[];
+  onValueChange: (indicatorId: string, hasValue: boolean) => void;
+  onToggleEvidence: (indicatorId: string) => void;
+  entityId: string;
+  timePeriodId: string;
+  saveRowAction: RowSaveAction;
+}) {
+  const visibleIndicators = group.indicators.filter(isVisible);
+  if (visibleIndicators.length === 0) return null;
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white">
+      <div className="border-b border-zinc-100 bg-zinc-50/70 px-4 py-2">
+        <div className="text-xs font-semibold text-zinc-800">{group.domain.name}</div>
+        {group.thematic && <div className="mt-0.5 text-[11px] text-zinc-400">{group.thematic.name}</div>}
+      </div>
+      <div className="divide-y divide-zinc-100">
+        {visibleIndicators.map((indicator) => (
+          <MobileRowCard
+            key={`mobile-row-${indicator.id}`}
+            indicator={indicator}
+            statewide={statewide}
+            hasValue={filledRowIds.includes(indicator.id)}
+            evidenceOpen={openEvidenceRowIds.includes(indicator.id)}
+            onValueChange={onValueChange}
+            onToggleEvidence={onToggleEvidence}
+            entityId={entityId}
+            timePeriodId={timePeriodId}
+            saveRowAction={saveRowAction}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MobileRowCard({
+  indicator,
+  statewide,
+  hasValue,
+  evidenceOpen,
+  onValueChange,
+  onToggleEvidence,
+  entityId,
+  timePeriodId,
+  saveRowAction,
+}: {
+  indicator: WizardIndicator;
+  statewide: boolean;
+  hasValue: boolean;
+  evidenceOpen: boolean;
+  onValueChange: (indicatorId: string, hasValue: boolean) => void;
+  onToggleEvidence: (indicatorId: string) => void;
+  entityId: string;
+  timePeriodId: string;
+  saveRowAction: RowSaveAction;
+}) {
+  const {
+    rootRef,
+    status,
+    statusText,
+    currentValue,
+    isPending,
+    setCurrentValue,
+    markDirty,
+    clearIfEmpty,
+    submitRow,
+  } = useRowSaveState({ indicator, entityId, timePeriodId, saveRowAction });
+
+  return (
+    <div
+      ref={rootRef as React.RefObject<HTMLDivElement>}
+      className="space-y-3 p-4"
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+          submitRow("blur");
+        }
+      }}
+    >
+      <div>
+        <div className="text-sm font-medium leading-snug text-zinc-900">{indicator.name}</div>
+        <div className="mt-1 text-[11px] text-zinc-400">
+          <span className={hasMetricPreviewValue(currentValue) ? "text-red-600" : undefined}>
+            {formatMetricPreview(currentValue, indicator.unit)}
+          </span>
+          {indicator.targetLabel ? ` · ${indicator.targetLabel}` : ""}
+        </div>
+      </div>
+
+      <div className={`grid gap-3 ${statewide ? "grid-cols-2" : "grid-cols-1"}`}>
+        <label className="block">
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Value</span>
+          {indicator.valueType === "score" && indicator.scoreOptions.length >= 2 ? (
+            <select
+              name={`value_${indicator.id}`}
+              defaultValue=""
+              onChange={(e) => {
+                onValueChange(indicator.id, e.target.value.trim() !== "");
+                setCurrentValue(e.target.value);
+                markDirty();
+                if (!e.target.value.trim()) return clearIfEmpty(e.target.value);
+                queueMicrotask(() => submitRow("change", true));
+              }}
+              className={`${inputClass} w-full`}
+            >
+              <option value="">Select…</option>
+              {indicator.scoreOptions.map((option) => (
+                <option key={`${indicator.id}-m-${option.code ?? option.label}-${option.value}`} value={option.value}>
+                  {option.code ? `${option.code}. ` : ""}
+                  {option.label} ({option.value})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              step="any"
+              min={indicator.valueType === "percentage" ? 0 : undefined}
+              max={indicator.valueType === "percentage" ? 100 : undefined}
+              name={`value_${indicator.id}`}
+              placeholder="—"
+              onChange={(e) => {
+                onValueChange(indicator.id, e.target.value.trim() !== "");
+                setCurrentValue(e.target.value);
+                markDirty();
+                clearIfEmpty(e.target.value);
+              }}
+              className={`${inputClass} w-full`}
+            />
+          )}
+        </label>
+        {statewide && (
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Nigeria</span>
+            <input
+              type="number"
+              step="any"
+              name={`nigeria_${indicator.id}`}
+              placeholder="—"
+              onChange={markDirty}
+              className={`${inputClass} w-full`}
+            />
+          </label>
+        )}
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Notes</span>
+        <input
+          type="text"
+          name={`notes_${indicator.id}`}
+          placeholder="Optional"
+          onChange={markDirty}
+          className={`${inputClass} w-full`}
+        />
+      </label>
+
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        {hasValue ? (
+          <button
+            type="button"
+            onClick={() => onToggleEvidence(indicator.id)}
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+          >
+            <Paperclip className="h-3 w-3" strokeWidth={2} />
+            {evidenceOpen ? "Hide attachment" : "Attach evidence"}
+          </button>
+        ) : (
+          <span className="pt-1 text-[11px] text-zinc-300">Add a value first</span>
+        )}
+        {(status !== "idle" || isPending) && (
+          <span className={`max-w-40 text-right text-[11px] ${status === "error" ? "text-red-600" : "text-zinc-400"}`}>
+            {isPending ? "Saving…" : statusText}
+          </span>
+        )}
+      </div>
+
+      {hasValue && evidenceOpen && (
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+          <div className="grid gap-3">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                Evidence images
+              </span>
+              <input
+                type="file"
+                name={`evidence_${indicator.id}`}
+                accept="image/*"
+                multiple
+                onChange={() => {
+                  markDirty();
+                  submitRow("files", true);
+                }}
+                className="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-950 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Caption</span>
+              <input
+                type="text"
+                name={`evidence_caption_${indicator.id}`}
+                placeholder="Optional caption"
+                onChange={markDirty}
+                className={`${inputClass} w-full`}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
