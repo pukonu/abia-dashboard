@@ -32,6 +32,7 @@ dev.db*
 .DS_Store
 .vscode/
 .idea/
+.cursor/
 
 # Local agent/tooling state
 .claude/

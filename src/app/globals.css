@@ -44,3 +44,31 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Presentation-mode slide transitions */
+@keyframes slide-enter {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes slide-enter-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.slide-enter {
+  animation: slide-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.slide-enter-back {
+  animation: slide-enter-back 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

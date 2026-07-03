@@ -47,6 +47,7 @@ export interface Domain {
   id: string;
   thematic_area_id: string;
   name: string;
+  description?: string | null;
   weight: number;
 }
 
@@ -54,6 +55,7 @@ export interface Indicator {
   id: string;
   domain_id: string;
   name: string;
+  description?: string | null;
   unit: string;
   direction: Direction;
   target_value: number | null;

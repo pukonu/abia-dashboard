@@ -1,7 +1,28 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode, isSupabaseConfigured } from "./data-mode";
 import { getDemoData } from "./demo-data";
-import type { DashboardData, ResultEvidence } from "./types";
+import type { DashboardData, Indicator, Result, ResultEvidence } from "./types";
+
+/** Fetch every row of a table, paging past Supabase's 1,000-row response cap. */
+async function fetchAll<T>(
+  supabase: SupabaseClient,
+  table: string,
+  orderBy: string
+): Promise<{ data: T[] | null; error: { message: string } | null }> {
+  const pageSize = 1000;
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .order(orderBy)
+      .range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...((data ?? []) as T[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
 
 function demoSnapshot(): DashboardData {
   return { ...getDemoData(), supabaseConfigured: isSupabaseConfigured() };
@@ -43,9 +64,9 @@ export async function loadDashboardData(): Promise<DashboardData> {
       supabase.from("entities").select("*").order("name"),
       supabase.from("thematic_areas").select("*").order("name"),
       supabase.from("domains").select("*").order("name"),
-      supabase.from("indicators").select("*").order("name"),
+      fetchAll<Indicator>(supabase, "indicators", "name"),
       supabase.from("time_periods").select("*").order("start_date"),
-      supabase.from("results").select("*"),
+      fetchAll<Result>(supabase, "results", "id"),
       supabase.from("result_evidence").select("*"),
     ]);
 
