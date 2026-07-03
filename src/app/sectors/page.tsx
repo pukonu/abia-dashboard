@@ -33,7 +33,9 @@ export default async function SectorsPage() {
           const pair = c.sectorScores.get(s.id) ?? { score: null, prevScore: null };
           const mdas = data.mdas.filter((m) => m.sector_id === s.id);
           const thematics = data.thematicAreas.filter((t) => t.sector_id === s.id);
-          const indicatorCount = c.indicators.filter((i) => i.sector.id === s.id).length;
+          const indicatorCount = c.indicators.filter(
+            (i) => i.sector.id === s.id && i.indicator.indicator_scope !== "entity"
+          ).length;
           return (
             <Link key={s.id} href={`/sectors/${s.slug}`} className="card card-pad group transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between gap-3">

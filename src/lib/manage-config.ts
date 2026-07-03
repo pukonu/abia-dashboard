@@ -11,7 +11,7 @@ export interface FieldSpec {
   help?: string;
   /** for selects: fixed options or a reference to another dataset */
   options?: Array<{ value: string; label: string }>;
-  optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains";
+  optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains" | "state_indicators";
 }
 
 /** A related dataset shown as a tab on a record's detail page. */
@@ -60,6 +60,11 @@ const FREQUENCY_OPTIONS = ["daily", "weekly", "monthly", "quarterly", "yearly"].
 const DIRECTION_OPTIONS = [
   { value: "higher_is_better", label: "Higher is better" },
   { value: "lower_is_better", label: "Lower is better" },
+];
+
+const INDICATOR_SCOPE_OPTIONS = [
+  { value: "state", label: "State-level indicator" },
+  { value: "entity", label: "Entity-level indicator" },
 ];
 
 export const DATASETS: DatasetSpec[] = [
@@ -204,6 +209,8 @@ export const DATASETS: DatasetSpec[] = [
     collection: "indicators",
     fields: [
       { name: "domain_id", label: "Domain", type: "select", required: true, optionsFrom: "domains" },
+      { name: "indicator_scope", label: "Scope", type: "select", required: true, options: INDICATOR_SCOPE_OPTIONS },
+      { name: "state_indicator_id", label: "Rolls up into", type: "select", optionsFrom: "state_indicators", help: "Choose the state-level indicator for entity indicators. Leave empty for state-level indicators." },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Immunization coverage (Penta-3)" },
       { name: "description", label: "Description", type: "textarea" },
       { name: "unit", label: "Unit", type: "text", required: true, placeholder: "%, per 1,000, NGN bn…" },
@@ -216,7 +223,7 @@ export const DATASETS: DatasetSpec[] = [
       d.indicators.map((i) => ({
         id: i.id,
         title: i.name,
-        subtitle: `${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit} (${i.target_source ?? "—"})`,
+        subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit} (${i.target_source ?? "—"})`,
       })),
   },
   {
@@ -322,5 +329,12 @@ export function optionsFor(
         value: d.id,
         label: `${d.name} — ${data.thematicAreas.find((t) => t.id === d.thematic_area_id)?.name ?? ""}`,
       }));
+    case "state_indicators":
+      return data.indicators
+        .filter((i) => i.indicator_scope !== "entity")
+        .map((i) => ({
+          value: i.id,
+          label: `${i.name} — ${data.domains.find((d) => d.id === i.domain_id)?.name ?? ""}`,
+        }));
   }
 }

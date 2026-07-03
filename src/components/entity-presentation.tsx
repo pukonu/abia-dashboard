@@ -35,6 +35,7 @@ export type Slide =
       code: string;
       question: string;
       score: number | null;
+      comparison: string | null;
       stateScore: number | null;
       options: SlideOption[];
       rationale: string | null;
@@ -121,6 +122,7 @@ function SlideBody({ slide }: { slide: Slide }) {
         <div>
           <BigScore score={slide.score} />
           <div className="mt-3 space-y-1 text-sm text-zinc-500">
+            {slide.comparison && <div>{slide.comparison}</div>}
             <div>
               State average:{" "}
               <span className="font-semibold text-zinc-300">

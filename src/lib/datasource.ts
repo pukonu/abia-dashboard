@@ -92,6 +92,8 @@ export async function loadDashboardData(): Promise<DashboardData> {
       domains: domains.data ?? [],
       indicators: (indicators.data ?? []).map((i) => ({
         ...i,
+        indicator_scope: i.indicator_scope ?? "state",
+        state_indicator_id: i.state_indicator_id ?? null,
         target_value: i.target_value == null ? null : Number(i.target_value),
         weight: Number(i.weight ?? 1),
       })),

@@ -31,6 +31,13 @@ enum Direction {
   @@map("direction")
 }
 
+enum IndicatorScope {
+  state
+  entity
+
+  @@map("indicator_scope")
+}
+
 model Sector {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug          String         @unique
@@ -123,20 +130,26 @@ model Domain {
 }
 
 model Indicator {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  domainId     String    @map("domain_id") @db.Uuid
-  name         String
-  description  String?
-  unit         String    @default("%")
-  direction    Direction @default(higher_is_better)
-  targetValue  Decimal?  @map("target_value") @db.Decimal
-  targetSource String?   @map("target_source")
-  weight       Decimal   @default(1) @db.Decimal
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  domain       Domain    @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  results      Result[]
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  domainId          String          @map("domain_id") @db.Uuid
+  indicatorScope    IndicatorScope  @default(state) @map("indicator_scope")
+  /// For entity indicators: which state-level indicator receives the rollup.
+  stateIndicatorId  String?         @map("state_indicator_id") @db.Uuid
+  name              String
+  description       String?
+  unit              String          @default("%")
+  direction         Direction       @default(higher_is_better)
+  targetValue       Decimal?        @map("target_value") @db.Decimal
+  targetSource      String?         @map("target_source")
+  weight            Decimal         @default(1) @db.Decimal
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  domain            Domain          @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  stateIndicator    Indicator?      @relation("IndicatorRollup", fields: [stateIndicatorId], references: [id], onDelete: SetNull)
+  entityIndicators  Indicator[]     @relation("IndicatorRollup")
+  results           Result[]
 
-  @@unique([domainId, name])
+  @@unique([domainId, name, indicatorScope])
+  @@index([stateIndicatorId], map: "idx_indicators_state_indicator")
   @@map("indicators")
 }
 

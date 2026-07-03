@@ -54,7 +54,7 @@ export function ratingFor(score: number | null): RatingBand {
   return { label: "Poor", color: "#991b1b", textClass: "text-red-900", bgClass: "bg-red-50" };
 }
 
-function weightedMean(items: Array<{ score: number | null; weight: number }>): number | null {
+export function weightedMean(items: Array<{ score: number | null; weight: number }>): number | null {
   let sum = 0;
   let wsum = 0;
   for (const it of items) {
@@ -63,6 +63,30 @@ function weightedMean(items: Array<{ score: number | null; weight: number }>): n
     wsum += it.weight;
   }
   return wsum > 0 ? sum / wsum : null;
+}
+
+export function parseBenchmarkValue(value: string | number | null | undefined): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (!value) return null;
+  const m = String(value)
+    .replaceAll(",", "")
+    .match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+
+export function benchmarkDirection(target: string | null | undefined): Direction {
+  return /[<≤]/.test(target ?? "") ? "lower_is_better" : "higher_is_better";
+}
+
+export function benchmarkScore(
+  nigeria: string | number | null | undefined,
+  target: string | number | null | undefined,
+  direction?: Direction | null
+): number | null {
+  const nigeriaValue = parseBenchmarkValue(nigeria);
+  const targetValue = parseBenchmarkValue(target);
+  if (nigeriaValue == null || targetValue == null) return null;
+  return scoreValue(nigeriaValue, targetValue, direction ?? benchmarkDirection(String(target ?? "")));
 }
 
 /* ------------------------------------------------------------------ */
@@ -149,6 +173,8 @@ export function computeDashboard(data: DashboardData): Computed {
   const indicatorById = new Map(data.indicators.map((i) => [i.id, i]));
   const mdaById = new Map(data.mdas.map((m) => [m.id, m]));
   const lgaById = new Map(data.lgas.map((l) => [l.id, l]));
+  const isStateIndicator = (ind: Indicator) => ind.indicator_scope !== "entity";
+  const isEntityIndicator = (ind: Indicator) => ind.indicator_scope === "entity";
 
   // Group results
   const stateResults = new Map<string, Result[]>(); // indicator id → results
@@ -214,7 +240,7 @@ export function computeDashboard(data: DashboardData): Computed {
 
   const domainScores = new Map<string, ScorePair>();
   for (const d of data.domains) {
-    const items = indicatorsComputed.filter((i) => i.domain.id === d.id);
+    const items = indicatorsComputed.filter((i) => i.domain.id === d.id && isStateIndicator(i.indicator));
     domainScores.set(d.id, {
       score: weightedMean(items.map((i) => ({ score: i.score, weight: i.indicator.weight }))),
       prevScore: weightedMean(items.map((i) => ({ score: i.prevScore, weight: i.indicator.weight }))),
@@ -262,7 +288,7 @@ export function computeDashboard(data: DashboardData): Computed {
   entityResults.forEach((list, key) => {
     const [indicatorId, entityId] = key.split("|");
     const ind = indicatorById.get(indicatorId);
-    if (!ind) return;
+    if (!ind || !isEntityIndicator(ind)) return;
     const latest = list.at(-1);
     const prev = list.at(-2);
     const agg = entityAgg.get(entityId) ?? { latest: [], prev: [] };
@@ -348,7 +374,7 @@ export function computeDashboard(data: DashboardData): Computed {
     const sectorAsOf = (sectorId: string): number | null => {
       // simple weighted mean of indicator scores within the sector
       const items = indicatorsComputed
-        .filter((i) => i.sector.id === sectorId)
+        .filter((i) => i.sector.id === sectorId && isStateIndicator(i.indicator))
         .map((i) => ({ score: asOfScores.get(i.indicator.id) ?? null, weight: i.indicator.weight }));
       return weightedMean(items);
     };

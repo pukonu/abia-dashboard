@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { BenchmarkLine, ScoreBadge, ScoreBar } from "@/components/score";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -28,9 +29,10 @@ export default async function IndicatorsPage({
   const c = computeDashboard(data);
 
   const activeSector = data.sectors.find((s) => s.slug === sectorParam) ?? null;
+  const stateIndicators = c.indicators.filter((i) => i.indicator.indicator_scope !== "entity");
   const visible = activeSector
-    ? c.indicators.filter((i) => i.sector.id === activeSector.id)
-    : c.indicators;
+    ? stateIndicators.filter((i) => i.sector.id === activeSector.id)
+    : stateIndicators;
 
   // Sector → thematic area → domain → indicators (ordered by question number)
   const grouped = data.sectors
@@ -149,14 +151,23 @@ export default async function IndicatorsPage({
                             <Link
                               key={i.indicator.id}
                               href={`/indicators/${i.indicator.id}`}
-                              className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
+                              className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
                             >
                               {code && (
                                 <span className="w-10 shrink-0 font-mono text-xs font-semibold text-zinc-400">
                                   {code}
                                 </span>
                               )}
-                              <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{text}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm text-zinc-800">{text}</div>
+                                <IndicatorResultLine
+                                  result={i.latest?.abia ?? null}
+                                  nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
+                                  target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
+                                  unit={i.indicator.unit}
+                                  targetSource={i.indicator.target_source}
+                                />
+                              </div>
                               <span className="w-28 shrink-0 sm:w-36">
                                 <ScoreBar score={i.score} />
                               </span>

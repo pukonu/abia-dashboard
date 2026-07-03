@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Slide, SlideOption } from "@/components/entity-presentation";
 import { EntityPresentation } from "@/components/entity-presentation";
+import { formatIndicatorMetric, IndicatorResultLine } from "@/components/indicator-result-line";
 import { BenchmarkLine, DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { Crumbs, EmptyState, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -155,6 +156,13 @@ export default async function EntityPage({
           code: r.code ?? "—",
           question: r.displayName,
           score: r.score,
+          comparison: `Result ${formatIndicatorMetric(r.value, r.ic.indicator.unit)} · Nigeria ${formatIndicatorMetric(
+            r.ic.latest?.nigeria ?? r.ic.domain.benchmark_nigeria ?? null,
+            r.ic.indicator.unit
+          )} · Target ${formatIndicatorMetric(
+            r.ic.domain.benchmark_target ?? r.ic.latest?.target ?? r.ic.indicator.target_value,
+            r.ic.indicator.unit
+          )}`,
           stateScore: r.ic.latest?.score ?? null,
           options: slideOptions,
           rationale,
@@ -246,15 +254,22 @@ export default async function EntityPage({
                   <Link
                     key={r.ic.indicator.id}
                     href={`/indicators/${r.ic.indicator.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
+                    className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
                   >
                     {r.code && (
                       <span className="w-10 shrink-0 font-mono text-xs font-semibold text-zinc-400">{r.code}</span>
                     )}
-                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">{r.displayName}</span>
-                    <span className="hidden w-24 shrink-0 text-right text-xs text-zinc-400 sm:block">
-                      State {r.ic.latest?.score == null ? "—" : fmt(r.ic.latest.score, 0)}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-zinc-800">{r.displayName}</div>
+                      <IndicatorResultLine
+                        result={r.value}
+                        nigeria={r.ic.latest?.nigeria ?? r.ic.domain.benchmark_nigeria ?? null}
+                        target={r.ic.domain.benchmark_target ?? r.ic.latest?.target ?? r.ic.indicator.target_value}
+                        unit={r.ic.indicator.unit}
+                        targetSource={r.ic.indicator.target_source}
+                        prefix={<>{r.periodLabel} ·</>}
+                      />
+                    </div>
                     <span className="w-28 shrink-0 sm:w-36">
                       <ScoreBar score={r.score} />
                     </span>

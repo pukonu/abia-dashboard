@@ -138,22 +138,24 @@ export function ScoreBarChart({
 }
 
 /**
- * Radar showing how far composite scores sit from the target.
- * Scores are target-normalized (target = 100), so the outer ring is the
- * target itself and the shaded shape is current performance.
+ * Radar showing Result vs Nigeria vs target on a shared 0-100 scale.
+ * Values should already be target-normalized scores where 100 means the
+ * target has been met.
  */
 export function ScoreRadarChart({
   points,
-  name = "Composite score",
+  resultName = "Result",
+  nigeriaName = "Nigeria",
   color = ACCENT,
   height = 300,
 }: {
-  points: Array<{ axis: string; score: number | null }>;
-  name?: string;
+  points: Array<{ axis: string; result: number | null; nigeria?: number | null; target?: number | null }>;
+  resultName?: string;
+  nigeriaName?: string;
   color?: string;
   height?: number;
 }) {
-  const data = points.map((p) => ({ ...p, target: 100 }));
+  const data = points.map((p) => ({ ...p, target: p.target ?? 100 }));
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} margin={{ top: 12, right: 24, bottom: 12, left: 24 }}>
@@ -170,8 +172,18 @@ export function ScoreRadarChart({
           isAnimationActive={false}
         />
         <Radar
-          name={name}
-          dataKey="score"
+          name={nigeriaName}
+          dataKey="nigeria"
+          stroke={MUTED}
+          strokeDasharray="4 3"
+          strokeWidth={1.8}
+          fill={MUTED}
+          fillOpacity={0.06}
+          isAnimationActive={false}
+        />
+        <Radar
+          name={resultName}
+          dataKey="result"
           stroke={color}
           strokeWidth={2}
           fill={color}

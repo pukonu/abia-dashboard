@@ -45,6 +45,16 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
   return s || null;
 }
 
+function normalizeIndicatorRow(backTo: string, row: Record<string, unknown>, id?: string) {
+  const scope = row.indicator_scope;
+  if (scope === "entity") {
+    if (!row.state_indicator_id) fail(backTo, "Entity-level indicators must select a state-level indicator to roll up into.");
+    if (id && row.state_indicator_id === id) fail(backTo, "An indicator cannot roll up into itself.");
+  } else {
+    row.state_indicator_id = null;
+  }
+}
+
 /** Optional `_back` field lets detail-page forms return to the tab they came from. */
 function resolveBack(formData: FormData, fallback: string): string {
   const b = strOrNull(formData.get("_back"));
@@ -70,6 +80,7 @@ export async function createRecord(slug: string, formData: FormData) {
     }
     if (value !== null) row[field.name] = value;
   }
+  if (slug === "indicators") normalizeIndicatorRow(backTo, row);
 
   const { error } = await admin.from(spec.table).insert(row);
   if (error) fail(backTo, `Could not save: ${error.message}`);
@@ -105,6 +116,7 @@ export async function updateRecord(slug: string, id: string, formData: FormData)
     }
     row[field.name] = value;
   }
+  if (slug === "indicators") normalizeIndicatorRow(backTo, row, id);
 
   const { error } = await admin.from(spec.table).update(row).eq("id", id);
   if (error) fail(backTo, `Could not save: ${error.message}`);
@@ -182,26 +194,98 @@ async function upsertResult(
   return inserted.error ? { error: inserted.error.message } : { id: inserted.data.id };
 }
 
+async function cascadeStateResultFromEntity(
+  admin: SupabaseClient,
+  indicatorId: string,
+  timePeriodId: string
+): Promise<{ error?: string }> {
+  const child = await admin
+    .from("indicators")
+    .select("id, indicator_scope, state_indicator_id")
+    .eq("id", indicatorId)
+    .single();
+  if (child.error) return { error: child.error.message };
+  if (child.data.indicator_scope !== "entity" || !child.data.state_indicator_id) return {};
+
+  const siblings = await admin
+    .from("indicators")
+    .select("id, weight")
+    .eq("state_indicator_id", child.data.state_indicator_id);
+  if (siblings.error) return { error: siblings.error.message };
+  const childIndicators = siblings.data ?? [];
+  if (childIndicators.length === 0) return {};
+
+  const results = await admin
+    .from("results")
+    .select("indicator_id, abia_value, entity_id")
+    .eq("time_period_id", timePeriodId)
+    .in("indicator_id", childIndicators.map((i) => i.id))
+    .not("entity_id", "is", null);
+  if (results.error) return { error: results.error.message };
+
+  const weightByIndicator = new Map(childIndicators.map((i) => [i.id, Number(i.weight ?? 1)]));
+  let sum = 0;
+  let wsum = 0;
+  for (const r of results.data ?? []) {
+    const weight = weightByIndicator.get(r.indicator_id) ?? 1;
+    const value = Number(r.abia_value);
+    if (!Number.isFinite(value)) continue;
+    sum += value * weight;
+    wsum += weight;
+  }
+  if (wsum <= 0) return {};
+
+  const aggregate = Math.round((sum / wsum) * 100) / 100;
+  const saved = await upsertResult(admin, {
+    indicator_id: child.data.state_indicator_id,
+    time_period_id: timePeriodId,
+    entity_id: null,
+    abia_value: aggregate,
+    nigeria_value: null,
+    target_value: null,
+    notes: "Auto-aggregated from linked entity-level indicator results.",
+  });
+  return "error" in saved ? { error: saved.error } : {};
+}
+
 export async function saveResult(formData: FormData) {
   const backTo = "/manage/results";
   const admin = await requireAdmin(backTo);
 
   const indicator_id = strOrNull(formData.get("indicator_id"));
   const time_period_id = strOrNull(formData.get("time_period_id"));
+  const entity_id = strOrNull(formData.get("entity_id"));
   const abia_value = numOrNull(formData.get("abia_value"));
   if (!indicator_id || !time_period_id) fail(backTo, "Indicator and time period are required.");
   if (abia_value === null) fail(backTo, "Abia value is required and must be a number.");
 
+  const indicator = await admin
+    .from("indicators")
+    .select("id, indicator_scope")
+    .eq("id", indicator_id)
+    .single();
+  if (indicator.error) fail(backTo, `Could not load indicator: ${indicator.error.message}`);
+  if (indicator.data.indicator_scope === "entity" && !entity_id) {
+    fail(backTo, "Entity-level indicators require an entity.");
+  }
+  if (indicator.data.indicator_scope !== "entity" && entity_id) {
+    fail(backTo, "State-level indicators must be saved without an entity.");
+  }
+
   const saved = await upsertResult(admin, {
     indicator_id,
     time_period_id,
-    entity_id: strOrNull(formData.get("entity_id")),
+    entity_id,
     abia_value,
     nigeria_value: numOrNull(formData.get("nigeria_value")),
     target_value: numOrNull(formData.get("target_value")),
     notes: strOrNull(formData.get("notes")),
   });
   if ("error" in saved) fail(backTo, `Could not save result: ${saved.error}`);
+  if (indicator.data.indicator_scope === "entity") {
+    const cascade = await cascadeStateResultFromEntity(admin, indicator_id, time_period_id);
+    if (cascade.error) fail(backTo, `Result saved, but state rollup failed: ${cascade.error}`);
+  }
 
   // Evidence images (optional, multiple)
   const files = formData.getAll("evidence").filter((f): f is File => f instanceof File && f.size > 0);
@@ -231,6 +315,72 @@ export async function saveResult(formData: FormData) {
   }
 
   ok(backTo, `Result saved${uploaded ? ` with ${uploaded} evidence image${uploaded === 1 ? "" : "s"}` : ""}.`);
+}
+
+/**
+ * Batch entry from the wizard grid: one value/notes pair per indicator,
+ * posted as `value_<indicatorId>` / `nigeria_<indicatorId>` / `notes_<indicatorId>`.
+ */
+export async function saveResultsBatch(formData: FormData) {
+  const backTo = "/manage/results";
+  const admin = await requireAdmin(backTo);
+
+  const time_period_id = strOrNull(formData.get("time_period_id"));
+  const entity_id = strOrNull(formData.get("entity_id"));
+  if (!time_period_id) fail(backTo, "A reporting period is required.");
+
+  const rows: Array<{ indicatorId: string; value: number; nigeria: number | null; notes: string | null }> = [];
+  for (const [key, raw] of formData.entries()) {
+    if (!key.startsWith("value_") || typeof raw !== "string") continue;
+    const indicatorId = key.slice("value_".length);
+    const value = numOrNull(raw);
+    if (value === null) continue;
+    rows.push({
+      indicatorId,
+      value,
+      nigeria: numOrNull(formData.get(`nigeria_${indicatorId}`)),
+      notes: strOrNull(formData.get(`notes_${indicatorId}`)),
+    });
+  }
+  if (rows.length === 0) fail(backTo, "Fill at least one indicator value before saving.");
+
+  const indicators = await admin
+    .from("indicators")
+    .select("id, indicator_scope")
+    .in("id", rows.map((r) => r.indicatorId));
+  if (indicators.error) fail(backTo, `Could not load indicators: ${indicators.error.message}`);
+  const scopeById = new Map(indicators.data.map((i) => [i.id, i.indicator_scope]));
+
+  let saved = 0;
+  const cascadeIds = new Set<string>();
+  for (const row of rows) {
+    const scope = scopeById.get(row.indicatorId);
+    if (!scope) fail(backTo, "One of the submitted indicators no longer exists.");
+    if (scope === "entity" && !entity_id) fail(backTo, "Entity-level indicators require an entity.");
+    if (scope !== "entity" && entity_id) fail(backTo, "State-level indicators must be saved without an entity.");
+
+    const result = await upsertResult(admin, {
+      indicator_id: row.indicatorId,
+      time_period_id,
+      entity_id,
+      abia_value: row.value,
+      nigeria_value: row.nigeria,
+      target_value: null,
+      notes: row.notes,
+    });
+    if ("error" in result) {
+      fail(backTo, `Saved ${saved} result${saved === 1 ? "" : "s"}, then failed: ${result.error}`);
+    }
+    saved++;
+    if (scope === "entity") cascadeIds.add(row.indicatorId);
+  }
+
+  for (const indicatorId of cascadeIds) {
+    const cascade = await cascadeStateResultFromEntity(admin, indicatorId, time_period_id);
+    if (cascade.error) fail(backTo, `Results saved, but state rollup failed: ${cascade.error}`);
+  }
+
+  ok(backTo, `Saved ${saved} result${saved === 1 ? "" : "s"}.`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -313,10 +463,30 @@ export async function importResultsCsv(formData: FormData) {
       errors.push(`Row ${idx + 2}: abia_value "${abiaRaw}" is not a number`);
       continue;
     }
+    const indicatorId = get("indicator_id");
+    const entityId = get("entity_id") || null;
+    const indicator = await admin
+      .from("indicators")
+      .select("indicator_scope")
+      .eq("id", indicatorId)
+      .single();
+    if (indicator.error) {
+      errors.push(`Row ${idx + 2}: could not load indicator "${indicatorId}"`);
+      continue;
+    }
+    if (indicator.data.indicator_scope === "entity" && !entityId) {
+      errors.push(`Row ${idx + 2}: entity-level indicators require entity_id`);
+      continue;
+    }
+    if (indicator.data.indicator_scope !== "entity" && entityId) {
+      errors.push(`Row ${idx + 2}: state-level indicators must leave entity_id blank`);
+      continue;
+    }
+
     const result = await upsertResult(admin, {
-      indicator_id: get("indicator_id"),
+      indicator_id: indicatorId,
       time_period_id: get("time_period_id"),
-      entity_id: get("entity_id") || null,
+      entity_id: entityId,
       abia_value: abia,
       nigeria_value: get("nigeria_value") ? Number(get("nigeria_value")) : null,
       target_value: get("target_value") ? Number(get("target_value")) : null,
@@ -325,6 +495,12 @@ export async function importResultsCsv(formData: FormData) {
     if ("error" in result) {
       errors.push(`Row ${idx + 2}: ${result.error}`);
     } else {
+      if (indicator.data.indicator_scope === "entity") {
+        const cascade = await cascadeStateResultFromEntity(admin, indicatorId, get("time_period_id"));
+        if (cascade.error) {
+          errors.push(`Row ${idx + 2}: state rollup failed (${cascade.error})`);
+        }
+      }
       saved++;
     }
     if (errors.length >= 5) break;

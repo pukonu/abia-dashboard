@@ -4,6 +4,7 @@ import { ScoreRadarChart } from "@/components/charts";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { sectorNigeriaScore } from "@/lib/benchmark-comparisons";
 import { computeDashboard, delta } from "@/lib/scoring";
 
 export default async function LgaPage({
@@ -72,13 +73,14 @@ export default async function LgaPage({
 
       {sectorBreakdown.length >= 3 && (
         <>
-          <SectionTitle hint="Dashed ring = target">Distance to target by sector</SectionTitle>
+          <SectionTitle hint="Result, Nigeria and target">Distance to target by sector</SectionTitle>
           <div className="card card-pad">
             <ScoreRadarChart
-              name={`${lga.name} composite`}
+              resultName="Result"
               points={sectorBreakdown.map(({ sector, score }) => ({
                 axis: sector.name.replace(" & Trade", ""),
-                score,
+                result: score,
+                nigeria: sectorNigeriaScore(c, sector.id),
               }))}
             />
           </div>

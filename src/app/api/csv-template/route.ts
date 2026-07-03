@@ -40,6 +40,8 @@ export async function GET(req: NextRequest) {
   const lines: string[] = [header.join(",")];
 
   for (const ind of data.indicators) {
+    if (scope === "state" && ind.indicator_scope === "entity") continue;
+    if (scope === "entities" && ind.indicator_scope !== "entity") continue;
     const domain = domainById.get(ind.domain_id);
     const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
     const sector = thematic ? sectorById.get(thematic.sector_id) : undefined;

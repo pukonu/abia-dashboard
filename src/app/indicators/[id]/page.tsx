@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { IndicatorTrendChart } from "@/components/charts";
+import { formatIndicatorMetric, IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { CardList, Crumbs, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -88,15 +89,18 @@ export default async function IndicatorPage({
         title={indicator.name}
         subtitle={`${FREQ_LABEL[thematicArea.frequency]} reporting · ${
           higherBetter ? "Higher is better" : "Lower is better"
-        } · Target ${fmtValue(indicator.target_value, indicator.unit)}${
-          indicator.target_source ? ` set by ${indicator.target_source}` : ""
+        } · Target ${formatIndicatorMetric(
+          domain.benchmark_target ?? ic.latest?.target ?? indicator.target_value,
+          indicator.unit
+        )}${
+          indicator.target_source && !domain.benchmark_target ? ` set by ${indicator.target_source}` : ""
         }`}
       />
 
       {/* Headline stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="card card-pad">
-          <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">Abia · {ic.latest?.period.label ?? "—"}</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">Result · {ic.latest?.period.label ?? "—"}</div>
           <div className="display mt-1 text-2xl font-semibold text-zinc-900">
             {fmtValue(ic.latest?.abia ?? null, indicator.unit)}
           </div>
@@ -114,7 +118,7 @@ export default async function IndicatorPage({
         <div className="card card-pad">
           <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">Nigeria</div>
           <div className="display mt-1 text-2xl font-semibold text-zinc-900">
-            {fmtValue(ic.latest?.nigeria ?? null, indicator.unit)}
+            {formatIndicatorMetric(ic.latest?.nigeria ?? domain.benchmark_nigeria ?? null, indicator.unit)}
           </div>
           <div className="mt-1 text-xs font-medium">
             {abiaAhead == null ? (
@@ -128,10 +132,10 @@ export default async function IndicatorPage({
         </div>
         <div className="card card-pad">
           <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Target{indicator.target_source ? ` · ${indicator.target_source}` : ""}
+            Target{indicator.target_source && !domain.benchmark_target ? ` · ${indicator.target_source}` : ""}
           </div>
           <div className="display mt-1 text-2xl font-semibold text-zinc-900">
-            {fmtValue(ic.latest?.target ?? null, indicator.unit)}
+            {formatIndicatorMetric(domain.benchmark_target ?? ic.latest?.target ?? indicator.target_value, indicator.unit)}
           </div>
           <div className="mt-1 text-xs text-zinc-400">
             {ic.latest?.abia != null && ic.latest?.target != null
@@ -152,7 +156,7 @@ export default async function IndicatorPage({
 
       {/* Trend */}
       <SectionTitle hint={`${ic.series.length} ${FREQ_LABEL[thematicArea.frequency].toLowerCase()} periods`}>
-        Abia vs Nigeria vs target
+        Result vs Nigeria vs target
       </SectionTitle>
       <div className="card card-pad">
         <IndicatorTrendChart
@@ -199,10 +203,18 @@ export default async function IndicatorPage({
                 left={
                   <>
                     <div className="truncate text-sm font-medium text-zinc-900">{row.entity.name}</div>
-                    <div className="mt-0.5 truncate text-xs text-zinc-500">
-                      {row.lga?.name ?? "—"} LGA · {row.reading.periodLabel} ·{" "}
-                      <strong className="text-zinc-700">{fmtValue(row.reading.value, indicator.unit)}</strong>
-                    </div>
+                    <IndicatorResultLine
+                      result={row.reading.value}
+                      nigeria={ic.latest?.nigeria ?? domain.benchmark_nigeria ?? null}
+                      target={domain.benchmark_target ?? ic.latest?.target ?? indicator.target_value}
+                      unit={indicator.unit}
+                      targetSource={indicator.target_source}
+                      prefix={
+                        <>
+                          {row.lga?.name ?? "—"} LGA · {row.reading.periodLabel} ·
+                        </>
+                      }
+                    />
                   </>
                 }
                 right={

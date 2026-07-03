@@ -1,7 +1,8 @@
-import { DemoModeNotice, Flash, FieldLabel, inputClass } from "@/components/forms";
+import { DemoModeNotice, Flash } from "@/components/forms";
+import ResultWizard from "@/components/manage/ResultWizard";
 import { ActionLink, Crumbs, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
-import { importResultsCsv, saveResult } from "../actions";
+import { importResultsCsv, saveResultsBatch } from "../actions";
 
 export const metadata = { title: "Record results" };
 
@@ -14,26 +15,51 @@ export default async function ResultsEntryPage({
   const data = await loadDashboardData();
   const live = data.mode === "live";
 
-  const domainById = new Map(data.domains.map((d) => [d.id, d]));
-  const thematicById = new Map(data.thematicAreas.map((t) => [t.id, t]));
+  const lgaById = new Map(data.lgas.map((l) => [l.id, l]));
 
-  const indicatorOptions = data.indicators.map((i) => {
-    const domain = domainById.get(i.domain_id);
-    const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
-    return {
-      value: i.id,
-      label: `${i.name} (${i.unit}) — ${thematic?.name ?? ""}${thematic ? ` · ${thematic.frequency}` : ""}`,
-    };
-  });
+  const wizardSectors = [...data.sectors]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((s) => ({ id: s.id, name: s.name }));
 
-  const periodOptions = [...data.timePeriods]
-    .sort((a, b) => b.start_date.localeCompare(a.start_date))
-    .map((p) => ({ value: p.id, label: `${p.label} (${p.frequency})` }));
-
-  const entityOptions = data.entities.map((e) => ({
-    value: e.id,
-    label: `${e.name} — ${data.lgas.find((l) => l.id === e.lga_id)?.name ?? ""}`,
+  const wizardMdas = data.mdas.map((m) => ({
+    id: m.id,
+    sectorId: m.sector_id,
+    name: m.name,
+    abbreviation: m.abbreviation,
   }));
+
+  const wizardEntities = data.entities.map((e) => ({
+    id: e.id,
+    mdaId: e.mda_id,
+    name: e.name,
+    detail: lgaById.get(e.lga_id)?.name ?? "",
+  }));
+
+  const wizardThematicAreas = data.thematicAreas.map((t) => ({
+    id: t.id,
+    sectorId: t.sector_id,
+    name: t.name,
+    frequency: t.frequency,
+  }));
+
+  const wizardDomains = data.domains.map((d) => ({
+    id: d.id,
+    thematicAreaId: d.thematic_area_id,
+    name: d.name,
+  }));
+
+  const wizardIndicators = data.indicators.map((i) => ({
+    id: i.id,
+    domainId: i.domain_id,
+    name: i.name,
+    unit: i.unit,
+    scope: i.indicator_scope,
+    targetLabel: i.target_value != null ? `target ${i.target_value}${i.unit === "%" ? "%" : ""}` : "",
+  }));
+
+  const wizardPeriods = [...data.timePeriods]
+    .sort((a, b) => b.start_date.localeCompare(a.start_date))
+    .map((p) => ({ id: p.id, label: p.label, frequency: p.frequency }));
 
   return (
     <>
@@ -41,91 +67,31 @@ export default async function ResultsEntryPage({
       <PageHeader
         eyebrow="Data entry"
         title="Record results"
-        subtitle="Enter Abia's measured value for an indicator and reporting period. Attach evidence images to back the figure."
+        subtitle="A guided flow: pick the sector and MDA, then the entity (or statewide), then fill values across the domain grid. Entity entries automatically roll up into their linked state indicator."
       />
       <Flash msg={msg} err={err} />
       <DemoModeNotice show={!live} />
 
-      {/* Single result with evidence */}
-      <SectionTitle>Enter a result</SectionTitle>
-      <form action={saveResult} className="card card-pad">
-        <fieldset disabled={!live} className="grid gap-4 disabled:opacity-60 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <FieldLabel label="Indicator" required />
-            <select name="indicator_id" required defaultValue="" className={inputClass}>
-              <option value="" disabled>Select an indicator…</option>
-              {indicatorOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel label="Time period" required help="Match the indicator's reporting frequency" />
-            <select name="time_period_id" required defaultValue="" className={inputClass}>
-              <option value="" disabled>Select a period…</option>
-              {periodOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel label="Entity" help="Leave empty for the state-level result" />
-            <select name="entity_id" defaultValue="" className={inputClass}>
-              <option value="">Whole state (no entity)</option>
-              {entityOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel label="Abia value" required help="The main measured result" />
-            <input type="number" step="any" name="abia_value" required className={inputClass} />
-          </div>
-          <div>
-            <FieldLabel label="Nigeria value" help="National comparison, if known" />
-            <input type="number" step="any" name="nigeria_value" className={inputClass} />
-          </div>
-          <div>
-            <FieldLabel label="Target override" help="Only if it differs from the indicator's target" />
-            <input type="number" step="any" name="target_value" className={inputClass} />
-          </div>
-          <div>
-            <FieldLabel label="Notes" />
-            <input type="text" name="notes" placeholder="Optional context" className={inputClass} />
-          </div>
-          <div className="sm:col-span-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
-            <FieldLabel label="Evidence images" help="Photos, scans or screenshots backing this figure" />
-            <input
-              type="file"
-              name="evidence"
-              accept="image/*"
-              multiple
-              className="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-950 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800"
-            />
-            <input
-              type="text"
-              name="evidence_caption"
-              placeholder="Caption for the evidence (optional)"
-              className={`${inputClass} mt-3`}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed"
-            >
-              Save result
-            </button>
-          </div>
-        </fieldset>
-      </form>
+      {/* Guided entry */}
+      <SectionTitle>Enter results</SectionTitle>
+      <ResultWizard
+        sectors={wizardSectors}
+        mdas={wizardMdas}
+        entities={wizardEntities}
+        indicators={wizardIndicators}
+        domains={wizardDomains}
+        thematicAreas={wizardThematicAreas}
+        periods={wizardPeriods}
+        action={saveResultsBatch}
+        disabled={!live}
+      />
 
       {/* CSV import */}
       <div id="csv" />
       <SectionTitle>Bulk upload via CSV</SectionTitle>
       <div className="card card-pad">
         <ol className="list-decimal space-y-1.5 pl-5 text-sm text-zinc-600">
-          <li>Download a template — it comes prefilled with every indicator and the current reporting period.</li>
+          <li>Download a template — state and entity templates are separated and prefilled with matching indicators and periods.</li>
           <li>Fill the <code className="rounded bg-zinc-100 px-1">abia_value</code> column (and optionally <code className="rounded bg-zinc-100 px-1">nigeria_value</code>, <code className="rounded bg-zinc-100 px-1">target_value</code>, <code className="rounded bg-zinc-100 px-1">notes</code>). Leave rows blank to skip them.</li>
           <li>Upload the file — results are created or updated for each filled row.</li>
         </ol>

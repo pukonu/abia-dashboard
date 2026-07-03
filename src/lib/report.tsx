@@ -141,6 +141,7 @@ function deltaText(pair: { score: number | null; prevScore: number | null }): st
 
 export function StateReport({ c }: { c: Computed }) {
   const attention = [...c.indicators]
+    .filter((i) => i.indicator.indicator_scope !== "entity")
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
     .slice(0, 8);
@@ -156,7 +157,7 @@ export function StateReport({ c }: { c: Computed }) {
         <Summary
           label="Abia State Performance Index"
           score={c.stateScore.score}
-          note={`Composite of ${c.indicators.length} indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}.`}
+          note={`Composite of ${c.indicators.filter((i) => i.indicator.indicator_scope !== "entity").length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}.`}
         />
 
         <View style={styles.section}>
@@ -231,7 +232,7 @@ export function SectorReport({ c, sector }: { c: Computed; sector: Sector }) {
   const pair = c.sectorScores.get(sector.id) ?? { score: null, prevScore: null };
   const thematics = c.data.thematicAreas.filter((t) => t.sector_id === sector.id);
   const mdas = c.mdaScores.filter((m) => m.sector.id === sector.id);
-  const indicators = c.indicators.filter((i) => i.sector.id === sector.id);
+  const indicators = c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity");
 
   return (
     <Document title={`State of ${sector.name} — Abia State`}>

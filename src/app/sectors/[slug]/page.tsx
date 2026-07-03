@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ScoreRadarChart, TrendChart } from "@/components/charts";
+import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, Crumbs, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
-import { computeDashboard, delta, fmtValue } from "@/lib/scoring";
+import { domainNigeriaScore } from "@/lib/benchmark-comparisons";
+import { computeDashboard, delta } from "@/lib/scoring";
 
 const FREQ_LABEL: Record<string, string> = {
   daily: "Daily",
@@ -58,7 +60,7 @@ export default async function SectorPage({
             </div>
             <p className="mt-2 max-w-xs text-xs leading-relaxed text-zinc-500">
               Weighted roll-up of {thematics.length} thematic areas and{" "}
-              {c.indicators.filter((i) => i.sector.id === sector.id).length} indicators.
+              {c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity").length} indicators.
             </p>
           </div>
         </div>
@@ -75,16 +77,17 @@ export default async function SectorPage({
       </section>
 
       {/* Distance to target across domains */}
-      <SectionTitle hint="Dashed ring = target">Distance to target by domain</SectionTitle>
+      <SectionTitle hint="Result, Nigeria and target">Distance to target by domain</SectionTitle>
       <div className="card card-pad">
         <ScoreRadarChart
-          name={`${sector.name} domains`}
+          resultName="Result"
           color={sector.color}
           points={data.domains
             .filter((d) => thematics.some((t) => t.id === d.thematic_area_id))
             .map((d) => ({
               axis: d.name,
-              score: c.domainScores.get(d.id)?.score ?? null,
+              result: c.domainScores.get(d.id)?.score ?? null,
+              nigeria: domainNigeriaScore(c, d),
             }))}
         />
       </div>
@@ -127,7 +130,9 @@ export default async function SectorPage({
               </div>
               {taDomains.map((dom) => {
                 const domPair = c.domainScores.get(dom.id) ?? { score: null, prevScore: null };
-                const domIndicators = c.indicators.filter((i) => i.domain.id === dom.id);
+                const domIndicators = c.indicators.filter(
+                  (i) => i.domain.id === dom.id && i.indicator.indicator_scope !== "entity"
+                );
                 return (
                   <div key={dom.id} className="border-b border-zinc-100 last:border-b-0">
                     <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3 sm:px-5">
@@ -142,20 +147,17 @@ export default async function SectorPage({
                       <Link
                         key={i.indicator.id}
                         href={`/indicators/${i.indicator.id}`}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
+                        className="flex items-start justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm text-zinc-800">{i.indicator.name}</div>
-                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
-                            <span>
-                              Abia <strong className="text-zinc-700">{fmtValue(i.latest?.abia ?? null, i.indicator.unit)}</strong>
-                            </span>
-                            <span>Nigeria {fmtValue(i.latest?.nigeria ?? null, i.indicator.unit)}</span>
-                            <span>
-                              Target {fmtValue(i.latest?.target ?? null, i.indicator.unit)}
-                              {i.indicator.target_source ? ` (${i.indicator.target_source})` : ""}
-                            </span>
-                          </div>
+                          <IndicatorResultLine
+                            result={i.latest?.abia ?? null}
+                            nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
+                            target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
+                            unit={i.indicator.unit}
+                            targetSource={i.indicator.target_source}
+                          />
                         </div>
                         <ScoreBadge score={i.score} />
                       </Link>

@@ -1,10 +1,12 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ScoreRadarChart, TrendChart } from "@/components/charts";
+import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
-import { computeDashboard, delta, fmtValue, ratingFor } from "@/lib/scoring";
+import { sectorNigeriaScore } from "@/lib/benchmark-comparisons";
+import { computeDashboard, delta, ratingFor } from "@/lib/scoring";
 
 export default async function OverviewPage() {
   const data = await loadDashboardData();
@@ -22,6 +24,7 @@ export default async function OverviewPage() {
   const bottomLgas = rankedLgas.slice(-3).reverse();
 
   const attention = [...c.indicators]
+    .filter((i) => i.indicator.indicator_scope !== "entity")
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
     .slice(0, 5);
@@ -109,13 +112,14 @@ export default async function OverviewPage() {
         <div className="card card-pad">
           <h2 className="display mb-1 text-base font-semibold text-zinc-900">Distance to target</h2>
           <p className="mb-2 text-xs text-zinc-500">
-            The dashed ring is the target; the shaded shape is where each sector stands today.
+            Result, Nigeria and target are shown together on the same 0-100 scale.
           </p>
           <ScoreRadarChart
-            name="Sector composite"
+            resultName="Result"
             points={sectorCards.map(({ sector, pair }) => ({
               axis: sector.name.replace(" & Trade", ""),
-              score: pair.score,
+              result: pair.score,
+              nigeria: sectorNigeriaScore(c, sector.id),
             }))}
           />
         </div>
@@ -175,11 +179,18 @@ export default async function OverviewPage() {
             left={
               <>
                 <div className="truncate text-sm font-medium text-zinc-900">{i.indicator.name}</div>
-                <div className="mt-0.5 truncate text-xs text-zinc-500">
-                  {i.sector.name} · {i.domain.name} · Abia{" "}
-                  <strong>{fmtValue(i.latest?.abia ?? null, i.indicator.unit)}</strong> vs target{" "}
-                  {fmtValue(i.latest?.target ?? null, i.indicator.unit)} ({i.indicator.target_source})
-                </div>
+                <IndicatorResultLine
+                  result={i.latest?.abia ?? null}
+                  nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
+                  target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
+                  unit={i.indicator.unit}
+                  targetSource={i.indicator.target_source}
+                  prefix={
+                    <>
+                      {i.sector.name} · {i.domain.name} ·
+                    </>
+                  }
+                />
               </>
             }
             right={<ScoreBadge score={i.score} showLabel />}

@@ -1,0 +1,480 @@
+"use client";
+
+import { Building2, Check, ChevronLeft, Landmark } from "lucide-react";
+import { useMemo, useState } from "react";
+import { inputClass } from "@/components/forms";
+
+export interface WizardSector {
+  id: string;
+  name: string;
+}
+
+export interface WizardMda {
+  id: string;
+  sectorId: string;
+  name: string;
+  abbreviation: string;
+}
+
+export interface WizardEntity {
+  id: string;
+  mdaId: string;
+  name: string;
+  detail: string;
+}
+
+export interface WizardIndicator {
+  id: string;
+  domainId: string;
+  name: string;
+  unit: string;
+  scope: "state" | "entity";
+  targetLabel: string;
+}
+
+export interface WizardDomain {
+  id: string;
+  thematicAreaId: string;
+  name: string;
+}
+
+export interface WizardThematicArea {
+  id: string;
+  sectorId: string;
+  name: string;
+  frequency: string;
+}
+
+export interface WizardPeriod {
+  id: string;
+  label: string;
+  frequency: string;
+}
+
+const STEPS = ["Sector & MDA", "Entity", "Data"] as const;
+
+const numericCompare = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
+function StepDots({ current, onJump }: { current: number; onJump: (i: number) => void }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-1.5">
+      {STEPS.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <li key={label} className="flex items-center gap-1.5">
+            {i > 0 && <span className="h-px w-5 bg-zinc-200" />}
+            <button
+              type="button"
+              onClick={() => done && onJump(i)}
+              disabled={!done}
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                active
+                  ? "bg-zinc-950 text-white"
+                  : done
+                    ? "bg-green-50 text-green-900 hover:bg-green-100"
+                    : "bg-zinc-100 text-zinc-400"
+              }`}
+            >
+              {done ? <Check className="h-3 w-3" strokeWidth={2.5} /> : <span>{i + 1}</span>}
+              {label}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export default function ResultWizard({
+  sectors,
+  mdas,
+  entities,
+  indicators,
+  domains,
+  thematicAreas,
+  periods,
+  action,
+  disabled = false,
+}: {
+  sectors: WizardSector[];
+  mdas: WizardMda[];
+  entities: WizardEntity[];
+  indicators: WizardIndicator[];
+  domains: WizardDomain[];
+  thematicAreas: WizardThematicArea[];
+  periods: WizardPeriod[];
+  action: (formData: FormData) => void | Promise<void>;
+  disabled?: boolean;
+}) {
+  const [step, setStep] = useState(0);
+  const [sectorId, setSectorId] = useState<string | null>(null);
+  const [mdaId, setMdaId] = useState<string | null>(null);
+  /** null = not chosen yet; "" = statewide; otherwise entity id */
+  const [entityId, setEntityId] = useState<string | null>(null);
+  const [periodId, setPeriodId] = useState<string>(periods[0]?.id ?? "");
+  const [search, setSearch] = useState("");
+  const [filledCount, setFilledCount] = useState(0);
+
+  const sector = sectors.find((s) => s.id === sectorId) ?? null;
+  const mda = mdas.find((m) => m.id === mdaId) ?? null;
+  const entity = entities.find((e) => e.id === entityId) ?? null;
+  const statewide = entityId === "";
+
+  const sectorMdas = useMemo(
+    () => mdas.filter((m) => m.sectorId === sectorId).sort((a, b) => numericCompare(a.name, b.name)),
+    [mdas, sectorId]
+  );
+  const mdaEntities = useMemo(
+    () => entities.filter((e) => e.mdaId === mdaId).sort((a, b) => numericCompare(a.name, b.name)),
+    [entities, mdaId]
+  );
+
+  /** Domains of the chosen sector, with their indicators for the chosen scope. */
+  const grid = useMemo(() => {
+    if (sectorId == null || entityId == null) return [];
+    const scope = statewide ? "state" : "entity";
+    const sectorThematicIds = new Set(thematicAreas.filter((t) => t.sectorId === sectorId).map((t) => t.id));
+    const thematicById = new Map(thematicAreas.map((t) => [t.id, t]));
+
+    return domains
+      .filter((d) => sectorThematicIds.has(d.thematicAreaId))
+      .sort((a, b) => numericCompare(a.name, b.name))
+      .map((d) => ({
+        domain: d,
+        thematic: thematicById.get(d.thematicAreaId),
+        indicators: indicators
+          .filter((i) => i.domainId === d.id && i.scope === scope)
+          .sort((a, b) => numericCompare(a.name, b.name)),
+      }))
+      .filter((g) => g.indicators.length > 0);
+  }, [domains, indicators, thematicAreas, sectorId, entityId, statewide]);
+
+  const gridIndicatorCount = grid.reduce((n, g) => n + g.indicators.length, 0);
+
+  // Search only hides rows visually so already-typed values are never lost.
+  const query = search.trim().toLowerCase();
+  const matches = (g: { domain: WizardDomain; indicators: WizardIndicator[] }, i: WizardIndicator) =>
+    !query || `${i.name} ${g.domain.name}`.toLowerCase().includes(query);
+  const visibleCount = grid.reduce((n, g) => n + g.indicators.filter((i) => matches(g, i)).length, 0);
+
+  /** Periods matching the sector's dominant frequency, falling back to all. */
+  const gridPeriods = useMemo(() => {
+    if (!sectorId) return periods;
+    const freqs = new Set(thematicAreas.filter((t) => t.sectorId === sectorId).map((t) => t.frequency));
+    const matching = periods.filter((p) => freqs.has(p.frequency));
+    return matching.length > 0 ? matching : periods;
+  }, [periods, thematicAreas, sectorId]);
+
+  const summary = [
+    mda ? (mda.abbreviation || mda.name) : sector?.name,
+    entityId == null ? null : statewide ? "Statewide" : entity?.name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const recountFilled = (form: HTMLFormElement) => {
+    let n = 0;
+    for (const el of Array.from(form.elements)) {
+      if (el instanceof HTMLInputElement && el.name.startsWith("value_") && el.value.trim() !== "") n++;
+    }
+    setFilledCount(n);
+  };
+
+  return (
+    <form action={action} onInput={(e) => recountFilled(e.currentTarget)} className="card card-pad">
+      <fieldset disabled={disabled} className="disabled:opacity-60">
+        <input type="hidden" name="entity_id" value={entityId ?? ""} />
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <StepDots current={step} onJump={setStep} />
+          {summary && <div className="truncate text-xs text-zinc-500">{summary}</div>}
+        </div>
+
+        {/* Step 1 — sector & MDA */}
+        {step === 0 && (
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-zinc-900">Which sector and MDA is reporting?</h3>
+            <p className="mb-4 text-xs text-zinc-500">Pick the sector first, then the MDA responsible for the data.</p>
+            <div className="flex flex-wrap gap-2">
+              {sectors.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setSectorId(s.id);
+                    setMdaId(null);
+                    setEntityId(null);
+                    setFilledCount(0);
+                  }}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                    sectorId === s.id
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                  }`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+            {sectorId && (
+              <div className="mt-4 space-y-1.5">
+                {sectorMdas.length === 0 && (
+                  <p className="rounded-md border border-dashed border-zinc-300 px-4 py-6 text-center text-xs text-zinc-500">
+                    No MDAs configured for {sector?.name}.
+                  </p>
+                )}
+                {sectorMdas.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setMdaId(m.id);
+                      setEntityId(null);
+                      setFilledCount(0);
+                      setStep(1);
+                    }}
+                    className={`w-full rounded-lg border px-4 py-2.5 text-left transition-colors ${
+                      mdaId === m.id
+                        ? "border-zinc-950 bg-zinc-50 ring-1 ring-zinc-950"
+                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-zinc-900">{m.name}</div>
+                    {m.abbreviation && <div className="mt-0.5 text-xs text-zinc-500">{m.abbreviation}</div>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2 — entity or statewide */}
+        {step === 1 && (
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-zinc-900">Who is this data for?</h3>
+            <p className="mb-4 text-xs text-zinc-500">
+              Report statewide figures, or pick one of {mda?.abbreviation || mda?.name}&apos;s entities.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEntityId("");
+                  setFilledCount(0);
+                  setStep(2);
+                }}
+                className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                  statewide ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+                  <Landmark className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-900">Statewide</span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">State-level indicator results for Abia as a whole</span>
+                </span>
+              </button>
+              <div className={`rounded-xl border p-4 ${entity ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200"}`}>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+                    <Building2 className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-zinc-900">A specific entity</div>
+                    <select
+                      value={entityId ?? ""}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setEntityId(e.target.value);
+                          setFilledCount(0);
+                          setStep(2);
+                        }
+                      }}
+                      className={`${inputClass} mt-2`}
+                    >
+                      <option value="">
+                        {mdaEntities.length === 0 ? "No entities under this MDA" : "Select an entity…"}
+                      </option>
+                      {mdaEntities.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.name}
+                          {e.detail ? ` — ${e.detail}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — data grid */}
+        {step === 2 && (
+          <div>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">
+                  Enter values for {statewide ? "the whole state" : entity?.name}
+                </h3>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Fill only the indicators you have data for — empty rows are skipped.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter indicators…"
+                  className={`${inputClass} w-52`}
+                />
+                <select
+                  name="time_period_id"
+                  value={periodId}
+                  onChange={(e) => setPeriodId(e.target.value)}
+                  required
+                  className={`${inputClass} w-44`}
+                >
+                  {gridPeriods.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {gridIndicatorCount === 0 ? (
+              <p className="rounded-md border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500">
+                No {statewide ? "state" : "entity"}-level indicators configured for {sector?.name ?? "this sector"} yet.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-zinc-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <th className="px-4 py-2.5">Indicator</th>
+                      <th className="w-28 px-3 py-2.5">Value</th>
+                      {statewide && <th className="w-28 px-3 py-2.5">Nigeria</th>}
+                      <th className="w-48 px-3 py-2.5">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grid.map((g) => (
+                      <SectionRows
+                        key={g.domain.id}
+                        group={g}
+                        statewide={statewide}
+                        isVisible={(i) => matches(g, i)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+                {visibleCount === 0 && (
+                  <p className="px-4 py-6 text-center text-xs text-zinc-500">
+                    No indicators match “{search}” — rows you already filled are kept and will still be saved.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-between border-t border-zinc-100 pt-4">
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={back}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} />
+              Back
+            </button>
+          ) : (
+            <span />
+          )}
+          {step === 2 && gridIndicatorCount > 0 && (
+            <button
+              type="submit"
+              disabled={filledCount === 0}
+              className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            >
+              Save {filledCount > 0 ? `${filledCount} result${filledCount === 1 ? "" : "s"}` : "results"}
+            </button>
+          )}
+        </div>
+      </fieldset>
+    </form>
+  );
+}
+
+function SectionRows({
+  group,
+  statewide,
+  isVisible,
+}: {
+  group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
+  statewide: boolean;
+  isVisible: (i: WizardIndicator) => boolean;
+}) {
+  const cols = statewide ? 4 : 3;
+  const anyVisible = group.indicators.some(isVisible);
+  return (
+    <>
+      <tr className={`border-b border-zinc-100 bg-zinc-50/70 ${anyVisible ? "" : "hidden"}`}>
+        <td colSpan={cols} className="px-4 py-2">
+          <span className="text-xs font-semibold text-zinc-800">{group.domain.name}</span>
+          {group.thematic && <span className="ml-2 text-[11px] text-zinc-400">{group.thematic.name}</span>}
+        </td>
+      </tr>
+      {group.indicators.map((i) => (
+        <tr
+          key={i.id}
+          className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50 ${isVisible(i) ? "" : "hidden"}`}
+        >
+          <td className="px-4 py-2 align-top">
+            <div className="text-[13px] leading-snug text-zinc-800">{i.name}</div>
+            <div className="mt-0.5 text-[11px] text-zinc-400">
+              {i.unit}
+              {i.targetLabel ? ` · ${i.targetLabel}` : ""}
+            </div>
+          </td>
+          <td className="px-3 py-2 align-top">
+            <input
+              type="number"
+              step="any"
+              name={`value_${i.id}`}
+              placeholder="—"
+              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+            />
+          </td>
+          {statewide && (
+            <td className="px-3 py-2 align-top">
+              <input
+                type="number"
+                step="any"
+                name={`nigeria_${i.id}`}
+                placeholder="—"
+                className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+              />
+            </td>
+          )}
+          <td className="px-3 py-2 align-top">
+            <input
+              type="text"
+              name={`notes_${i.id}`}
+              placeholder="Optional"
+              className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
+            />
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}

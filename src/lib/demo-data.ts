@@ -737,6 +737,7 @@ export function buildDemoData(): DashboardData {
           indicators.push({
             id: indicatorId,
             domain_id: domainId,
+            indicator_scope: "state",
             name: ind.name,
             unit: ind.unit,
             direction: ind.direction,

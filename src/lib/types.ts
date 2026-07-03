@@ -1,5 +1,6 @@
 export type Frequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 export type Direction = "higher_is_better" | "lower_is_better";
+export type IndicatorScope = "state" | "entity";
 
 export interface Sector {
   id: string;
@@ -58,6 +59,9 @@ export interface Domain {
 export interface Indicator {
   id: string;
   domain_id: string;
+  indicator_scope: IndicatorScope;
+  /** for entity indicators: the state-level indicator they roll up into */
+  state_indicator_id?: string | null;
   name: string;
   description?: string | null;
   unit: string;

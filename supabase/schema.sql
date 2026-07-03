@@ -50,6 +50,7 @@ create table if not exists entities (
 
 create type frequency as enum ('daily', 'weekly', 'monthly', 'quarterly', 'yearly');
 create type direction as enum ('higher_is_better', 'lower_is_better');
+create type indicator_scope as enum ('state', 'entity');
 
 create table if not exists thematic_areas (
   id          uuid primary key default gen_random_uuid(),
@@ -77,6 +78,8 @@ create table if not exists domains (
 create table if not exists indicators (
   id            uuid primary key default gen_random_uuid(),
   domain_id     uuid not null references domains(id) on delete cascade,
+  indicator_scope indicator_scope not null default 'state',
+  state_indicator_id uuid references indicators(id) on delete set null,
   name          text not null,
   description   text,
   unit          text not null default '%',       -- '%', 'per 1,000', 'count', 'NGN bn' …
@@ -85,8 +88,9 @@ create table if not exists indicators (
   target_source text,                             -- 'SDG', 'WHO', 'UN', 'National Plan' …
   weight        numeric not null default 1,       -- weight within the domain
   created_at    timestamptz not null default now(),
-  unique (domain_id, name)
+  unique (domain_id, name, indicator_scope)
 );
+create index if not exists idx_indicators_state_indicator on indicators(state_indicator_id);
 
 -- Time periods — one row per measured window, keyed by frequency
 create table if not exists time_periods (
