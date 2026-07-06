@@ -11,6 +11,7 @@ import {
   resolveIndicatorScoreOptions,
 } from "@/lib/indicator-input";
 import { getDataset } from "@/lib/manage-config";
+import { getServerUser } from "@/lib/supabase-auth";
 import { ensureEvidenceBucket, evidenceBucket, getAdminClient } from "@/lib/supabase-admin";
 
 /* ------------------------------------------------------------------ */
@@ -18,6 +19,10 @@ import { ensureEvidenceBucket, evidenceBucket, getAdminClient } from "@/lib/supa
 /* ------------------------------------------------------------------ */
 
 async function requireAdmin(backTo: string): Promise<SupabaseClient> {
+  const user = await getServerUser();
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(backTo)}`);
+  }
   const mode = await getDataMode();
   if (mode !== "live") {
     redirect(`${backTo}?err=${encodeURIComponent("You are viewing demo data. Switch to Live mode (sidebar) to save real data.")}`);
@@ -30,6 +35,10 @@ async function requireAdmin(backTo: string): Promise<SupabaseClient> {
 }
 
 async function getInlineAdmin(): Promise<{ admin?: SupabaseClient; error?: string }> {
+  const user = await getServerUser();
+  if (!user) {
+    return { error: "Please sign in to manage data." };
+  }
   const mode = await getDataMode();
   if (mode !== "live") {
     return { error: "You are viewing demo data. Switch to Live mode to save real data." };
