@@ -2,7 +2,14 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode, isSupabaseConfigured } from "./data-mode";
 import { getDemoData } from "./demo-data";
 import { normalizeIndicatorValueType, resolveIndicatorScoreOptions } from "./indicator-input";
-import type { DashboardData, Indicator, Result, ResultEvidence } from "./types";
+import type {
+  CustomDashboard,
+  DashboardData,
+  DashboardWidget,
+  Indicator,
+  Result,
+  ResultEvidence,
+} from "./types";
 
 /** Fetch every row of a table, paging past Supabase's 1,000-row response cap. */
 async function fetchAll<T>(
@@ -38,6 +45,35 @@ function isMissingTableError(message: string): boolean {
 }
 
 /**
+ * Loads custom dashboards and their widgets, tolerating databases that
+ * have not run the dashboards migration yet (returns empty lists).
+ */
+async function loadCustomDashboards(
+  supabase: SupabaseClient
+): Promise<{ dashboards: CustomDashboard[]; dashboardWidgets: DashboardWidget[] }> {
+  const [dashboards, widgets] = await Promise.all([
+    supabase.from("dashboards").select("*").order("sort_order"),
+    supabase.from("dashboard_widgets").select("*").order("position"),
+  ]);
+  const missing =
+    (dashboards.error && isMissingTableError(dashboards.error.message)) ||
+    (widgets.error && isMissingTableError(widgets.error.message));
+  if (missing) return { dashboards: [], dashboardWidgets: [] };
+  if (dashboards.error) throw new Error(`Supabase query failed for dashboards: ${dashboards.error.message}`);
+  if (widgets.error) throw new Error(`Supabase query failed for dashboard_widgets: ${widgets.error.message}`);
+  return {
+    dashboards: dashboards.data ?? [],
+    dashboardWidgets: (widgets.data ?? []).map((w) => ({
+      ...w,
+      indicator_ids: Array.isArray(w.indicator_ids)
+        ? w.indicator_ids.map(String)
+        : [],
+      span: w.span === 2 ? 2 : 1,
+    })),
+  };
+}
+
+/**
  * Loads the full dashboard snapshot for the active data mode.
  *
  * Demo mode serves the built-in generated dataset. Live mode reads the
@@ -70,6 +106,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
       fetchAll<Result>(supabase, "results", "id"),
       supabase.from("result_evidence").select("*"),
     ]);
+    const customDashboards = await loadCustomDashboards(supabase);
 
     const tables = { sectors, lgas, mdas, entities, thematicAreas, domains, indicators, timePeriods, results, evidence };
     for (const [name, res] of Object.entries(tables)) {
@@ -108,6 +145,8 @@ export async function loadDashboardData(): Promise<DashboardData> {
         target_value: r.target_value == null ? null : Number(r.target_value),
       })),
       evidence: evidenceRows,
+      dashboards: customDashboards.dashboards,
+      dashboardWidgets: customDashboards.dashboardWidgets,
       mode: "live",
       supabaseConfigured: true,
     };

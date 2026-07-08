@@ -108,6 +108,34 @@ export interface ResultEvidence {
   url: string;
 }
 
+export type DashboardScope = "sector" | "lga";
+export type DashboardChartType = "trend" | "bar" | "radar" | "stat";
+
+/** Admin-built custom dashboard displayed on a sector or LGA page. */
+export interface CustomDashboard {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: DashboardScope;
+  sector_id: string | null;
+  lga_id: string | null;
+  published: boolean;
+  sort_order: number;
+}
+
+/** One chart on a custom dashboard. */
+export interface DashboardWidget {
+  id: string;
+  dashboard_id: string;
+  chart_type: DashboardChartType;
+  title: string | null;
+  /** indicator ids plotted by this widget */
+  indicator_ids: string[];
+  /** grid columns occupied (1 = half width, 2 = full width) */
+  span: number;
+  position: number;
+}
+
 export type DataMode = "demo" | "live";
 
 /** Full snapshot of dashboard data, loaded once per request. */
@@ -122,6 +150,8 @@ export interface DashboardData {
   timePeriods: TimePeriod[];
   results: Result[];
   evidence: ResultEvidence[];
+  dashboards: CustomDashboard[];
+  dashboardWidgets: DashboardWidget[];
   /** which dataset is being served */
   mode: DataMode;
   /** whether Supabase credentials are configured (live mode possible) */

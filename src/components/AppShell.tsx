@@ -13,6 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import AiChatWidget from "@/components/AiChatWidget";
 import type { DataMode } from "@/lib/types";
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -192,6 +193,7 @@ export default function AppShell({
           </Link>
         ))}
       </nav>
+      <AiChatWidget mode={mode} />
     </div>
   );
 }

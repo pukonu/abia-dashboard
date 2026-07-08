@@ -1,6 +1,7 @@
 import { MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ScoreRadarChart } from "@/components/charts";
+import CustomDashboards from "@/components/dashboard/CustomDashboards";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -70,6 +71,9 @@ export default async function LgaPage({
           </p>
         </div>
       </section>
+
+      {/* Custom dashboards built in the manage console */}
+      <CustomDashboards c={c} scope="lga" targetId={lga.id} />
 
       {sectorBreakdown.length >= 3 && (
         <>

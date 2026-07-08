@@ -132,17 +132,18 @@ Current rating bands:
 ### Requirements
 
 - Node.js 20 recommended
-- npm
+- Yarn via Corepack
 - A Supabase project if you want to use live mode
 
 ### Install and run
 
 ```bash
-npm install
-npm run dev
+corepack enable
+yarn install
+yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:7401](http://localhost:7401).
 
 With no configuration, the app runs in demo mode with built-in sample data.
 
@@ -173,13 +174,13 @@ Notes:
 3. Apply the schema:
 
    ```bash
-   npm run db:deploy
+   yarn db:deploy
    ```
 
 4. Optionally generate a seed SQL file from the demo dataset:
 
    ```bash
-   npm run seed:generate
+   yarn seed:generate
    ```
 
 5. Load `supabase/seed.sql` into Supabase if you want starter data.
@@ -250,14 +251,14 @@ writes are handled through Supabase clients rather than Prisma Client.
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Build the app |
-| `npm run start` | Start the production server |
-| `npm run lint` | Run ESLint |
-| `npm run seed:generate` | Generate `supabase/seed.sql` from demo data |
-| `npm run db:migrate` | Create and apply a Prisma development migration |
-| `npm run db:deploy` | Apply committed Prisma migrations |
-| `npm run db:push` | Push schema changes without creating a migration |
+| `yarn dev` | Start the development server on port 7401 |
+| `yarn build` | Build the app |
+| `yarn start` | Start the production server on port 7401 |
+| `yarn lint` | Run ESLint |
+| `yarn seed:generate` | Generate `supabase/seed.sql` from demo data |
+| `yarn db:migrate` | Create and apply a Prisma development migration |
+| `yarn db:deploy` | Apply committed Prisma migrations |
+| `yarn db:push` | Push schema changes without creating a migration |
 
 ## Project structure
 

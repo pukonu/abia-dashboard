@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ScoreRadarChart, TrendChart } from "@/components/charts";
+import { DonutChart, FullPieChart, ScoreRadarChart, TrendChart } from "@/components/charts";
+import CustomDashboards from "@/components/dashboard/CustomDashboards";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
+import SectorIcon from "@/components/SectorIcon";
 import { ActionLink, CardList, Crumbs, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { economyLandingInsights } from "@/lib/economy-insights";
+import { educationLandingInsights } from "@/lib/education-insights";
+import { entityFactStats, entityMix, sectorExecutiveStats } from "@/lib/executive-insights";
+import { healthLandingInsights } from "@/lib/health-insights";
+import { infrastructureLandingInsights } from "@/lib/infrastructure-insights";
 import { domainNigeriaScore } from "@/lib/benchmark-comparisons";
+import { powerLandingInsights } from "@/lib/power-insights";
 import { computeDashboard, delta } from "@/lib/scoring";
+import { securityLandingInsights } from "@/lib/security-insights";
 
 const FREQ_LABEL: Record<string, string> = {
   daily: "Daily",
@@ -64,6 +73,15 @@ export default async function SectorPage({
     },
   ].filter((group) => group.items.length > 0);
   const mdas = c.mdaScores.filter((m) => m.sector.id === sector.id);
+  const mix = entityMix(data, sector.id);
+  const executiveStats = sectorExecutiveStats(data, c, sector);
+  const entityFacts = entityFactStats(mix);
+  const healthInsights = sector.slug === "health" ? healthLandingInsights(data) : null;
+  const educationInsights = sector.slug === "education" ? educationLandingInsights(data) : null;
+  const securityInsights = sector.slug === "security" ? securityLandingInsights(data) : null;
+  const infrastructureInsights = sector.slug === "infrastructure" ? infrastructureLandingInsights(data) : null;
+  const powerInsights = sector.slug === "power" ? powerLandingInsights(data) : null;
+  const economyInsights = sector.slug === "economy" ? economyLandingInsights(data) : null;
   const trendPoints = c.trend.map((t) => ({
     label: t.label,
     [sector.name]: t.sectors[sector.slug],
@@ -94,7 +112,12 @@ export default async function SectorPage({
       <Crumbs items={[{ href: "/sectors", label: "Sectors" }, { label: sector.name }]} />
       <PageHeader
         eyebrow="Sector"
-        title={sector.name}
+        title={
+          <span className="inline-flex items-center gap-3">
+            <SectorIcon slug={sector.slug} name={sector.name} className="h-12 w-12" />
+            <span>{sector.name}</span>
+          </span>
+        }
         subtitle={sector.description}
         actions={
           <ActionLink href={`/api/reports/sector/${sector.slug}`} primary>
@@ -102,6 +125,17 @@ export default async function SectorPage({
           </ActionLink>
         }
       />
+
+      <SectionTitle hint="Fast briefing points">Executive facts</SectionTitle>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {executiveStats.map((stat) => (
+          <div key={stat.label} className="card card-pad">
+            <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+            <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+          </div>
+        ))}
+      </div>
 
       {selectedThematic && (
         <>
@@ -169,6 +203,519 @@ export default async function SectorPage({
             ))}
           </CardList>
         </>
+      )}
+
+      {/* Custom dashboards built in the manage console */}
+      {!selectedThematic && <CustomDashboards c={c} scope="sector" targetId={sector.id} />}
+
+      {!selectedThematic && healthInsights && (
+        <section>
+          <SectionTitle hint="Facility coverage, readiness and service risks">Health service snapshot</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {healthInsights.stats.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">PHC readiness components</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Inputs the Governor can scan quickly before drilling into facility-level data.
+              </p>
+              <div className="mt-4 space-y-3">
+                {healthInsights.facilityReadiness.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span className="font-medium text-zinc-700">{item.label}</span>
+                      <span className="font-semibold text-zinc-900">{item.value}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="h-full rounded-full" style={{ width: `${item.value}%`, backgroundColor: item.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Service delivery signals</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Maternal care, immunisation, staffing and medicines at a glance.
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {healthInsights.serviceSignals.map((signal) => (
+                  <div key={signal.label} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{signal.label}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{signal.trend}</div>
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                        signal.tone === "good"
+                          ? "bg-green-50 text-green-800"
+                          : signal.tone === "critical"
+                            ? "bg-red-50 text-red-800"
+                            : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {signal.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card mt-4 overflow-hidden">
+            <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+              <h3 className="display text-base font-semibold text-zinc-900">Urgent health matters</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Facility issues that should surface quickly for executive action.
+              </p>
+            </div>
+            <div className="divide-y divide-zinc-100">
+              {healthInsights.urgentMatters.map((matter) => (
+                <div key={matter.facility} className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
+                  <div>
+                    <div className="text-sm font-medium text-zinc-900">{matter.facility}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">{matter.lga} · {matter.issue}</div>
+                    <div className="mt-1 text-[11px] font-medium text-zinc-600">Action: {matter.action}</div>
+                  </div>
+                  <div
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {matter.severity}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && educationInsights && (
+        <section>
+          <SectionTitle hint="School access, enrolment and gender balance">Education snapshot</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {educationInsights.stats.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Primary enrolment by gender</h3>
+              <p className="mt-1 text-xs text-zinc-500">Girls and boys as a share of primary school enrolment.</p>
+              <FullPieChart points={educationInsights.gender.primary} />
+            </div>
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Secondary enrolment by gender</h3>
+              <p className="mt-1 text-xs text-zinc-500">Girls and boys as a share of secondary school enrolment.</p>
+              <FullPieChart points={educationInsights.gender.secondary} />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Smart school implementation</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Track rollout, teacher readiness and learner reach as the smart-school programme expands.
+              </p>
+              <div className="mt-4 space-y-3">
+                {educationInsights.smartSchools.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span className="font-medium text-zinc-700">{item.label}</span>
+                      <span className="font-semibold text-zinc-900">{item.value}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="h-full rounded-full bg-blue-600" style={{ width: `${item.progress}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-zinc-500">{item.caption}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Urgent school infrastructure matters</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Dilapidated or high-risk school infrastructure that needs fast executive attention.
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {educationInsights.urgentMatters.map((matter) => (
+                  <div key={matter.school} className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{matter.school}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{matter.lga} · {matter.issue}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                        }`}
+                      >
+                        {matter.severity}
+                      </div>
+                      <div className="mt-1 text-[11px] font-semibold text-zinc-600">{matter.estimatedCost}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card card-pad mt-4">
+            <div className="mb-3">
+              <h3 className="display text-base font-semibold text-zinc-900">Peer-state education map layer</h3>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-500">
+                A map-ready comparison of Abia and neighbouring states. These values can later be plotted by state
+                boundary, with enrolment and completion rate as selectable layers.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {educationInsights.peerStates.map((state) => {
+                const maxPrimary = Math.max(...educationInsights.peerStates.map((item) => item.primaryEnrollment));
+                const width = `${Math.round((state.primaryEnrollment / maxPrimary) * 100)}%`;
+                return (
+                  <div key={state.state}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span className="font-semibold text-zinc-800">{state.state}</span>
+                      <span className="text-zinc-500">
+                        {state.primaryEnrollment.toLocaleString()} primary · {state.secondaryEnrollment.toLocaleString()} secondary · {state.completionRate}% completion
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="h-full rounded-full bg-abia" style={{ width }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && securityInsights && (
+        <section>
+          <SectionTitle hint="Coverage, incidents and response capacity">Security snapshot</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {securityInsights.infrastructure.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
+            <div className="card overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Public safety indicators</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Priority measures citizens can understand at a glance.
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {securityInsights.incidents.map((incident) => (
+                  <div key={incident.label} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{incident.label}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{incident.trend}</div>
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                        incident.tone === "good"
+                          ? "bg-green-50 text-green-800"
+                          : incident.tone === "critical"
+                            ? "bg-red-50 text-red-800"
+                            : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {incident.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Citizen-facing summary</h3>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                A collective view citizens can read without interpreting the whole indicator framework.
+              </p>
+              <ul className="mt-4 space-y-3">
+                {securityInsights.publicSummary.map((item) => (
+                  <li key={item} className="flex gap-2 text-sm leading-relaxed text-zinc-700">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-abia" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && infrastructureInsights && (
+        <section>
+          <SectionTitle hint="Road delivery, monthly progress and LGA spread">Road infrastructure tracker</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {infrastructureInsights.stats.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Project status</h3>
+              <p className="mt-1 text-xs text-zinc-500">Completed, active and planned roads in the current works pipeline.</p>
+              <div className="mt-4 space-y-3">
+                {infrastructureInsights.statusSummary.map((item) => {
+                  const max = Math.max(...infrastructureInsights.statusSummary.map((s) => s.value), 1);
+                  return (
+                    <div key={item.label}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-medium text-zinc-700">{item.label}</span>
+                        <span className="font-semibold text-zinc-900">{item.value}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${Math.round((item.value / max) * 100)}%`, backgroundColor: item.color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Monthly road milestones</h3>
+              <p className="mt-1 text-xs text-zinc-500">Road starts and completions, so “completed this month” can become a live indicator.</p>
+              <div className="mt-4 grid grid-cols-8 gap-2">
+                {infrastructureInsights.monthlyMilestones.map((month) => {
+                  const height = Math.max(12, (month.started + month.completed) * 22);
+                  return (
+                    <div key={month.month} className="flex flex-col items-center justify-end gap-1">
+                      <div className="flex h-20 items-end">
+                        <div className="w-5 rounded-t bg-orange-500" style={{ height }} />
+                      </div>
+                      <div className="text-[10px] font-medium text-zinc-500">{month.month}</div>
+                      <div className="text-[10px] text-zinc-400">{month.completed} done</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="card mt-4 overflow-hidden">
+            <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+              <h3 className="display text-base font-semibold text-zinc-900">Road project register</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Each row can become a live project record with monthly status updates, kilometres and LGA location.
+              </p>
+            </div>
+            <div className="divide-y divide-zinc-100">
+              {infrastructureInsights.projects.map((project) => (
+                <div key={project.name} className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_120px_120px_100px] sm:items-center sm:px-5">
+                  <div>
+                    <div className="font-medium text-zinc-900">{project.name}</div>
+                    <div className="text-xs text-zinc-500">{project.lga}</div>
+                  </div>
+                  <div className="text-xs text-zinc-500">{project.startMonth}</div>
+                  <div className="text-xs text-zinc-500">{project.completionMonth ?? "Not completed"}</div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <span className="text-xs font-semibold text-zinc-800">{project.kilometers.toLocaleString()} km</span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        project.status === "Completed"
+                          ? "bg-green-50 text-green-800"
+                          : project.status === "Planned"
+                            ? "bg-zinc-100 text-zinc-600"
+                            : "bg-orange-50 text-orange-800"
+                      }`}
+                    >
+                      {project.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && powerInsights && (
+        <section>
+          <SectionTitle hint="Generation, gas constraints, outages and feeder reliability">Power snapshot</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {powerInsights.stats.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.85fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Geometric daily output</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Daily MW output captured from Geometric Power, Osisioma, for operational monitoring.
+              </p>
+              <div className="mt-4 grid grid-cols-7 gap-2">
+                {powerInsights.dailyOutput.map((point) => (
+                  <div key={point.day} className="flex flex-col items-center justify-end gap-1">
+                    <div className="flex h-24 items-end">
+                      <div
+                        className="w-7 rounded-t bg-amber-500"
+                        style={{ height: `${Math.max(16, Math.round((point.output / 141) * 96))}px` }}
+                      />
+                    </div>
+                    <div className="text-[10px] font-medium text-zinc-500">{point.day}</div>
+                    <div className="text-[10px] text-zinc-400">{point.output} MW</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Incidents and constraints</h3>
+                <p className="mt-1 text-xs text-zinc-500">Gas supply, grid cuts and outage events to track daily.</p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {powerInsights.incidents.map((incident) => (
+                  <div key={incident.label} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{incident.label}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{incident.trend}</div>
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                        incident.tone === "good"
+                          ? "bg-green-50 text-green-800"
+                          : incident.tone === "critical"
+                            ? "bg-red-50 text-red-800"
+                            : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {incident.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && economyInsights && (
+        <section>
+          <SectionTitle hint="Revenue, markets, SMEs and investor pipeline">Economy & trade command centre</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {economyInsights.stats.map((stat) => (
+              <div key={stat.label} className="card card-pad">
+                <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+                <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Commercial pipeline</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                The quick read on collections, investment and SME growth.
+              </p>
+              <div className="mt-4 space-y-3">
+                {economyInsights.pipeline.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                      <span className="font-medium text-zinc-700">{item.label}</span>
+                      <span className="font-semibold text-zinc-900">{item.value}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="h-full rounded-full bg-teal-600" style={{ width: `${item.progress}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-zinc-500">{item.caption}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Trade and enterprise hubs</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Markets and clusters to speak to when selling Abia as a place to trade and invest.
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {economyInsights.tradeHubs.map((hub) => (
+                  <div key={hub.name} className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{hub.name}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{hub.focus}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-sm font-semibold text-zinc-900">{hub.jobs.toLocaleString()}</div>
+                      <div className="text-[11px] text-zinc-500">{hub.activity} activity</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!selectedThematic && mix.length > 0 && (
+        <div className="mt-7 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(340px,1fr)]">
+          <div>
+            <SectionTitle hint="Measured facilities and service points">Key facts</SectionTitle>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {entityFacts.map((fact) => (
+                <div key={fact.label} className="card card-pad">
+                  <div className="text-2xl font-semibold text-zinc-950">{fact.value}</div>
+                  <div className="mt-1 text-sm font-medium text-zinc-800">{fact.label}</div>
+                  <p className="mt-1 text-xs text-zinc-500">{fact.caption}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <SectionTitle hint="Composition of measured entities">Service mix</SectionTitle>
+            <div className="card card-pad">
+              <DonutChart points={mix} />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Thematic areas → domains → indicators */}

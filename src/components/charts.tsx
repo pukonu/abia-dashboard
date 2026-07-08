@@ -8,6 +8,8 @@ import {
   Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   PolarAngleAxis,
   PolarGrid,
   PolarRadiusAxis,
@@ -197,5 +199,109 @@ export function ScoreRadarChart({
         <Legend wrapperStyle={{ fontSize: 12 }} />
       </RadarChart>
     </ResponsiveContainer>
+  );
+}
+
+/** Compact donut chart for showing service/entity mix. */
+export function DonutChart({
+  points,
+  height = 220,
+}: {
+  points: Array<{ label: string; value: number; color: string }>;
+  height?: number;
+}) {
+  const total = points.reduce((sum, point) => sum + point.value, 0);
+  if (total <= 0) {
+    return <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No distribution data yet.</div>;
+  }
+
+  return (
+    <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_190px]">
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={points}
+            dataKey="value"
+            nameKey="label"
+            innerRadius="58%"
+            outerRadius="82%"
+            paddingAngle={2}
+            isAnimationActive={false}
+          >
+            {points.map((point) => (
+              <Cell key={point.label} fill={point.color} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(v, name) => [
+              typeof v === "number" ? v.toLocaleString() : String(v ?? ""),
+              String(name),
+            ]}
+            contentStyle={TOOLTIP_STYLE}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="space-y-2">
+        {points.map((point) => (
+          <div key={point.label} className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: point.color }} />
+              <span className="truncate text-zinc-600">{point.label}</span>
+            </span>
+            <span className="font-semibold text-zinc-900">{point.value.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Full pie chart for real parts-of-a-whole splits such as enrolment gender share. */
+export function FullPieChart({
+  points,
+  height = 220,
+}: {
+  points: Array<{ label: string; value: number; color: string }>;
+  height?: number;
+}) {
+  const total = points.reduce((sum, point) => sum + point.value, 0);
+  if (total <= 0) {
+    return <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No pie data yet.</div>;
+  }
+
+  return (
+    <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_170px]">
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={points}
+            dataKey="value"
+            nameKey="label"
+            outerRadius="82%"
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+            isAnimationActive={false}
+          >
+            {points.map((point) => (
+              <Cell key={point.label} fill={point.color} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(v, name) => [`${typeof v === "number" ? v.toLocaleString() : String(v ?? "")}%`, String(name)]}
+            contentStyle={TOOLTIP_STYLE}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="space-y-2">
+        {points.map((point) => (
+          <div key={point.label} className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex items-center gap-2 text-zinc-600">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: point.color }} />
+              {point.label}
+            </span>
+            <span className="font-semibold text-zinc-900">{point.value}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

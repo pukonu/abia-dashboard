@@ -46,6 +46,22 @@ enum IndicatorValueType {
   @@map("indicator_value_type")
 }
 
+enum DashboardScope {
+  sector
+  lga
+
+  @@map("dashboard_scope")
+}
+
+enum DashboardChartType {
+  trend
+  bar
+  radar
+  stat
+
+  @@map("dashboard_chart_type")
+}
+
 model Sector {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug          String         @unique
@@ -57,17 +73,19 @@ model Sector {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
   mdas          Mda[]
   thematicAreas ThematicArea[]
+  dashboards    Dashboard[]
 
   @@map("sectors")
 }
 
 model Lga {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String   @unique
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String      @unique
   zone       String?
   population Int?
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
   entities   Entity[]
+  dashboards Dashboard[]
 
   @@map("lgas")
 }
@@ -209,4 +227,44 @@ model ResultEvidence {
 
   @@index([resultId], map: "idx_result_evidence_result")
   @@map("result_evidence")
+}
+
+/// Admin-built custom dashboard, displayed on a sector or LGA page.
+model Dashboard {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  scope       DashboardScope
+  /// set when scope = sector
+  sectorId    String?           @map("sector_id") @db.Uuid
+  /// set when scope = lga
+  lgaId       String?           @map("lga_id") @db.Uuid
+  published   Boolean           @default(true)
+  sortOrder   Int               @default(0) @map("sort_order")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  sector      Sector?           @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  lga         Lga?              @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  widgets     DashboardWidget[]
+
+  @@index([sectorId], map: "idx_dashboards_sector")
+  @@index([lgaId], map: "idx_dashboards_lga")
+  @@map("dashboards")
+}
+
+/// One chart on a dashboard: a chart type plus the indicators it plots.
+model DashboardWidget {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dashboardId  String             @map("dashboard_id") @db.Uuid
+  chartType    DashboardChartType @map("chart_type")
+  title        String?
+  /// JSON array of indicator ids plotted by this widget
+  indicatorIds Json               @default("[]") @map("indicator_ids")
+  /// grid columns occupied (1 = half width, 2 = full width)
+  span         Int                @default(1)
+  position     Int                @default(0)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  dashboard    Dashboard          @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId], map: "idx_dashboard_widgets_dashboard")
+  @@map("dashboard_widgets")
 }

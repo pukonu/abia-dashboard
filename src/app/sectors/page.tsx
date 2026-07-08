@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ScoreBarChart } from "@/components/charts";
 import { DeltaTag, ScoreBadge, ScoreBar } from "@/components/score";
+import SectorIcon from "@/components/SectorIcon";
 import { PageHeader } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { computeDashboard, delta } from "@/lib/scoring";
@@ -39,14 +40,9 @@ export default async function SectorsPage() {
           return (
             <Link key={s.id} href={`/sectors/${s.slug}`} className="card card-pad group transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-11 w-11 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: `${s.color}18` }}
-                  >
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-                  </span>
-                  <div>
+                <div className="flex min-w-0 items-start gap-3">
+                  <SectorIcon slug={s.slug} name={s.name} />
+                  <div className="min-w-0">
                     <div className="text-base font-semibold text-zinc-900 group-hover:text-abia-dark">{s.name}</div>
                     <div className="text-xs text-zinc-500">
                       {mdas.length} MDA{mdas.length === 1 ? "" : "s"} · {thematics.length} thematic areas · {indicatorCount} indicators

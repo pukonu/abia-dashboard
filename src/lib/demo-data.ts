@@ -477,6 +477,82 @@ const SECTOR_SPECS: SectorSpec[] = [
     ],
   },
   {
+    name: "Power",
+    slug: "power",
+    description: "Electricity generation, distribution reliability, gas supply and outage response.",
+    icon: "⚡",
+    color: "#f59e0b",
+    mdas: [
+      {
+        name: "Ministry of Power & Public Utilities",
+        abbreviation: "MPWR",
+        description: "Power sector coordination, rural electrification and utility reliability.",
+        entities: [
+          ["Geometric Power Plant, Osisioma", "Power Plant", "Osisioma Ngwa"],
+          ["Aba Integrated Power Substation", "Power Substation", "Aba South"],
+          ["Umuahia Injection Substation", "Power Substation", "Umuahia North"],
+          ["Ariaria Industrial Feeder", "Distribution Feeder", "Aba North"],
+          ["Umuahia Urban Feeder", "Distribution Feeder", "Umuahia North"],
+          ["Ukwa East Rural Electrification", "Rural Electrification Project", "Ukwa East"],
+        ],
+      },
+      {
+        name: "Abia Electricity & Utilities Monitoring Unit",
+        abbreviation: "AEUMU",
+        description: "Daily monitoring of generation output, outages, grid events and gas constraints.",
+        entities: [
+          ["Geometric Daily Output Desk", "Power Monitoring Desk", "Osisioma Ngwa"],
+          ["Aba Ring-Fenced Network Control", "Power Control Centre", "Aba South"],
+        ],
+      },
+    ],
+    thematicAreas: [
+      {
+        name: "Generation & Supply",
+        description: "Power generated, wheeled and available to homes, businesses and industrial clusters.",
+        frequency: "daily",
+        domains: [
+          {
+            name: "Geometric Power Output",
+            indicators: [
+              { name: "Geometric daily generation output", unit: "MW", direction: "higher_is_better", target: 141, targetSource: "Plant capacity", base: 92, nigeria: 0, trend: 0.12, jitter: 0.08 },
+              { name: "Average daily energy sent out", unit: "MWh/day", direction: "higher_is_better", target: 2200, targetSource: "State Plan", base: 1480, nigeria: 0, trend: 0.14, jitter: 0.08 },
+            ],
+          },
+          {
+            name: "Gas Supply",
+            indicators: [
+              { name: "Gas supply availability", unit: "%", direction: "higher_is_better", target: 95, targetSource: "Gas supply SLA", base: 78, nigeria: 65, trend: 0.08, jitter: 0.06 },
+              { name: "Low gas supply incidents", unit: "incidents/month", direction: "lower_is_better", target: 1, targetSource: "State Plan", base: 4, nigeria: 6, trend: 0.12, jitter: 0.16 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Distribution Reliability",
+        description: "Outages, feeder availability and grid-cut events affecting residents and businesses.",
+        frequency: "daily",
+        domains: [
+          {
+            name: "Outages & Grid Events",
+            indicators: [
+              { name: "Power cutoff incidents", unit: "incidents/day", direction: "lower_is_better", target: 2, targetSource: "Utility SLA", base: 7, nigeria: 10, trend: 0.18, jitter: 0.18, entityLevel: true },
+              { name: "Grid cutoff events", unit: "events/month", direction: "lower_is_better", target: 1, targetSource: "State Plan", base: 5, nigeria: 8, trend: 0.15, jitter: 0.18 },
+              { name: "Feeder uptime", unit: "%", direction: "higher_is_better", target: 92, targetSource: "Utility SLA", base: 81, nigeria: 70, trend: 0.08, jitter: 0.05, entityLevel: true },
+            ],
+          },
+          {
+            name: "Customer Supply",
+            indicators: [
+              { name: "Average daily supply hours", unit: "hours/day", direction: "higher_is_better", target: 20, targetSource: "State Plan", base: 13.5, nigeria: 9, trend: 0.16, jitter: 0.08, entityLevel: true },
+              { name: "Industrial cluster supply reliability", unit: "%", direction: "higher_is_better", target: 95, targetSource: "State Plan", base: 84, nigeria: 62, trend: 0.1, jitter: 0.05, entityLevel: true },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     name: "Economy & Trade",
     slug: "economy",
     description: "Internally generated revenue, investment, markets and SME growth.",
@@ -537,6 +613,229 @@ const SECTOR_SPECS: SectorSpec[] = [
             indicators: [
               { name: "SMEs accessing formal credit", unit: "%", direction: "higher_is_better", target: 40, targetSource: "State Plan", base: 22, nigeria: 15, trend: 0.2, jitter: 0.05, entityLevel: true },
               { name: "2-year SME survival rate", unit: "%", direction: "higher_is_better", target: 80, targetSource: "State Plan", base: 63, nigeria: 55, trend: 0.08, jitter: 0.03 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Women Affairs",
+    slug: "women-affairs",
+    description: "Women empowerment, child protection, gender inclusion and social welfare.",
+    icon: "👩🏾‍🤝‍👩🏾",
+    color: "#be185d",
+    mdas: [
+      {
+        name: "Ministry of Women Affairs & Poverty Alleviation",
+        abbreviation: "MWAPA",
+        description: "Women empowerment, family welfare and gender inclusion programmes.",
+        entities: [
+          ["Umuahia Women Development Centre", "Women Development Centre", "Umuahia North"],
+          ["Aba Skills Acquisition Centre", "Skills Centre", "Aba South"],
+          ["Ohafia Women Cooperative Hub", "Cooperative Hub", "Ohafia"],
+          ["Bende Family Support Desk", "Family Support Desk", "Bende"],
+        ],
+      },
+      {
+        name: "Abia Social Welfare & Child Protection Agency",
+        abbreviation: "ASWCPA",
+        description: "Child protection, GBV response and social welfare case management.",
+        entities: [
+          ["Aba GBV Response Desk", "GBV Response Desk", "Aba North"],
+          ["Umuahia Child Protection Desk", "Child Protection Desk", "Umuahia South"],
+          ["Osisioma Social Welfare Desk", "Social Welfare Desk", "Osisioma Ngwa"],
+        ],
+      },
+    ],
+    thematicAreas: [
+      {
+        name: "Women Empowerment",
+        description: "Economic inclusion, skills, cooperative support and access to credit.",
+        frequency: "quarterly",
+        domains: [
+          {
+            name: "Skills & Enterprise",
+            indicators: [
+              { name: "Women trained in livelihood skills", unit: "women/quarter", direction: "higher_is_better", target: 2500, targetSource: "State Plan", base: 1450, nigeria: 980, trend: 0.22, jitter: 0.1, entityLevel: true },
+              { name: "Women-owned SMEs supported", unit: "SMEs/quarter", direction: "higher_is_better", target: 800, targetSource: "State Plan", base: 420, nigeria: 300, trend: 0.18, jitter: 0.1, entityLevel: true },
+            ],
+          },
+          {
+            name: "Financial Inclusion",
+            indicators: [
+              { name: "Women accessing programme credit", unit: "%", direction: "higher_is_better", target: 45, targetSource: "State Plan", base: 24, nigeria: 18, trend: 0.16, jitter: 0.05 },
+              { name: "Women cooperatives active", unit: "cooperatives", direction: "higher_is_better", target: 120, targetSource: "State Plan", base: 72, nigeria: 55, trend: 0.12, jitter: 0.08, entityLevel: true },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Protection & Welfare",
+        description: "GBV response, child protection and social welfare support.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "Gender-Based Violence Response",
+            indicators: [
+              { name: "GBV cases receiving timely support", unit: "%", direction: "higher_is_better", target: 95, targetSource: "State Plan", base: 68, nigeria: 52, trend: 0.18, jitter: 0.06, entityLevel: true },
+              { name: "Average GBV case response time", unit: "hours", direction: "lower_is_better", target: 24, targetSource: "State Plan", base: 54, nigeria: 72, trend: 0.16, jitter: 0.12 },
+            ],
+          },
+          {
+            name: "Child Protection",
+            indicators: [
+              { name: "Child protection cases closed", unit: "%", direction: "higher_is_better", target: 85, targetSource: "State Plan", base: 61, nigeria: 48, trend: 0.12, jitter: 0.06, entityLevel: true },
+              { name: "Vulnerable households reached", unit: "households/month", direction: "higher_is_better", target: 3500, targetSource: "State Plan", base: 2100, nigeria: 1600, trend: 0.14, jitter: 0.1 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Environment",
+    slug: "environment",
+    description: "Waste management, drainage, flood control, erosion response and urban sanitation.",
+    icon: "🌿",
+    color: "#16a34a",
+    mdas: [
+      {
+        name: "Ministry of Environment",
+        abbreviation: "MOEENV",
+        description: "Environmental protection, sanitation, flood control and erosion management.",
+        entities: [
+          ["Aba Flood Control Zone", "Flood Control Zone", "Aba South"],
+          ["Umuahia Drainage Corridor", "Drainage Corridor", "Umuahia North"],
+          ["Isuikwuato Erosion Site", "Erosion Site", "Isuikwuato"],
+          ["Ohafia Watershed Protection Area", "Watershed Area", "Ohafia"],
+        ],
+      },
+      {
+        name: "Abia State Environmental Protection Agency",
+        abbreviation: "ASEPA",
+        description: "Waste collection, dumpsite management and urban sanitation enforcement.",
+        entities: [
+          ["Aba Waste Collection Zone", "Waste Collection Zone", "Aba North"],
+          ["Umuahia Waste Collection Zone", "Waste Collection Zone", "Umuahia South"],
+          ["Ariaria Market Sanitation Beat", "Sanitation Beat", "Aba North"],
+          ["Ubani Market Sanitation Beat", "Sanitation Beat", "Umuahia North"],
+        ],
+      },
+    ],
+    thematicAreas: [
+      {
+        name: "Waste & Sanitation",
+        description: "Waste collection, market sanitation and dumpsite management.",
+        frequency: "weekly",
+        domains: [
+          {
+            name: "Waste Collection",
+            indicators: [
+              { name: "Urban waste collection coverage", unit: "%", direction: "higher_is_better", target: 90, targetSource: "State Plan", base: 62, nigeria: 45, trend: 0.2, jitter: 0.06, entityLevel: true },
+              { name: "Dumpsites cleared", unit: "sites/month", direction: "higher_is_better", target: 20, targetSource: "State Plan", base: 11, nigeria: 8, trend: 0.18, jitter: 0.15 },
+            ],
+          },
+          {
+            name: "Sanitation Compliance",
+            indicators: [
+              { name: "Markets meeting sanitation standard", unit: "%", direction: "higher_is_better", target: 85, targetSource: "State Plan", base: 58, nigeria: 46, trend: 0.14, jitter: 0.06, entityLevel: true },
+              { name: "Street sweeping route completion", unit: "%", direction: "higher_is_better", target: 95, targetSource: "State Plan", base: 72, nigeria: 54, trend: 0.12, jitter: 0.04 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Flood & Erosion Control",
+        description: "Drainage, flood prevention and erosion site response.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "Drainage Readiness",
+            indicators: [
+              { name: "Drainage desilting completed", unit: "%", direction: "higher_is_better", target: 90, targetSource: "Rainy Season Plan", base: 64, nigeria: 50, trend: 0.16, jitter: 0.07, entityLevel: true },
+              { name: "Flood-prone locations mapped", unit: "%", direction: "higher_is_better", target: 100, targetSource: "State Plan", base: 78, nigeria: 60, trend: 0.1, jitter: 0.04 },
+            ],
+          },
+          {
+            name: "Erosion Response",
+            indicators: [
+              { name: "Active erosion sites under control", unit: "%", direction: "higher_is_better", target: 80, targetSource: "State Plan", base: 46, nigeria: 35, trend: 0.14, jitter: 0.08, entityLevel: true },
+              { name: "Monthly flood incidents", unit: "incidents/month", direction: "lower_is_better", target: 2, targetSource: "State Plan", base: 7, nigeria: 12, trend: 0.16, jitter: 0.2 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Technology",
+    slug: "technology",
+    description: "Digital government, broadband access, startup support and public-sector innovation.",
+    icon: "💻",
+    color: "#7c3aed",
+    mdas: [
+      {
+        name: "Ministry of Digital Economy & SME Innovation",
+        abbreviation: "MDESI",
+        description: "Digital economy policy, technology skills and startup ecosystem development.",
+        entities: [
+          ["Aba Innovation Hub", "Innovation Hub", "Aba South"],
+          ["Umuahia Digital Skills Centre", "Digital Skills Centre", "Umuahia North"],
+          ["Ohafia Tech Outreach Centre", "Tech Outreach Centre", "Ohafia"],
+          ["Ariaria Digital Trade Desk", "Digital Trade Desk", "Aba North"],
+        ],
+      },
+      {
+        name: "Abia State ICT & E-Government Agency",
+        abbreviation: "ASICTA",
+        description: "E-government services, connectivity and public-sector digital transformation.",
+        entities: [
+          ["Abia E-Government Service Desk", "E-Government Desk", "Umuahia North"],
+          ["Broadband Right-of-Way Desk", "Broadband Desk", "Umuahia South"],
+          ["Aba Fibre Backbone Segment", "Fibre Backbone Segment", "Aba South"],
+        ],
+      },
+    ],
+    thematicAreas: [
+      {
+        name: "Digital Economy",
+        description: "Tech skills, startups and digital trade enablement.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "Skills & Talent",
+            indicators: [
+              { name: "Youth trained in digital skills", unit: "people/month", direction: "higher_is_better", target: 2500, targetSource: "State Plan", base: 1180, nigeria: 900, trend: 0.24, jitter: 0.12, entityLevel: true },
+              { name: "Digital skills completion rate", unit: "%", direction: "higher_is_better", target: 85, targetSource: "State Plan", base: 63, nigeria: 52, trend: 0.14, jitter: 0.05 },
+            ],
+          },
+          {
+            name: "Startups & Innovation",
+            indicators: [
+              { name: "Startups supported by state programmes", unit: "startups/quarter", direction: "higher_is_better", target: 150, targetSource: "State Plan", base: 64, nigeria: 48, trend: 0.2, jitter: 0.1, entityLevel: true },
+              { name: "Tech-enabled SMEs onboarded", unit: "SMEs/month", direction: "higher_is_better", target: 600, targetSource: "State Plan", base: 280, nigeria: 200, trend: 0.22, jitter: 0.12 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Digital Government",
+        description: "E-services, connectivity and digitisation of government workflows.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "E-Government Services",
+            indicators: [
+              { name: "Government services available online", unit: "services", direction: "higher_is_better", target: 50, targetSource: "State Plan", base: 18, nigeria: 14, trend: 0.18, jitter: 0.08 },
+              { name: "Online service completion rate", unit: "%", direction: "higher_is_better", target: 80, targetSource: "State Plan", base: 54, nigeria: 42, trend: 0.14, jitter: 0.06, entityLevel: true },
+            ],
+          },
+          {
+            name: "Connectivity",
+            indicators: [
+              { name: "Broadband coverage in priority corridors", unit: "%", direction: "higher_is_better", target: 75, targetSource: "State Plan", base: 38, nigeria: 32, trend: 0.2, jitter: 0.08, entityLevel: true },
+              { name: "Public Wi-Fi sites active", unit: "sites", direction: "higher_is_better", target: 120, targetSource: "State Plan", base: 34, nigeria: 22, trend: 0.22, jitter: 0.12 },
             ],
           },
         ],
@@ -802,6 +1101,125 @@ export function buildDemoData(): DashboardData {
     }
   }
 
+  /* ---------- sample custom dashboards (built with the dashboard builder) ---------- */
+
+  const ind = (name: string) => `ind-${slugify(name)}`;
+  const dashboards: DashboardData["dashboards"] = [
+    {
+      id: "dash-health-glance",
+      name: "Primary Care at a Glance",
+      description: "Key maternal, child health and disease-control indicators for the Health sector.",
+      scope: "sector",
+      sector_id: "sec-health",
+      lga_id: null,
+      published: true,
+      sort_order: 0,
+    },
+    {
+      id: "dash-aba-north",
+      name: "Aba North Service Delivery",
+      description: "How facilities in Aba North are performing on frontline service indicators.",
+      scope: "lga",
+      sector_id: null,
+      lga_id: "lga-aba-north",
+      published: true,
+      sort_order: 0,
+    },
+  ];
+  const dashboardWidgets: DashboardData["dashboardWidgets"] = [
+    {
+      id: "dw-health-stats",
+      dashboard_id: "dash-health-glance",
+      chart_type: "stat",
+      title: "Latest results",
+      indicator_ids: [
+        ind("Immunization coverage (Penta-3)"),
+        ind("Skilled birth attendance"),
+        ind("Under-5 mortality rate"),
+        ind("TB treatment success rate"),
+      ],
+      span: 2,
+      position: 0,
+    },
+    {
+      id: "dw-health-trend",
+      dashboard_id: "dash-health-glance",
+      chart_type: "trend",
+      title: "Immunization coverage over time",
+      indicator_ids: [ind("Immunization coverage (Penta-3)")],
+      span: 1,
+      position: 1,
+    },
+    {
+      id: "dw-health-bar",
+      dashboard_id: "dash-health-glance",
+      chart_type: "bar",
+      title: "Distance to target",
+      indicator_ids: [
+        ind("Immunization coverage (Penta-3)"),
+        ind("Skilled birth attendance"),
+        ind("Malaria incidence"),
+        ind("Essential drugs availability"),
+      ],
+      span: 1,
+      position: 2,
+    },
+    {
+      id: "dw-health-radar",
+      dashboard_id: "dash-health-glance",
+      chart_type: "radar",
+      title: "Health scorecard",
+      indicator_ids: [
+        ind("Immunization coverage (Penta-3)"),
+        ind("Skilled birth attendance"),
+        ind("Malaria incidence"),
+        ind("Essential drugs availability"),
+        ind("Functional health facilities"),
+      ],
+      span: 2,
+      position: 3,
+    },
+    // Aba North's demo entities are a school, a water scheme and a market,
+    // so the sample widgets use indicators measured at those entities.
+    {
+      id: "dw-aba-north-stats",
+      dashboard_id: "dash-aba-north",
+      chart_type: "stat",
+      title: "Latest averages across facilities",
+      indicator_ids: [
+        ind("Net primary enrollment"),
+        ind("Qualified teachers"),
+        ind("Population with safe water access"),
+        ind("Projects on schedule"),
+      ],
+      span: 2,
+      position: 0,
+    },
+    {
+      id: "dw-aba-north-trend",
+      dashboard_id: "dash-aba-north",
+      chart_type: "trend",
+      title: "Service delivery trend",
+      indicator_ids: [ind("Net primary enrollment"), ind("Primary completion rate")],
+      span: 1,
+      position: 1,
+    },
+    {
+      id: "dw-aba-north-bar",
+      dashboard_id: "dash-aba-north",
+      chart_type: "bar",
+      title: "Latest scores",
+      indicator_ids: [
+        ind("Net primary enrollment"),
+        ind("Qualified teachers"),
+        ind("WAEC 5 credits incl. Eng & Maths"),
+        ind("Pupil-teacher ratio"),
+      ],
+      span: 1,
+      position: 2,
+    },
+  ];
+
   return {
     sectors,
     lgas,
@@ -813,6 +1231,8 @@ export function buildDemoData(): DashboardData {
     timePeriods,
     results,
     evidence: [],
+    dashboards,
+    dashboardWidgets,
     mode: "demo",
     supabaseConfigured: false,
   };

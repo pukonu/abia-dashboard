@@ -2,7 +2,7 @@
  * Generates supabase/seed.sql from the built-in demo dataset so the hosted
  * Supabase database starts with the same data the demo mode shows.
  *
- * Run: npm run seed:generate
+ * Run: yarn seed:generate
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";

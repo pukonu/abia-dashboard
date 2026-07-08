@@ -2,6 +2,7 @@ import {
   ArrowRight,
   Database,
   Layers,
+  LayoutDashboard,
   PenLine,
   Shield,
   Upload,
@@ -113,6 +114,31 @@ export default async function ManagePage() {
         </Link>
       </div>
 
+      <SectionTitle hint="Curated chart layouts for sector and LGA pages">Presentation</SectionTitle>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/manage/dashboards"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+            <LayoutDashboard className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Dashboard builder
+              <span className="ml-2 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {data.dashboards.length}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Compose custom dashboards — pick chart types, drag to arrange, and publish them to a
+              sector or LGA page.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
+      </div>
+
       <SectionTitle hint="Who can access the console">Access control</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
         <Link
@@ -170,7 +196,7 @@ export default async function ManagePage() {
       <p className="mt-8 text-xs leading-relaxed text-zinc-400">
         Schema changes (new columns, tables) are managed with Prisma — edit{" "}
         <code className="rounded bg-zinc-100 px-1">prisma/schema.prisma</code> and run{" "}
-        <code className="rounded bg-zinc-100 px-1">npm run db:migrate</code>. This console only
+        <code className="rounded bg-zinc-100 px-1">yarn db:migrate</code>. This console only
         edits data.
       </p>
     </>

@@ -9,7 +9,7 @@ export function PageHeader({
   actions,
 }: {
   eyebrow?: ReactNode;
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   actions?: ReactNode;
 }) {

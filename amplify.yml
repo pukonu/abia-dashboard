@@ -4,15 +4,16 @@ frontend:
     preBuild:
       commands:
         - rm -rf node_modules .next
-        - npm ci --include=optional
+        - corepack enable
+        - yarn install --immutable
     build:
       commands:
-        - npm run build
+        - yarn build
   artifacts:
     baseDirectory: .next
     files:
       - '**/*'
   cache:
     paths:
-      - /root/.npm/**/*
+      - .yarn/cache/**/*
       - .next/cache/**/*

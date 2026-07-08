@@ -1,10 +1,12 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { ScoreRadarChart, TrendChart } from "@/components/charts";
+import { DonutChart, ScoreRadarChart, TrendChart } from "@/components/charts";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
+import SectorIcon from "@/components/SectorIcon";
 import { ActionLink, CardList, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { abiaFootprintStats, sectorIndicatorMix, stateExecutiveStats } from "@/lib/executive-insights";
 import { sectorNigeriaScore } from "@/lib/benchmark-comparisons";
 import { computeDashboard, delta, ratingFor } from "@/lib/scoring";
 
@@ -16,6 +18,9 @@ export default async function OverviewPage() {
     sector: s,
     pair: c.sectorScores.get(s.id) ?? { score: null, prevScore: null },
   }));
+  const executiveStats = stateExecutiveStats(data, c);
+  const footprintStats = abiaFootprintStats(data);
+  const indicatorCoverageMix = sectorIndicatorMix(data);
 
   const trendPoints = c.trend.map((t) => ({ label: t.label, State: t.state }));
 
@@ -76,6 +81,26 @@ export default async function OverviewPage() {
         </div>
       </section>
 
+      <SectionTitle hint="Concrete Abia assets and data coverage">Executive data footprint</SectionTitle>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[...footprintStats, ...executiveStats.slice(0, 2)].map((stat) => (
+            <div key={stat.label} className="card card-pad">
+              <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
+              <div className="mt-1 text-sm font-medium text-zinc-800">{stat.label}</div>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{stat.caption}</p>
+            </div>
+          ))}
+        </div>
+        <div className="card card-pad">
+          <div className="mb-1 text-base font-semibold text-zinc-900">Indicator coverage by sector</div>
+          <p className="mb-2 text-xs text-zinc-500">
+            This is a true part-of-whole view: how the configured datapoints are distributed across sectors.
+          </p>
+          <DonutChart points={indicatorCoverageMix} />
+        </div>
+      </div>
+
       {/* Sector scorecards */}
       <SectionTitle hint="Tap a sector to drill down">Sectors at a glance</SectionTitle>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
@@ -85,13 +110,8 @@ export default async function OverviewPage() {
             href={`/sectors/${sector.slug}`}
             className="card card-pad group transition-shadow hover:shadow-md"
           >
-            <div className="flex items-start justify-between gap-2">
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl"
-                style={{ backgroundColor: `${sector.color}18` }}
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: sector.color }} />
-              </span>
+            <div className="flex items-start justify-between gap-3">
+              <SectorIcon slug={sector.slug} name={sector.name} />
               <ScoreBadge score={pair.score} />
             </div>
             <div className="mt-3 text-sm font-semibold text-zinc-900 group-hover:text-abia-dark">
