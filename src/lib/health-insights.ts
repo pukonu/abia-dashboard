@@ -76,11 +76,11 @@ export function healthLandingInsights(data: DashboardData) {
       { label: "Stock-out days", value: "6 days", trend: "Medicines supply still causing service risk", tone: "critical" },
     ] satisfies HealthSignal[],
     facilityReadiness: [
-      { label: "Reliable power", value: 67, color: "#f59e0b" },
-      { label: "Clean water", value: 75, color: "#0891b2" },
-      { label: "Delivery room", value: 71, color: "#e11d48" },
-      { label: "Cold-chain", value: 92, color: "#16a34a" },
-      { label: "Waste disposal", value: 88, color: "#7c3aed" },
+      { label: "Reliable power", value: 67 },
+      { label: "Clean water", value: 75 },
+      { label: "Delivery room", value: 71 },
+      { label: "Cold-chain", value: 92 },
+      { label: "Waste disposal", value: 88 },
     ],
     urgentMatters: [
       {

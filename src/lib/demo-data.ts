@@ -842,6 +842,80 @@ const SECTOR_SPECS: SectorSpec[] = [
       },
     ],
   },
+  {
+    name: "Administration & Governance",
+    slug: "administration",
+    description: "Executive coordination, service delivery, procurement, citizen feedback and public-sector performance.",
+    icon: "🏛️",
+    color: "#475569",
+    mdas: [
+      {
+        name: "Office of the Governor",
+        abbreviation: "OOG",
+        description: "Executive coordination, policy delivery and state performance monitoring.",
+        entities: [
+          ["Executive Council Secretariat", "Executive Secretariat", "Umuahia North"],
+          ["State Delivery Coordination Unit", "Delivery Unit", "Umuahia North"],
+          ["Project Monitoring Office", "Project Monitoring Office", "Umuahia South"],
+          ["Governor's Citizen Feedback Desk", "Citizen Feedback Desk", "Umuahia North"],
+        ],
+      },
+      {
+        name: "Bureau of Public Service Reforms",
+        abbreviation: "BPSR",
+        description: "Public service reform, service standards and administrative efficiency.",
+        entities: [
+          ["One-Stop Government Service Centre", "Service Centre", "Umuahia North"],
+          ["Public Service Training Centre", "Training Centre", "Ikwuano"],
+          ["Procurement Monitoring Desk", "Procurement Desk", "Umuahia North"],
+        ],
+      },
+    ],
+    thematicAreas: [
+      {
+        name: "Executive Delivery",
+        description: "Implementation of executive decisions, projects and priority commitments.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "Decision Implementation",
+            indicators: [
+              { name: "Executive decisions implemented on time", unit: "%", direction: "higher_is_better", target: 90, targetSource: "Executive Council", base: 68, nigeria: 55, trend: 0.16, jitter: 0.06 },
+              { name: "Priority projects with current status updates", unit: "%", direction: "higher_is_better", target: 95, targetSource: "Delivery Unit", base: 74, nigeria: 60, trend: 0.14, jitter: 0.05, entityLevel: true },
+            ],
+          },
+          {
+            name: "Project Monitoring",
+            indicators: [
+              { name: "Projects inspected this month", unit: "projects/month", direction: "higher_is_better", target: 80, targetSource: "State Plan", base: 46, nigeria: 35, trend: 0.18, jitter: 0.12, entityLevel: true },
+              { name: "Project exception reports resolved", unit: "%", direction: "higher_is_better", target: 85, targetSource: "Delivery Unit", base: 57, nigeria: 42, trend: 0.15, jitter: 0.08 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Public Service & Accountability",
+        description: "Citizen feedback, procurement transparency and civil service responsiveness.",
+        frequency: "monthly",
+        domains: [
+          {
+            name: "Citizen Service",
+            indicators: [
+              { name: "Citizen complaints resolved within SLA", unit: "%", direction: "higher_is_better", target: 85, targetSource: "Service Charter", base: 61, nigeria: 48, trend: 0.16, jitter: 0.07, entityLevel: true },
+              { name: "Average complaint resolution time", unit: "days", direction: "lower_is_better", target: 7, targetSource: "Service Charter", base: 16, nigeria: 22, trend: 0.18, jitter: 0.12 },
+            ],
+          },
+          {
+            name: "Procurement & Reform",
+            indicators: [
+              { name: "Procurement milestones published", unit: "%", direction: "higher_is_better", target: 90, targetSource: "Open Contracting", base: 58, nigeria: 45, trend: 0.14, jitter: 0.07, entityLevel: true },
+              { name: "Civil servants trained on service standards", unit: "staff/month", direction: "higher_is_better", target: 1200, targetSource: "Reform Plan", base: 620, nigeria: 480, trend: 0.12, jitter: 0.1 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -1233,6 +1307,7 @@ export function buildDemoData(): DashboardData {
     evidence: [],
     dashboards,
     dashboardWidgets,
+    sectorFacts: [],
     mode: "demo",
     supabaseConfigured: false,
   };

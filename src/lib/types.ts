@@ -136,6 +136,16 @@ export interface DashboardWidget {
   position: number;
 }
 
+export interface SectorFact {
+  id: string;
+  sector_id: string;
+  label: string;
+  value: string;
+  caption: string | null;
+  source: string | null;
+  sort_order: number;
+}
+
 export type DataMode = "demo" | "live";
 
 /** Full snapshot of dashboard data, loaded once per request. */
@@ -152,6 +162,7 @@ export interface DashboardData {
   evidence: ResultEvidence[];
   dashboards: CustomDashboard[];
   dashboardWidgets: DashboardWidget[];
+  sectorFacts: SectorFact[];
   /** which dataset is being served */
   mode: DataMode;
   /** whether Supabase credentials are configured (live mode possible) */

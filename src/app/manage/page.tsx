@@ -117,6 +117,26 @@ export default async function ManagePage() {
       <SectionTitle hint="Curated chart layouts for sector and LGA pages">Presentation</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2">
         <Link
+          href="/manage/sector-facts"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+            <PenLine className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Sector facts
+              <span className="ml-2 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {data.sectorFacts.length}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Enter executive numbers for sector landing pages, including values not yet tracked through entities.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
+        <Link
           href="/manage/dashboards"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >

@@ -1,28 +1,17 @@
-import {
-  Baby,
-  Banknote,
-  Factory,
-  GraduationCap,
-  HeartPulse,
-  Leaf,
-  MonitorSmartphone,
-  Pickaxe,
-  Shield,
-  Sprout,
-  type LucideIcon,
-} from "lucide-react";
+import Image from "next/image";
 
-const SECTOR_ICONS: Record<string, LucideIcon> = {
-  health: HeartPulse,
-  power: Factory,
-  infrastructure: Pickaxe,
-  security: Shield,
-  education: GraduationCap,
-  agriculture: Sprout,
-  economy: Banknote,
-  "women-affairs": Baby,
-  environment: Leaf,
-  technology: MonitorSmartphone,
+const SECTOR_ICON_URLS: Record<string, string> = {
+  health: "https://cdn.antly.co/icons/page-icons/hospital-bed.svg",
+  power: "https://cdn.antly.co/icons/page-icons/electric-factory.svg",
+  infrastructure: "https://cdn.antly.co/icons/page-icons/motorway.svg",
+  security: "https://cdn.antly.co/icons/page-icons/policeman.svg",
+  education: "https://cdn.antly.co/icons/page-icons/school.svg",
+  agriculture: "https://cdn.antly.co/icons/page-icons/tractor.svg",
+  economy: "https://cdn.antly.co/icons/page-icons/economic.svg",
+  administration: "https://cdn.antly.co/icons/page-icons/economic.svg",
+  "women-affairs": "https://cdn.antly.co/icons/page-icons/happy.svg",
+  environment: "https://cdn.antly.co/icons/page-icons/planet-earth.svg",
+  technology: "https://cdn.antly.co/icons/page-icons/technology.svg",
 };
 
 export default function SectorIcon({
@@ -34,14 +23,17 @@ export default function SectorIcon({
   name: string;
   className?: string;
 }) {
-  const Icon = SECTOR_ICONS[slug];
-  if (!Icon) return null;
+  const src = SECTOR_ICON_URLS[slug];
+  if (!src) return null;
 
   return (
-    <Icon
-      aria-label={`${name} icon`}
-      className={`${className} text-zinc-800`}
-      strokeWidth={1.5}
+    <Image
+      src={src}
+      alt={`${name} icon`}
+      width={44}
+      height={44}
+      className={`${className} object-contain`}
+      unoptimized
     />
   );
 }

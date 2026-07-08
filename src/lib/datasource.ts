@@ -9,6 +9,7 @@ import type {
   Indicator,
   Result,
   ResultEvidence,
+  SectorFact,
 } from "./types";
 
 /** Fetch every row of a table, paging past Supabase's 1,000-row response cap. */
@@ -73,6 +74,21 @@ async function loadCustomDashboards(
   };
 }
 
+async function loadSectorFacts(supabase: SupabaseClient): Promise<SectorFact[]> {
+  const facts = await supabase.from("sector_facts").select("*").order("sort_order");
+  if (facts.error) {
+    if (isMissingTableError(facts.error.message)) return [];
+    throw new Error(`Supabase query failed for sector_facts: ${facts.error.message}`);
+  }
+  return (facts.data ?? []).map((fact) => ({
+    ...fact,
+    value: String(fact.value ?? ""),
+    caption: fact.caption ?? null,
+    source: fact.source ?? null,
+    sort_order: Number(fact.sort_order ?? 0),
+  }));
+}
+
 /**
  * Loads the full dashboard snapshot for the active data mode.
  *
@@ -107,6 +123,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
       supabase.from("result_evidence").select("*"),
     ]);
     const customDashboards = await loadCustomDashboards(supabase);
+    const sectorFacts = await loadSectorFacts(supabase);
 
     const tables = { sectors, lgas, mdas, entities, thematicAreas, domains, indicators, timePeriods, results, evidence };
     for (const [name, res] of Object.entries(tables)) {
@@ -147,6 +164,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
       evidence: evidenceRows,
       dashboards: customDashboards.dashboards,
       dashboardWidgets: customDashboards.dashboardWidgets,
+      sectorFacts,
       mode: "live",
       supabaseConfigured: true,
     };

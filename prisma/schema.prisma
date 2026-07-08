@@ -74,6 +74,7 @@ model Sector {
   mdas          Mda[]
   thematicAreas ThematicArea[]
   dashboards    Dashboard[]
+  facts         SectorFact[]
 
   @@map("sectors")
 }
@@ -267,4 +268,21 @@ model DashboardWidget {
 
   @@index([dashboardId], map: "idx_dashboard_widgets_dashboard")
   @@map("dashboard_widgets")
+}
+
+/// Manual executive facts displayed on sector landing pages.
+model SectorFact {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectorId  String   @map("sector_id") @db.Uuid
+  label     String
+  value     String
+  caption   String?
+  source    String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  sector    Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
+  @@index([sectorId], map: "idx_sector_facts_sector")
+  @@map("sector_facts")
 }

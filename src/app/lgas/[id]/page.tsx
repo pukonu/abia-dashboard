@@ -93,23 +93,31 @@ export default async function LgaPage({
 
       {sectorBreakdown.length > 0 && (
         <>
-          <SectionTitle>Performance by sector in {lga.name}</SectionTitle>
-          <div className="card divide-y divide-zinc-100 overflow-hidden">
+          <SectionTitle hint="Open a sector filtered to this LGA">Performance by sector in {lga.name}</SectionTitle>
+          <CardList>
             {sectorBreakdown.map(({ sector, score, count }) => (
-              <div key={sector.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sector.color }} />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-zinc-800">{sector.name}</div>
-                    <div className="text-xs text-zinc-500">{count} entit{count === 1 ? "y" : "ies"}</div>
+              <RowLink
+                key={sector.id}
+                href={`/sectors/${sector.slug}?lga=${lga.id}`}
+                left={
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sector.color }} />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-zinc-800">{sector.name}</div>
+                      <div className="text-xs text-zinc-500">
+                        {count} measured entit{count === 1 ? "y" : "ies"} in {lga.name}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="w-36 sm:w-48">
-                  <ScoreBar score={score} />
-                </div>
-              </div>
+                }
+                right={
+                  <div className="w-36 sm:w-48">
+                    <ScoreBar score={score} />
+                  </div>
+                }
+              />
             ))}
-          </div>
+          </CardList>
         </>
       )}
 
