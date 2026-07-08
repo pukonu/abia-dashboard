@@ -1,15 +1,15 @@
 import type { FieldSpec } from "@/lib/manage-config";
 
 export const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80";
+  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-zinc-800/80";
 
 export const ghostInputClass =
-  "w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-zinc-950 placeholder:text-zinc-400 transition-colors hover:border-zinc-200 hover:bg-zinc-50/80 focus:border-zinc-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-200/80";
+  "w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-zinc-950 placeholder:text-zinc-400 transition-colors hover:border-zinc-200 hover:bg-zinc-50/80 focus:border-zinc-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-200/80 dark:text-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-900/80 dark:focus:border-zinc-600 dark:focus:bg-zinc-900 dark:focus:ring-zinc-800/80";
 
 export function FieldLabel({ label, required, help }: { label: string; required?: boolean; help?: string }) {
   return (
     <div className="mb-1">
-      <span className="text-xs font-semibold text-zinc-700">
+      <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
         {label}
         {required && <span className="text-red-700"> *</span>}
       </span>

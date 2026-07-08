@@ -132,7 +132,7 @@ function WidgetEditorModal({
                   className={`rounded-md border p-3 text-left transition-colors ${
                     active
                       ? "border-zinc-900 bg-zinc-950 text-white"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   }`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.5} />

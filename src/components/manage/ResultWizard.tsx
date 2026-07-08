@@ -101,8 +101,8 @@ function StepDots({ current, onJump }: { current: number; onJump: (i: number) =>
                 active
                   ? "bg-zinc-950 text-white"
                   : done
-                    ? "bg-green-50 text-green-900 hover:bg-green-100"
-                    : "bg-zinc-100 text-zinc-400"
+                    ? "bg-green-50 text-green-900 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
+                    : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-400"
               }`}
             >
               {done ? <Check className="h-3 w-3" strokeWidth={2.5} /> : <span>{i + 1}</span>}

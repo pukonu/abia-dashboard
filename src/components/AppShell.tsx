@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import AiChatWidget from "@/components/AiChatWidget";
+import { useTheme } from "@/components/ThemeProvider";
 import type { DataMode } from "@/lib/types";
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -65,7 +66,7 @@ function ModeSwitch({
     <div>
       <div
         className={`inline-flex rounded-full border p-0.5 ${
-          compact ? "border-zinc-200 bg-zinc-50" : "border-zinc-700 bg-zinc-900"
+          compact ? "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900" : "border-zinc-700 bg-zinc-900"
         }`}
       >
         {(["demo", "live"] as const).map((m) => (
@@ -79,9 +80,9 @@ function ModeSwitch({
                   ? "bg-abia text-white"
                   : compact
                     ? "bg-zinc-800 text-white"
-                    : "bg-zinc-100 text-zinc-900"
+                    : "bg-zinc-700 text-white"
                 : compact
-                  ? "text-zinc-500 hover:text-zinc-800"
+                  ? "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                   : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
@@ -99,6 +100,39 @@ function ModeSwitch({
           Live mode needs Supabase credentials in .env
         </p>
       )}
+    </div>
+  );
+}
+
+function ThemeSwitch({ compact = false }: { compact?: boolean }) {
+  const { preference, setPreference } = useTheme();
+
+  return (
+    <div
+      className={`inline-flex rounded-full border p-0.5 ${
+        compact ? "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900" : "border-zinc-700 bg-zinc-900"
+      }`}
+    >
+      {(["dark", "system"] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => setPreference(option)}
+          className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+            preference === option
+              ? option === "dark"
+                ? "bg-zinc-800 text-white"
+                : compact
+                  ? "bg-zinc-800 text-white"
+                  : "bg-abia text-white"
+              : compact
+                ? "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          {option}
+        </button>
+      ))}
     </div>
   );
 }
@@ -148,15 +182,25 @@ export default function AppShell({
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-3 px-6 py-5">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Data source</div>
-          <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} />
+        <div className="mt-auto space-y-4 px-6 py-5">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Appearance</div>
+            <div className="mt-2">
+              <ThemeSwitch />
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Data source</div>
+            <div className="mt-2">
+              <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} />
+            </div>
+          </div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile header */}
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
           <Link href="/" className="flex items-center gap-2.5">
             <Image
               src="/abia-logo.png"
@@ -166,11 +210,14 @@ export default function AppShell({
               className="h-8 w-8 rounded-full object-contain"
               priority
             />
-            <span className="display text-[15px] font-semibold text-zinc-900">
+            <span className="display text-[15px] font-semibold text-zinc-900 dark:text-zinc-50">
               Abia State Dashboard
             </span>
           </Link>
-          <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} compact />
+          <div className="flex items-center gap-2">
+            <ThemeSwitch compact />
+            <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} compact />
+          </div>
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 sm:px-6 lg:pb-12 lg:pt-8">
@@ -179,13 +226,15 @@ export default function AppShell({
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-zinc-200 bg-white/95 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
         {NAV.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={`flex flex-1 flex-col items-center gap-0.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 text-[10px] font-medium ${
-              isActive(pathname, item.href) ? "text-zinc-950" : "text-zinc-400"
+              isActive(pathname, item.href)
+                ? "text-zinc-950 dark:text-zinc-50"
+                : "text-zinc-400 dark:text-zinc-500"
             }`}
           >
             <item.icon className="h-5 w-5" strokeWidth={1.5} />

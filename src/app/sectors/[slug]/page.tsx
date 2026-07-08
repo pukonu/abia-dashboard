@@ -422,10 +422,10 @@ export default async function SectorPage({
                     <div
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${
                         signal.tone === "good"
-                          ? "bg-green-50 text-green-800"
+                          ? "bg-green-50 text-green-800 dark:bg-green-50 dark:text-green-900"
                           : signal.tone === "critical"
-                            ? "bg-red-50 text-red-800"
-                            : "bg-amber-50 text-amber-800"
+                            ? "bg-red-50 text-red-800 dark:bg-red-50 dark:text-red-900"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-50 dark:text-amber-900"
                       }`}
                     >
                       {signal.value}

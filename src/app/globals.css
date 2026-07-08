@@ -1,10 +1,27 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f4f4f5; /* zinc-100 */
   --foreground: #18181b; /* zinc-900 */
+  --surface: #ffffff;
+  --surface-muted: #fafafa;
+  --border: #e4e4e7;
+  --border-soft: #f4f4f5;
   --abia-green: #14683c;
   --abia-green-dark: #0c4f2c;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #09090b; /* zinc-950 */
+  --foreground: #fafafa; /* zinc-50 */
+  --surface: #18181b; /* zinc-900 */
+  --surface-muted: #27272a; /* zinc-800 */
+  --border: #3f3f46; /* zinc-700 */
+  --border-soft: #27272a; /* zinc-800 */
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -26,6 +43,10 @@ body {
 /* Executive cards */
 .card {
   @apply rounded-lg border border-zinc-200 bg-white shadow-sm;
+}
+
+.dark .card {
+  @apply border-zinc-800 bg-zinc-900 shadow-none;
 }
 
 .card-pad {
@@ -71,4 +92,69 @@ body {
 }
 .slide-enter-back {
   animation: slide-enter-back 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Common utility overrides so existing pages inherit dark mode without per-file edits. */
+.dark .text-zinc-950,
+.dark .text-zinc-900,
+.dark .text-zinc-800 {
+  color: #fafafa;
+}
+
+.dark .text-zinc-700,
+.dark .text-zinc-600 {
+  color: #d4d4d8;
+}
+
+.dark .text-zinc-500 {
+  color: #a1a1aa;
+}
+
+.dark .text-zinc-400 {
+  color: #71717a;
+}
+
+.dark .text-zinc-300 {
+  color: #52525b;
+}
+
+.dark .bg-white,
+.dark .bg-white\/95 {
+  background-color: rgb(24 24 27 / 0.95) !important;
+}
+
+.dark .bg-zinc-50,
+.dark .bg-zinc-50\/80 {
+  background-color: rgb(39 39 42 / 0.8);
+}
+
+.dark .bg-zinc-100,
+.dark .bg-zinc-100\/95 {
+  background-color: #27272a !important;
+}
+
+.dark .border-zinc-200,
+.dark .border-zinc-300 {
+  border-color: #3f3f46;
+}
+
+.dark .border-zinc-100 {
+  border-color: #27272a;
+}
+
+.dark .divide-zinc-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a;
+}
+
+.dark .hover\:bg-zinc-50:hover {
+  background-color: #27272a;
+}
+
+.dark .hover\:text-zinc-900:hover,
+.dark .hover\:text-zinc-800:hover {
+  color: #fafafa;
+}
+
+.dark .shadow-sm {
+  box-shadow: none;
 }

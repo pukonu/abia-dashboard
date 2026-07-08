@@ -15,10 +15,10 @@ export default function StatCard({
   accent?: "zinc" | "green" | "blue" | "amber";
 }) {
   const tones = {
-    zinc: "bg-zinc-100 text-zinc-600",
-    green: "bg-emerald-50 text-emerald-700",
-    blue: "bg-blue-50 text-blue-700",
-    amber: "bg-amber-50 text-amber-700",
+    zinc: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   }[accent];
 
   return (

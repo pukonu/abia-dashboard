@@ -82,7 +82,7 @@ export default async function ManagePage() {
           href="/manage/results"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <PenLine className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
@@ -99,7 +99,7 @@ export default async function ManagePage() {
           href="/manage/results#csv"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <Upload className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
@@ -120,7 +120,7 @@ export default async function ManagePage() {
           href="/manage/sector-facts"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <PenLine className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
@@ -140,7 +140,7 @@ export default async function ManagePage() {
           href="/manage/dashboards"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <LayoutDashboard className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
@@ -165,7 +165,7 @@ export default async function ManagePage() {
           href="/manage/users"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
         >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <Shield className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <div className="min-w-0 flex-1">
@@ -196,7 +196,7 @@ export default async function ManagePage() {
                 className="card card-pad group transition-shadow hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                     <DatasetIcon slug={d.slug} />
                   </span>
                   <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">

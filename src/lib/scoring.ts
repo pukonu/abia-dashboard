@@ -44,14 +44,39 @@ export interface RatingBand {
 
 export function ratingFor(score: number | null): RatingBand {
   if (score == null)
-    return { label: "No data", color: "#a1a1aa", textClass: "text-zinc-500", bgClass: "bg-zinc-100" };
+    return {
+      label: "No data",
+      color: "#a1a1aa",
+      textClass: "text-zinc-500 dark:text-zinc-400",
+      bgClass: "bg-zinc-100 dark:bg-zinc-800",
+    };
   if (score >= 85)
-    return { label: "Excellent", color: "#166534", textClass: "text-green-900", bgClass: "bg-green-50" };
+    return {
+      label: "Excellent",
+      color: "#166534",
+      textClass: "text-green-900 dark:text-green-300",
+      bgClass: "bg-green-50 dark:bg-green-950",
+    };
   if (score >= 70)
-    return { label: "Good", color: "#3f6212", textClass: "text-lime-900", bgClass: "bg-lime-50" };
+    return {
+      label: "Good",
+      color: "#3f6212",
+      textClass: "text-lime-900 dark:text-lime-300",
+      bgClass: "bg-lime-50 dark:bg-lime-950",
+    };
   if (score >= 50)
-    return { label: "Fair", color: "#92400e", textClass: "text-amber-900", bgClass: "bg-amber-50" };
-  return { label: "Poor", color: "#991b1b", textClass: "text-red-900", bgClass: "bg-red-50" };
+    return {
+      label: "Fair",
+      color: "#92400e",
+      textClass: "text-amber-900 dark:text-amber-300",
+      bgClass: "bg-amber-50 dark:bg-amber-950",
+    };
+  return {
+    label: "Poor",
+    color: "#991b1b",
+    textClass: "text-red-900 dark:text-red-300",
+    bgClass: "bg-red-50 dark:bg-red-950",
+  };
 }
 
 export function weightedMean(items: Array<{ score: number | null; weight: number }>): number | null {

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+import ThemeProvider from "@/components/ThemeProvider";
 import { loadDashboardData } from "@/lib/datasource";
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,11 +48,17 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full">
-        <AppShell mode={data.mode} supabaseConfigured={data.supabaseConfigured}>
-          {children}
-        </AppShell>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function(){try{var key=${JSON.stringify(THEME_STORAGE_KEY)};var stored=localStorage.getItem(key);var dark=stored==="dark"||(stored!=="dark"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",dark);document.documentElement.style.colorScheme=dark?"dark":"light";}catch(e){}})();`}
+        </Script>
+        <ThemeProvider>
+          <AppShell mode={data.mode} supabaseConfigured={data.supabaseConfigured}>
+            {children}
+          </AppShell>
+        </ThemeProvider>
       </body>
     </html>
   );

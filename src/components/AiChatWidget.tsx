@@ -68,7 +68,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
       </button>
 
       {open && (
-        <div className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl lg:bottom-6 lg:right-6 lg:left-auto lg:mx-0 lg:w-[420px]">
+        <div className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 lg:bottom-6 lg:right-6 lg:left-auto lg:mx-0 lg:w-[420px]">
           <div className="flex items-start justify-between gap-3 border-b border-zinc-100 bg-zinc-950 px-4 py-3 text-white">
             <div className="flex items-start gap-3">
               <div className="rounded-xl border border-white/10 bg-white/10 p-2">
@@ -103,14 +103,14 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
             </div>
           ) : (
             <>
-              <div className="max-h-[420px] space-y-3 overflow-y-auto bg-zinc-50 px-4 py-4">
+              <div className="max-h-[420px] space-y-3 overflow-y-auto bg-zinc-50 px-4 py-4 dark:bg-zinc-950">
                 {messages.map((message, index) => (
                   <div
                     key={index}
                     className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                       message.role === "user"
                         ? "ml-10 bg-zinc-950 text-white"
-                        : "mr-8 border border-zinc-200 bg-white text-zinc-700"
+                        : "mr-8 border border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                     }`}
                   >
                     {message.content}
@@ -123,7 +123,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                         key={suggestion}
                         type="button"
                         onClick={() => send(suggestion)}
-                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-950"
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-50"
                       >
                         {suggestion}
                       </button>
@@ -131,7 +131,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                   </div>
                 )}
                 {busy && (
-                  <div className="mr-8 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-500">
+                  <div className="mr-8 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                     <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
                     Thinking through the dashboard data...
                   </div>
@@ -145,7 +145,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
               )}
 
               <form
-                className="flex items-end gap-2 border-t border-zinc-100 bg-white p-3"
+                className="flex items-end gap-2 border-t border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
                 onSubmit={(event) => {
                   event.preventDefault();
                   send();
@@ -156,7 +156,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                   onChange={(event) => setInput(event.target.value)}
                   rows={2}
                   placeholder="Ask about sectors, LGAs, PHCs, indicators..."
-                  className="min-h-10 flex-1 resize-none rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none transition focus:border-zinc-400"
+                  className="min-h-10 flex-1 resize-none rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-500"
                 />
                 <button
                   type="submit"

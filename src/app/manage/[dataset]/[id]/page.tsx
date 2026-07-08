@@ -118,7 +118,7 @@ export default async function RecordDetailPage({
                   className="card card-pad group transition-shadow hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-100 text-zinc-600">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                       <DatasetIcon slug={c.slug} />
                     </span>
                     <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
