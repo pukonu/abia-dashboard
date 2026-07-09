@@ -58,6 +58,7 @@ enum DashboardChartType {
   bar
   radar
   stat
+  pie
 
   @@map("dashboard_chart_type")
 }

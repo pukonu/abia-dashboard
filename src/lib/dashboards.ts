@@ -19,9 +19,10 @@ export const CHART_TYPES: Array<{
   description: string;
   minIndicators: number;
 }> = [
-  { value: "stat", label: "Stat cards", description: "Latest value and score per indicator", minIndicators: 1 },
+  { value: "stat", label: "Stat cards", description: "Latest value, score and short briefing text per indicator", minIndicators: 1 },
   { value: "trend", label: "Trend line", description: "Values over time (scores when comparing several)", minIndicators: 1 },
   { value: "bar", label: "Bar chart", description: "Latest scores side by side", minIndicators: 1 },
+  { value: "pie", label: "Pie chart", description: "Share of latest values across 2+ indicators", minIndicators: 2 },
   { value: "radar", label: "Radar", description: "Scorecard across 3+ indicators", minIndicators: 3 },
 ];
 
@@ -37,6 +38,7 @@ export interface WidgetIndicatorDatum {
   id: string;
   name: string;
   unit: string;
+  description: string | null;
   target: number | null;
   latestValue: number | null;
   latestScore: number | null;
@@ -115,6 +117,7 @@ function sectorIndicatorData(
       id: ic.indicator.id,
       name: ic.indicator.name,
       unit: ic.indicator.unit,
+      description: ic.indicator.description ?? null,
       target: latest?.target ?? ic.indicator.target_value,
       latestValue: latest?.abia ?? null,
       latestScore: ic.score,
@@ -185,6 +188,7 @@ function lgaIndicatorData(
       id: indicatorId,
       name: ic.indicator.name,
       unit: ic.indicator.unit,
+      description: ic.indicator.description ?? null,
       target: ic.indicator.target_value,
       latestValue: latest?.value ?? null,
       latestScore: latest?.score ?? null,

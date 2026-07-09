@@ -109,7 +109,7 @@ export interface ResultEvidence {
 }
 
 export type DashboardScope = "sector" | "lga";
-export type DashboardChartType = "trend" | "bar" | "radar" | "stat";
+export type DashboardChartType = "trend" | "bar" | "radar" | "stat" | "pie";
 
 /** Admin-built custom dashboard displayed on a sector or LGA page. */
 export interface CustomDashboard {

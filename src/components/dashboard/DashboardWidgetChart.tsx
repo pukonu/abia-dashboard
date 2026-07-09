@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  FullPieChart,
   IndicatorTrendChart,
   ScoreBarChart,
   ScoreRadarChart,
@@ -25,6 +26,20 @@ function Note({ children }: { children: string }) {
   );
 }
 
+function briefingText(ind: WidgetIndicatorDatum): string {
+  if (ind.description?.trim()) return ind.description.trim();
+  const value = fmtValue(ind.latestValue, ind.unit);
+  if (ind.latestValue == null) {
+    return "No monthly reading yet — enter a statewide result to brief this indicator.";
+  }
+  if (ind.target != null && ind.latestScore != null) {
+    const gap = Math.round(100 - ind.latestScore);
+    if (gap <= 0) return `${value} — at or above the target of ${fmtValue(ind.target, ind.unit)}.`;
+    return `${value} against a target of ${fmtValue(ind.target, ind.unit)} (${gap} pts short of target score).`;
+  }
+  return `${value} recorded for the latest reporting period.`;
+}
+
 function StatGrid({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -39,7 +54,8 @@ function StatGrid({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
             </span>
             <ScoreBadge score={ind.latestScore} />
           </div>
-          <div className="mt-1">
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{briefingText(ind)}</p>
+          <div className="mt-1.5">
             <DeltaTag
               value={
                 ind.latestScore != null && ind.prevScore != null
@@ -94,6 +110,53 @@ function TrendWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
   );
 }
 
+function PieWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
+  const points = indicators
+    .map((ind, i) => ({
+      label: shortName(ind.name, 28),
+      value: Math.max(0, ind.latestValue ?? 0),
+      color: PALETTE[i % PALETTE.length],
+    }))
+    .filter((p) => p.value > 0);
+
+  if (points.length < 2) {
+    return <Note>Pie charts need at least two indicators with positive latest values.</Note>;
+  }
+
+  const total = points.reduce((sum, p) => sum + p.value, 0);
+  return (
+    <div>
+      <FullPieChart
+        points={points.map((p) => ({
+          ...p,
+          // FullPieChart legend shows "%" — pass share percentages for display consistency
+          // while keeping absolute values in the tooltip via a custom path below.
+          value: Math.round((p.value / total) * 1000) / 10,
+        }))}
+        height={240}
+      />
+      <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+        {indicators.map((ind, i) => (
+          <div key={ind.id} className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
+              />
+              <span className="truncate" title={ind.name}>
+                {ind.name}
+              </span>
+            </span>
+            <span className="shrink-0 font-medium text-zinc-700">
+              {fmtValue(ind.latestValue, ind.unit)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Renders one dashboard widget's chart from precomputed indicator data. */
 export default function DashboardWidgetChart({
   chartType,
@@ -134,6 +197,8 @@ export default function DashboardWidgetChart({
           height={240}
         />
       );
+    case "pie":
+      return <PieWidget indicators={indicators} />;
     case "radar":
       if (indicators.length < 3) {
         return <Note>Radar charts need at least 3 indicators.</Note>;

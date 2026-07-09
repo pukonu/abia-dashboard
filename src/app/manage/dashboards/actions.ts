@@ -8,7 +8,7 @@ import { getServerUser } from "@/lib/supabase-auth";
 import { getAdminClient } from "@/lib/supabase-admin";
 import type { DashboardChartType, DashboardScope } from "@/lib/types";
 
-const CHART_TYPES: DashboardChartType[] = ["trend", "bar", "radar", "stat"];
+const CHART_TYPES: DashboardChartType[] = ["trend", "bar", "radar", "stat", "pie"];
 
 /* ------------------------------------------------------------------ */
 /* Helpers (mirror manage/actions.ts patterns)                         */
@@ -144,6 +144,9 @@ export async function saveWidgetInline(
   }
   if (input.chart_type === "radar" && indicatorIds.length < 3) {
     return { ok: false, error: "Radar charts need at least 3 indicators." };
+  }
+  if (input.chart_type === "pie" && indicatorIds.length < 2) {
+    return { ok: false, error: "Pie charts need at least 2 indicators." };
   }
 
   const row = {

@@ -5,6 +5,7 @@ import {
   GripVertical,
   LayoutPanelLeft,
   Pencil,
+  PieChart,
   Plus,
   Radar,
   Search,
@@ -31,6 +32,7 @@ const CHART_ICONS: Record<DashboardChartType, LucideIcon> = {
   bar: BarChart3,
   radar: Radar,
   stat: Sigma,
+  pie: PieChart,
 };
 
 interface EditorState {
@@ -120,7 +122,7 @@ function WidgetEditorModal({
       <div className="space-y-4">
         <div>
           <div className="mb-1 text-xs font-semibold text-zinc-700">Chart type</div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {CHART_TYPES.map((t) => {
               const Icon = CHART_ICONS[t.value];
               const active = draft.chart_type === t.value;
