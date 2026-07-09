@@ -5,7 +5,7 @@ import "./globals.css";
 import AppShell from "@/components/AppShell";
 import ThemeProvider from "@/components/ThemeProvider";
 import { loadDashboardData } from "@/lib/datasource";
-import { THEME_STORAGE_KEY } from "@/lib/theme";
+import { THEME_STORAGE_KEY, themeInitScript } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,7 +52,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full">
         <Script id="theme-init" strategy="beforeInteractive">
-          {`(function(){try{var key=${JSON.stringify(THEME_STORAGE_KEY)};var stored=localStorage.getItem(key);var dark=stored==="dark"||(stored!=="dark"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",dark);document.documentElement.style.colorScheme=dark?"dark":"light";}catch(e){}})();`}
+          {themeInitScript(THEME_STORAGE_KEY)}
         </Script>
         <ThemeProvider>
           <AppShell mode={data.mode} supabaseConfigured={data.supabaseConfigured}>

@@ -14,7 +14,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import AiChatWidget from "@/components/AiChatWidget";
-import { useTheme } from "@/components/ThemeProvider";
+import ThemeMenu from "@/components/ThemeMenu";
 import type { DataMode } from "@/lib/types";
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -104,39 +104,6 @@ function ModeSwitch({
   );
 }
 
-function ThemeSwitch({ compact = false }: { compact?: boolean }) {
-  const { preference, setPreference } = useTheme();
-
-  return (
-    <div
-      className={`inline-flex rounded-full border p-0.5 ${
-        compact ? "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900" : "border-zinc-700 bg-zinc-900"
-      }`}
-    >
-      {(["dark", "system"] as const).map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => setPreference(option)}
-          className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
-            preference === option
-              ? option === "dark"
-                ? "bg-zinc-800 text-white"
-                : compact
-                  ? "bg-zinc-800 text-white"
-                  : "bg-abia text-white"
-              : compact
-                ? "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          {option}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function AppShell({
   mode,
   supabaseConfigured,
@@ -182,13 +149,7 @@ export default function AppShell({
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-4 px-6 py-5">
-          <div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Appearance</div>
-            <div className="mt-2">
-              <ThemeSwitch />
-            </div>
-          </div>
+        <div className="mt-auto px-6 py-5">
           <div>
             <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Data source</div>
             <div className="mt-2">
@@ -199,6 +160,11 @@ export default function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Desktop top bar — appearance top-right */}
+        <header className="sticky top-0 z-20 hidden items-center justify-end border-b border-zinc-200 bg-white/95 px-6 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:flex">
+          <ThemeMenu />
+        </header>
+
         {/* Mobile header */}
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
           <Link href="/" className="flex items-center gap-2.5">
@@ -215,7 +181,7 @@ export default function AppShell({
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            <ThemeSwitch compact />
+            <ThemeMenu />
             <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} compact />
           </div>
         </header>
