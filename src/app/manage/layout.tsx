@@ -39,6 +39,12 @@ export default async function ManageLayout({
           >
             Manage users
           </Link>
+          <Link
+            href="/manage/subscriptions"
+            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            Digests
+          </Link>
           <form action={signOutManageUser}>
             <button
               type="submit"

@@ -1,4 +1,4 @@
-import { ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download, Mail } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -120,12 +120,15 @@ export function ActionLink({
   children,
   primary = false,
   download = false,
+  icon = "download",
 }: {
   href: string;
   children: ReactNode;
   primary?: boolean;
   download?: boolean;
+  icon?: "download" | "mail";
 }) {
+  const Icon = icon === "mail" ? Mail : Download;
   return (
     <a
       href={href}
@@ -136,7 +139,7 @@ export function ActionLink({
           : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
       }`}
     >
-      <Download className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
       {children}
     </a>
   );

@@ -60,7 +60,10 @@ export default function RecordFormModal({
           <input type="hidden" name="_back" value={backTo} />
           <fieldset disabled={disabled} className="contents disabled:opacity-60">
             {fields.map((f) => (
-              <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
+              <div
+                key={f.name}
+                className={f.type === "textarea" || f.type === "checkbox" ? "sm:col-span-2" : ""}
+              >
                 <FormField
                   field={f}
                   options={optionsByField?.[f.name]}

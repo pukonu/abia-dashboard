@@ -6,23 +6,33 @@ import {
   widgetsOf,
 } from "@/lib/dashboards";
 import type { Computed } from "@/lib/scoring";
+import { saveResultRow } from "@/app/manage/actions";
 import DashboardWidgetChart from "./DashboardWidgetChart";
 
 /**
  * Renders all published custom dashboards for a sector or LGA page.
  * Dashboards are built in the manage console (/manage/dashboards).
+ * Statewide values for Sector Dashboard indicators are entered at
+ * /manage/sector-dashboard.
+ *
+ * When `canEdit` is true (signed-in live user on a sector page), stat/pie
+ * cards expose a hover Edit control for quick statewide updates.
  */
 export default function CustomDashboards({
   c,
   scope,
   targetId,
+  canEdit = false,
 }: {
   c: Computed;
   scope: "sector" | "lga";
   targetId: string;
+  canEdit?: boolean;
 }) {
   const dashboards = dashboardsFor(c.data, scope, targetId);
   if (dashboards.length === 0) return null;
+
+  const allowInlineEdit = canEdit && scope === "sector";
 
   return (
     <>
@@ -49,6 +59,8 @@ export default function CustomDashboards({
                     chartType={w.chart_type}
                     indicatorIds={w.indicator_ids}
                     data={subset}
+                    canEdit={allowInlineEdit}
+                    saveAction={allowInlineEdit ? saveResultRow : undefined}
                   />
                 </div>
               ))}

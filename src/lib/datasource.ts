@@ -96,9 +96,12 @@ async function loadSectorFacts(supabase: SupabaseClient): Promise<SectorFact[]> 
  * Supabase database (schema in prisma/schema.prisma, managed with Prisma
  * migrations) and shows exactly what has been entered — including empty
  * states when no data exists yet.
+ *
+ * Pass `{ forceLive: true }` for cron/digest jobs that must ignore the
+ * browser data-mode cookie and always read Supabase.
  */
-export async function loadDashboardData(): Promise<DashboardData> {
-  const mode = await getDataMode();
+export async function loadDashboardData(opts?: { forceLive?: boolean }): Promise<DashboardData> {
+  const mode = opts?.forceLive ? "live" : await getDataMode();
   if (mode === "demo" || !isSupabaseConfigured()) return demoSnapshot();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -143,7 +146,11 @@ export async function loadDashboardData(): Promise<DashboardData> {
       lgas: lgas.data ?? [],
       mdas: mdas.data ?? [],
       entities: entities.data ?? [],
-      thematicAreas: thematicAreas.data ?? [],
+      thematicAreas: (thematicAreas.data ?? []).map((t) => ({
+        ...t,
+        weight: Number(t.weight ?? 1),
+        is_sector_dashboard: Boolean(t.is_sector_dashboard),
+      })),
       domains: domains.data ?? [],
       indicators: (indicators.data ?? []).map((i) => ({
         ...i,

@@ -45,9 +45,14 @@ export default async function OverviewPage() {
         title="The State of Abia"
         subtitle="One composite view of how the state is performing across every sector, benchmarked against national figures and official targets."
         actions={
-          <ActionLink href="/api/reports/state" primary>
-            Download state report (PDF)
-          </ActionLink>
+          <>
+            <ActionLink href="/subscribe" icon="mail">
+              Weekly digest
+            </ActionLink>
+            <ActionLink href="/api/reports/state" primary>
+              Download state report (PDF)
+            </ActionLink>
+          </>
         }
       />
 

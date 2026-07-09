@@ -1,0 +1,13 @@
+# Local Terraform working files / secrets — keep .tf and README in git.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars
+*.auto.tfvars
+.terraform.tfstate.lock.info

@@ -45,6 +45,18 @@ export interface WidgetIndicatorDatum {
   prevScore: number | null;
   nigeriaScore: number | null;
   series: WidgetSeriesPoint[];
+  /** Period of the latest statewide reading, if any. */
+  latestPeriodId: string | null;
+  latestPeriodLabel: string | null;
+  latestNigeria: number | null;
+  latestNotes: string | null;
+  /**
+   * Period to write when editing on the dashboard. Uses the latest reading's
+   * period when present; otherwise the newest period matching the thematic
+   * area frequency (so empty indicators can be filled on the fly).
+   */
+  editPeriodId: string | null;
+  editPeriodLabel: string | null;
 }
 
 export interface IndicatorOption {
@@ -97,12 +109,31 @@ export function dashboardIndicatorData(
   return lgaIndicatorData(c, dashboard.lga_id ?? "");
 }
 
+function latestPeriodForFrequency(
+  periods: Computed["data"]["timePeriods"],
+  frequency: string
+): { id: string; label: string } | null {
+  const matched = periods
+    .filter((p) => p.frequency === frequency)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const last = matched.at(-1);
+  return last ? { id: last.id, label: last.label } : null;
+}
+
 function sectorIndicatorData(
   c: Computed,
   sectorId: string
 ): { options: IndicatorOption[]; data: Record<string, WidgetIndicatorDatum> } {
   const options: IndicatorOption[] = [];
   const data: Record<string, WidgetIndicatorDatum> = {};
+  const resultMeta = new Map<string, { nigeria: number | null; notes: string | null }>();
+  for (const r of c.data.results) {
+    if (r.entity_id != null) continue;
+    resultMeta.set(`${r.indicator_id}|${r.time_period_id}`, {
+      nigeria: r.nigeria_value,
+      notes: r.notes ?? null,
+    });
+  }
 
   for (const ic of c.indicators) {
     if (ic.sector.id !== sectorId || ic.indicator.indicator_scope === "entity") continue;
@@ -113,6 +144,11 @@ function sectorIndicatorData(
       score: pt.score,
     }));
     const latest = ic.latest;
+    const fallbackPeriod = latestPeriodForFrequency(c.data.timePeriods, ic.thematicArea.frequency);
+    const meta =
+      latest != null
+        ? resultMeta.get(`${ic.indicator.id}|${latest.period.id}`)
+        : undefined;
     data[ic.indicator.id] = {
       id: ic.indicator.id,
       name: ic.indicator.name,
@@ -127,6 +163,12 @@ function sectorIndicatorData(
           ? scoreValue(latest.nigeria, latest.target, ic.indicator.direction)
           : null,
       series,
+      latestPeriodId: latest?.period.id ?? null,
+      latestPeriodLabel: latest?.period.label ?? null,
+      latestNigeria: meta?.nigeria ?? latest?.nigeria ?? null,
+      latestNotes: meta?.notes ?? null,
+      editPeriodId: latest?.period.id ?? fallbackPeriod?.id ?? null,
+      editPeriodLabel: latest?.period.label ?? fallbackPeriod?.label ?? null,
     };
     options.push({
       id: ic.indicator.id,
@@ -184,6 +226,7 @@ function lgaIndicatorData(
 
     const latest = series.at(-1) ?? null;
     const previous = series.at(-2) ?? null;
+    const latestPeriod = points.at(-1)?.period ?? null;
     data[indicatorId] = {
       id: indicatorId,
       name: ic.indicator.name,
@@ -195,6 +238,13 @@ function lgaIndicatorData(
       prevScore: previous?.score ?? null,
       nigeriaScore: null,
       series,
+      // LGA widgets average entity readings — inline statewide edit is sector-only.
+      latestPeriodId: latestPeriod?.id ?? null,
+      latestPeriodLabel: latestPeriod?.label ?? null,
+      latestNigeria: null,
+      latestNotes: null,
+      editPeriodId: null,
+      editPeriodLabel: null,
     };
     options.push({
       id: indicatorId,

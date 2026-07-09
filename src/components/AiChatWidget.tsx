@@ -2,11 +2,86 @@
 
 import { Bot, Loader2, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { DataMode } from "@/lib/types";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+function AssistantMarkdown({ content }: { content: string }) {
+  return (
+    <div className="ai-chat-md text-sm leading-relaxed text-zinc-700 dark:text-zinc-200">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+          ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-4 last:mb-0">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-4 last:mb-0">{children}</ol>,
+          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold text-zinc-900 dark:text-zinc-50">{children}</strong>,
+          em: ({ children }) => <em className="italic">{children}</em>,
+          h1: ({ children }) => (
+            <h1 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">{children}</h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="mb-1.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{children}</h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mb-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50">{children}</h3>
+          ),
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-abia underline underline-offset-2 hover:text-abia-dark"
+            >
+              {children}
+            </a>
+          ),
+          code: ({ className, children }) => {
+            const isBlock = Boolean(className);
+            if (isBlock) {
+              return (
+                <code className="block overflow-x-auto rounded-lg bg-zinc-100 px-2.5 py-2 font-mono text-[12px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[12px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
+                {children}
+              </code>
+            );
+          },
+          pre: ({ children }) => <pre className="mb-2 overflow-x-auto last:mb-0">{children}</pre>,
+          blockquote: ({ children }) => (
+            <blockquote className="mb-2 border-l-2 border-zinc-300 pl-3 text-zinc-600 last:mb-0 dark:border-zinc-600 dark:text-zinc-300">
+              {children}
+            </blockquote>
+          ),
+          table: ({ children }) => (
+            <div className="mb-2 overflow-x-auto last:mb-0">
+              <table className="w-full border-collapse text-left text-xs">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="border-b border-zinc-200 dark:border-zinc-700">{children}</thead>,
+          th: ({ children }) => (
+            <th className="px-2 py-1.5 font-semibold text-zinc-900 dark:text-zinc-50">{children}</th>
+          ),
+          td: ({ children }) => (
+            <td className="border-t border-zinc-100 px-2 py-1.5 dark:border-zinc-800">{children}</td>
+          ),
+          hr: () => <hr className="my-3 border-zinc-200 dark:border-zinc-700" />,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 const SUGGESTIONS = [
@@ -80,7 +155,7 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                   <Sparkles className="h-3.5 w-3.5 text-amber-300" strokeWidth={1.5} />
                 </div>
                 <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
-                  Live-mode answers from dashboard skills, topics and tools.
+                  Live-mode answers: Sector Dashboard first, then statewide, then entities.
                 </p>
               </div>
             </div>
@@ -110,10 +185,14 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                     className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                       message.role === "user"
                         ? "ml-10 bg-zinc-950 text-white"
-                        : "mr-8 border border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        : "mr-8 border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
                     }`}
                   >
-                    {message.content}
+                    {message.role === "assistant" ? (
+                      <AssistantMarkdown content={message.content} />
+                    ) : (
+                      message.content
+                    )}
                   </div>
                 ))}
                 {messages.length === 1 && (
@@ -154,6 +233,12 @@ export default function AiChatWidget({ mode }: { mode: DataMode }) {
                 <textarea
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void send();
+                    }
+                  }}
                   rows={2}
                   placeholder="Ask about sectors, LGAs, PHCs, indicators..."
                   className="min-h-10 flex-1 resize-none rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:border-zinc-500"

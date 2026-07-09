@@ -19,6 +19,7 @@ import { sectorEntitiesForLga, sectorMdasForLga, sectorMixForLga, sectorPairForL
 import { powerLandingInsights } from "@/lib/power-insights";
 import { computeDashboard, delta } from "@/lib/scoring";
 import { securityLandingInsights } from "@/lib/security-insights";
+import { getServerUser } from "@/lib/supabase-auth";
 
 const FREQ_LABEL: Record<string, string> = {
   daily: "Daily",
@@ -144,6 +145,8 @@ export default async function SectorPage({
   const showDemoChrome = !isLive;
   const showLiveThematicNav = isLive && hasSectorDashboards;
   const effectiveThematic = liveEmpty ? null : selectedThematic;
+  const user = await getServerUser();
+  const canEditIndicators = isLive && Boolean(user) && !lgaContext;
 
   return (
     <>
@@ -327,7 +330,9 @@ export default async function SectorPage({
       )}
 
       {/* Custom dashboards built in the manage console (live source of truth) */}
-      {!liveEmpty && !effectiveThematic && <CustomDashboards c={c} scope="sector" targetId={sector.id} />}
+      {!liveEmpty && !effectiveThematic && (
+        <CustomDashboards c={c} scope="sector" targetId={sector.id} canEdit={canEditIndicators} />
+      )}
 
       {showDemoChrome && !effectiveThematic && !lgaContext && adminInsights && (
         <section>
@@ -608,7 +613,7 @@ export default async function SectorPage({
       {showDemoChrome && !effectiveThematic && !lgaContext && securityInsights && (
         <section>
           <SectionTitle hint="Coverage, incidents and response capacity">Security snapshot</SectionTitle>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {securityInsights.infrastructure.map((stat) => (
               <div key={stat.label} className="card card-pad">
                 <div className="text-2xl font-semibold text-zinc-950">{stat.value}</div>
@@ -618,7 +623,36 @@ export default async function SectorPage({
             ))}
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="card card-pad">
+              <h3 className="display text-base font-semibold text-zinc-900">Readiness & coverage</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Patrol tempo, community watch, tip-off response and asset protection at a glance.
+              </p>
+              <div className="mt-4 space-y-3">
+                {securityInsights.readiness.map((item) => {
+                  const color = readinessBarColor(item.value);
+                  return (
+                    <div key={item.label}>
+                      <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                        <span className="font-medium text-zinc-700">{item.label}</span>
+                        <span className="font-semibold text-zinc-900">{item.value}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${item.value}%`,
+                            background: `linear-gradient(90deg, ${readinessBarColor(Math.max(0, item.value - 18))}, ${color})`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="card overflow-hidden">
               <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
                 <h3 className="display text-base font-semibold text-zinc-900">Public safety indicators</h3>
@@ -648,21 +682,50 @@ export default async function SectorPage({
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="card card-pad">
-              <h3 className="display text-base font-semibold text-zinc-900">Citizen-facing summary</h3>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                A collective view citizens can read without interpreting the whole indicator framework.
-              </p>
-              <ul className="mt-4 space-y-3">
-                {securityInsights.publicSummary.map((item) => (
-                  <li key={item} className="flex gap-2 text-sm leading-relaxed text-zinc-700">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-abia" />
-                    <span>{item}</span>
-                  </li>
+          {securityInsights.urgentMatters.length > 0 && (
+            <div className="card mt-4 overflow-hidden">
+              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5">
+                <h3 className="display text-base font-semibold text-zinc-900">Urgent security matters</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Hotspots and capacity gaps that should surface quickly for executive action.
+                </p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {securityInsights.urgentMatters.map((matter) => (
+                  <div key={matter.location} className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">{matter.location}</div>
+                      <div className="mt-0.5 text-xs text-zinc-500">{matter.lga} · {matter.issue}</div>
+                      <div className="mt-1 text-[11px] font-medium text-zinc-600">Action: {matter.action}</div>
+                    </div>
+                    <div
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {matter.severity}
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
+          )}
+
+          <div className="card card-pad mt-4">
+            <h3 className="display text-base font-semibold text-zinc-900">Citizen-facing summary</h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              A collective view citizens can read without interpreting the whole indicator framework.
+            </p>
+            <ul className="mt-4 space-y-3">
+              {securityInsights.publicSummary.map((item) => (
+                <li key={item} className="flex gap-2 text-sm leading-relaxed text-zinc-700">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-abia" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       )}

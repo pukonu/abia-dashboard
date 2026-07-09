@@ -1,7 +1,7 @@
 import type { DashboardData } from "./types";
 import { formatScoreOptionsText } from "./indicator-input";
 
-export type FieldType = "text" | "number" | "textarea" | "select";
+export type FieldType = "text" | "number" | "textarea" | "select" | "checkbox";
 
 export interface FieldSpec {
   name: string;
@@ -166,7 +166,8 @@ export const DATASETS: DatasetSpec[] = [
     table: "thematic_areas",
     label: "Thematic Areas",
     labelSingular: "Thematic Area",
-    description: "Measurement themes under a sector; the frequency here drives which time periods apply.",
+    description:
+      "Measurement themes under a sector; the frequency here drives which time periods apply. Mark exactly one thematic area per sector as the Sector Dashboard for weekly digests and executive data entry.",
     group: "framework",
     collection: "thematicAreas",
     children: [{ slug: "domains", foreignKey: "thematic_area_id" }],
@@ -176,12 +177,20 @@ export const DATASETS: DatasetSpec[] = [
       { name: "description", label: "Description", type: "textarea" },
       { name: "frequency", label: "Reporting frequency", type: "select", required: true, options: FREQUENCY_OPTIONS },
       { name: "weight", label: "Weight within sector", type: "number", placeholder: "1" },
+      {
+        name: "is_sector_dashboard",
+        label: "Sector Dashboard",
+        type: "checkbox",
+        help: "Only one thematic area per sector. This set is used for executive data entry and the Friday weekly digest.",
+      },
     ],
     list: (d) =>
       d.thematicAreas.map((t) => ({
         id: t.id,
         title: t.name,
-        subtitle: `${d.sectors.find((s) => s.id === t.sector_id)?.name ?? ""} · ${t.frequency}`,
+        subtitle: `${d.sectors.find((s) => s.id === t.sector_id)?.name ?? ""} · ${t.frequency}${
+          t.is_sector_dashboard ? " · Sector Dashboard" : ""
+        }`,
       })),
   },
   {
@@ -304,6 +313,9 @@ export function childRows(
 
 /** Human-readable value for a record field (resolves select references). */
 export function displayValue(data: DashboardData, field: FieldSpec, value: unknown): string {
+  if (field.type === "checkbox") {
+    return value === true || value === "true" || value === "1" ? "Yes" : "No";
+  }
   if (value === null || value === undefined || value === "") return "—";
   if (field.name === "score_options") {
     const formatted = formatScoreOptionsText(value);

@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Computed } from "./scoring";
 import { delta, fmt, fmtValue, ratingFor } from "./scoring";
-import type { Lga, Sector } from "./types";
+import { isSectorDashboardThematic } from "./sector-dashboard";
+import type { Lga, Sector, ThematicArea } from "./types";
 
 const LOGO_PATH = join(process.cwd(), "public", "abia-logo.png");
 
@@ -298,6 +299,203 @@ export function SectorReport({ c, sector }: { c: Computed; sector: Sector }) {
       </Page>
     </Document>
   );
+}
+
+/**
+ * Combined Friday digest: state overview page, then one page per sector that
+ * has a flagged Sector Dashboard thematic area. Sector pages only include that
+ * thematic area's indicators — not the full measurement framework.
+ */
+export function WeeklyDigestReport({ c }: { c: Computed }) {
+  const digestSectors = c.data.sectors.filter((s) =>
+    c.data.thematicAreas.some((t) => t.sector_id === s.id && isSectorDashboardThematic(t))
+  );
+  const digestThematicIds = new Set(
+    c.data.thematicAreas.filter(isSectorDashboardThematic).map((t) => t.id)
+  );
+
+  const attention = [...c.indicators]
+    .filter((i) => i.indicator.indicator_scope !== "entity")
+    .filter((i) => digestThematicIds.has(i.thematicArea.id))
+    .filter((i) => i.score != null)
+    .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+    .slice(0, 8);
+  const lgas = c.lgaScores.filter((l) => l.score != null);
+  const asOf = generatedAt();
+  const weekLabel = new Date().toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <Document title={`Abia Weekly Digest — ${weekLabel}`}>
+      <Page size="A4" style={styles.page}>
+        <Header
+          title="Weekly State of Abia Digest"
+          subtitle={`Sector Dashboard summary · Week of ${weekLabel}`}
+        />
+        <Summary
+          label="Abia State Performance Index"
+          score={c.stateScore.score}
+          note={`Composite of ${c.indicators.filter((i) => i.indicator.indicator_scope !== "entity").length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}. This digest details the ${digestSectors.length} sector${digestSectors.length === 1 ? "" : "s"} with a Sector Dashboard thematic area.`}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sector performance</Text>
+          <Table
+            cols={[
+              { label: "Sector", width: "40%" },
+              { label: "Score", width: "15%", align: "right" },
+              { label: "Rating", width: "20%", align: "right" },
+              { label: "Change", width: "25%", align: "right" },
+            ]}
+            rows={c.data.sectors.map((s) => {
+              const pair = c.sectorScores.get(s.id) ?? { score: null, prevScore: null };
+              return [
+                { text: s.name, bold: true },
+                { text: pair.score == null ? "—" : fmt(pair.score, 1) },
+                { text: ratingFor(pair.score).label, color: ratingColor(pair.score) },
+                { text: deltaText(pair) },
+              ];
+            })}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>LGA composite ranking</Text>
+          <Table
+            cols={[
+              { label: "#", width: "8%" },
+              { label: "Local Government Area", width: "42%" },
+              { label: "Zone", width: "25%" },
+              { label: "Score", width: "12%", align: "right" },
+              { label: "Rating", width: "13%", align: "right" },
+            ]}
+            rows={lgas.map((l, i) => [
+              { text: String(i + 1) },
+              { text: l.lga.name, bold: true },
+              { text: l.lga.zone },
+              { text: fmt(l.score, 1) },
+              { text: ratingFor(l.score).label, color: ratingColor(l.score) },
+            ])}
+          />
+        </View>
+
+        <View style={styles.section} break>
+          <Text style={styles.sectionTitle}>Sector Dashboard indicators requiring attention</Text>
+          <Table
+            cols={[
+              { label: "Indicator", width: "34%" },
+              { label: "Sector", width: "16%" },
+              { label: "Abia", width: "14%", align: "right" },
+              { label: "Nigeria", width: "13%", align: "right" },
+              { label: "Target", width: "13%", align: "right" },
+              { label: "Score", width: "10%", align: "right" },
+            ]}
+            rows={attention.map((i) => [
+              { text: i.indicator.name, bold: true },
+              { text: i.sector.name },
+              { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+              { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
+              { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
+              { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
+            ])}
+          />
+        </View>
+        <Footer generatedAt={asOf} />
+      </Page>
+
+      {digestSectors.map((sector) => {
+        const pair = c.sectorScores.get(sector.id) ?? { score: null, prevScore: null };
+        const thematics = c.data.thematicAreas.filter(
+          (t) => t.sector_id === sector.id && isSectorDashboardThematic(t)
+        );
+        const mdas = c.mdaScores.filter((m) => m.sector.id === sector.id);
+        const indicators = c.indicators.filter(
+          (i) =>
+            i.sector.id === sector.id &&
+            i.indicator.indicator_scope !== "entity" &&
+            digestThematicIds.has(i.thematicArea.id)
+        );
+
+        return (
+          <Page key={sector.id} size="A4" style={styles.page}>
+            <Header
+              title={`The State of ${sector.name}`}
+              subtitle={`Sector Dashboard digest · Week of ${weekLabel}`}
+            />
+            <Summary
+              label={`${sector.name} Sector Dashboard`}
+              score={sectorDashboardScore(c, thematics) ?? pair.score}
+              note={`Executive Sector Dashboard thematic area${thematics.length === 1 ? "" : "s"}: ${thematics.map((t) => t.name).join(", ") || "—"}. ${indicators.length} state indicators. Change vs previous period: ${deltaText(pair)}.`}
+            />
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ministries, Departments & Agencies</Text>
+              <Table
+                cols={[
+                  { label: "MDA", width: "55%" },
+                  { label: "Entities", width: "15%", align: "right" },
+                  { label: "Score", width: "15%", align: "right" },
+                  { label: "Rating", width: "15%", align: "right" },
+                ]}
+                rows={mdas.map((m) => [
+                  { text: `${m.mda.name} (${m.mda.abbreviation})`, bold: true },
+                  { text: String(m.entityCount) },
+                  { text: m.score == null ? "—" : fmt(m.score, 1) },
+                  { text: ratingFor(m.score).label, color: ratingColor(m.score) },
+                ])}
+              />
+            </View>
+
+            {thematics.map((ta) => {
+              const taPair = c.thematicScores.get(ta.id) ?? { score: null, prevScore: null };
+              const taIndicators = indicators.filter((i) => i.thematicArea.id === ta.id);
+              return (
+                <View key={ta.id} style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    {ta.name} — {taPair.score == null ? "—" : fmt(taPair.score, 1)} ({ratingFor(taPair.score).label})
+                  </Text>
+                  <Table
+                    cols={[
+                      { label: "Indicator", width: "32%" },
+                      { label: "Domain", width: "18%" },
+                      { label: "Abia", width: "14%", align: "right" },
+                      { label: "Nigeria", width: "13%", align: "right" },
+                      { label: "Target", width: "13%", align: "right" },
+                      { label: "Score", width: "10%", align: "right" },
+                    ]}
+                    rows={taIndicators.map((i) => [
+                      { text: i.indicator.name, bold: true },
+                      { text: i.domain.name },
+                      { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+                      { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
+                      { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
+                      { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
+                    ])}
+                  />
+                </View>
+              );
+            })}
+            <Footer generatedAt={asOf} />
+          </Page>
+        );
+      })}
+    </Document>
+  );
+}
+
+function sectorDashboardScore(c: Computed, thematics: ThematicArea[]): number | null {
+  if (thematics.length === 0) return null;
+  if (thematics.length === 1) {
+    return c.thematicScores.get(thematics[0].id)?.score ?? null;
+  }
+  const scores = thematics
+    .map((t) => c.thematicScores.get(t.id)?.score)
+    .filter((s): s is number => s != null);
+  if (scores.length === 0) return null;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
 }
 
 export function LgaReport({ c, lga }: { c: Computed; lga: Lga }) {

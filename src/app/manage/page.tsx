@@ -3,6 +3,7 @@ import {
   Database,
   Layers,
   LayoutDashboard,
+  Mail,
   PenLine,
   Shield,
   Upload,
@@ -77,7 +78,25 @@ export default async function ManagePage() {
       </div>
 
       <SectionTitle hint="Capture performance data">Data entry</SectionTitle>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Link
+          href="/manage/sector-dashboard"
+          className="card card-pad group flex items-start gap-4 border-l-4 border-l-emerald-600 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <LayoutDashboard className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Sector Dashboard data
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Enter monthly statewide values for Health (and other) Sector Dashboard indicators — the
+              simplest place to fill the executive dashboard.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
         <Link
           href="/manage/results"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
@@ -90,7 +109,7 @@ export default async function ManagePage() {
               Record results
             </div>
             <p className="mt-1 text-sm text-zinc-500">
-              Enter Abia values for indicators and periods, with optional evidence images.
+              Guided wizard for statewide or entity-level results, with optional evidence images.
             </p>
           </div>
           <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
@@ -174,6 +193,23 @@ export default async function ManagePage() {
             </div>
             <p className="mt-1 text-sm text-zinc-500">
               Create accounts for the management console and control who can enter data.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
+        <Link
+          href="/manage/subscriptions"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <Mail className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              Digest subscribers
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              View weekly digest signups, preview the PDF, and send a test email to a subscriber.
             </p>
           </div>
           <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />

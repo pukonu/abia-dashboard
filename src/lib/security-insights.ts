@@ -13,54 +13,58 @@ export interface SecurityIncident {
   tone: "good" | "watch" | "critical";
 }
 
-function fmt(value: number): string {
-  return value.toLocaleString("en-NG");
-}
-
-function countEntities(data: DashboardData, matcher: RegExp): number {
-  return data.entities.filter((entity) => matcher.test(`${entity.entity_type} ${entity.name}`)).length;
-}
-
-export function securityLandingInsights(data: DashboardData) {
-  const policeStations = countEntities(data, /police|division/i);
-  const militaryFormations = countEntities(data, /military|army|battalion|brigade/i) || 2;
-  const civilDefenseDivisions = countEntities(data, /civil defense|civil defence|nscdc/i) || 6;
-  const vigilanteCoverage = 72;
-  const responseTimeMinutes = 18;
+export function securityLandingInsights(_data: DashboardData) {
+  void _data;
 
   return {
     infrastructure: [
       {
-        label: "Police stations / divisions",
-        value: fmt(policeStations || 17),
-        caption: "Police service points and divisions represented across the state security layer.",
-      },
-      {
-        label: "Military formations",
-        value: fmt(militaryFormations),
-        caption: "Military and joint-operation formations supporting internal security.",
-      },
-      {
-        label: "Civil Defence divisions",
-        value: fmt(civilDefenseDivisions),
-        caption: "NSCDC/civil-defence coverage for critical assets and community safety.",
-      },
-      {
         label: "Community watch coverage",
-        value: `${vigilanteCoverage}%`,
+        value: "74%",
         caption: "Estimated ward-level vigilante and neighbourhood-watch coverage.",
+      },
+      {
+        label: "Emergency readiness",
+        value: "69%",
+        caption: "Composite readiness across vehicles, joint ops capacity and response protocols.",
+      },
+      {
+        label: "Asset protection coverage",
+        value: "82%",
+        caption: "Share of priority critical assets under active protection arrangements.",
+      },
+      {
+        label: "Patrols completed",
+        value: "87%",
+        caption: "Share of planned security patrols completed in the latest cycle.",
       },
     ] satisfies SecurityStat[],
     incidents: [
       { label: "Kidnapping cases", value: "3", trend: "Down from prior reporting cycle", tone: "watch" },
       { label: "Violent crime incidents", value: "19", trend: "Improving against baseline", tone: "watch" },
+      { label: "Armed robbery incidents", value: "8", trend: "Still above weekly target of 5", tone: "watch" },
+      { label: "Cult-related incidents", value: "4", trend: "Needs sustained joint operations", tone: "critical" },
       { label: "Planned patrols completed", value: "87%", trend: "Operational tempo holding", tone: "good" },
-      { label: "Average response time", value: `${responseTimeMinutes} mins`, trend: "Target is 15 minutes", tone: "critical" },
+      { label: "Average response time", value: "18 mins", trend: "Target is 15 minutes", tone: "critical" },
     ] satisfies SecurityIncident[],
+    readiness: [
+      { label: "Patrol completion", value: 87 },
+      { label: "Community watch coverage", value: 74 },
+      { label: "Tip-off response (24h)", value: 71 },
+      { label: "Emergency readiness", value: 69 },
+      { label: "Asset protection", value: 82 },
+    ],
+    urgentMatters: [] as Array<{
+      location: string;
+      lga: string;
+      issue: string;
+      severity: "High" | "Critical";
+      action: string;
+    }>,
     publicSummary: [
-      "Security coverage combines formal police divisions, military support, civil defence and community watch structures.",
-      "The public safety story should separate incidents from response capacity so citizens can see both risk and readiness.",
-      "Kidnapping, violent crime, patrol completion and response time are the first priority indicators to keep updated.",
+      "Security indicators track crime, response capacity, community policing and road safety at state level.",
+      "The public safety story separates incidents from readiness so citizens can see both risk and response.",
+      "Kidnapping, violent crime, cult activity, patrol completion and response time are the first priority indicators to keep updated.",
     ],
   };
 }

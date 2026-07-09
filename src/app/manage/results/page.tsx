@@ -3,6 +3,7 @@ import ResultWizard from "@/components/manage/ResultWizard";
 import { ActionLink, Crumbs, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { resolveIndicatorScoreOptions } from "@/lib/indicator-input";
+import Link from "next/link";
 import { importResultsCsv, saveResultRow } from "../actions";
 
 export const metadata = { title: "Record results" };
@@ -86,9 +87,22 @@ export default async function ResultsEntryPage({
         eyebrow="Data entry"
         title="Record results"
         subtitle="A guided flow: pick the sector and MDA, then the entity (or statewide), then fill values across the domain grid. Entity entries automatically roll up into their linked state indicator."
+        actions={
+          <ActionLink href="/manage/sector-dashboard" primary>
+            Sector Dashboard data
+          </ActionLink>
+        }
       />
       <Flash msg={msg} err={err} />
       <DemoModeNotice show={!live} />
+
+      <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm text-zinc-600">
+        Filling the Health Executive Dashboard? Use{" "}
+        <Link href="/manage/sector-dashboard" className="font-semibold text-zinc-900 underline underline-offset-2">
+          Sector Dashboard data
+        </Link>{" "}
+        — it skips the MDA/entity steps and shows only the monthly statewide indicators.
+      </div>
 
       {/* Guided entry */}
       <SectionTitle>Enter results</SectionTitle>

@@ -348,6 +348,7 @@ def ensure_framework(sb: Supabase, health_id: str, replace: bool) -> tuple[dict,
                     "description": THEMATIC_DESCRIPTION,
                     "frequency": "monthly",
                     "weight": 1,
+                    "is_sector_dashboard": True,
                 }
             ],
             "id",
@@ -362,6 +363,7 @@ def ensure_framework(sb: Supabase, health_id: str, replace: bool) -> tuple[dict,
                     "description": THEMATIC_DESCRIPTION,
                     "frequency": "monthly",
                     "weight": 1,
+                    "is_sector_dashboard": True,
                 }
             ],
         )

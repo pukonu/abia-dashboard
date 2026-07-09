@@ -125,15 +125,18 @@ model Entity {
 }
 
 model ThematicArea {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sectorId    String    @map("sector_id") @db.Uuid
-  name        String
-  description String?
-  frequency   Frequency @default(quarterly)
-  weight      Decimal   @default(1) @db.Decimal
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  sector      Sector    @relation(fields: [sectorId], references: [id], onDelete: Cascade)
-  domains     Domain[]
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectorId          String    @map("sector_id") @db.Uuid
+  name              String
+  description       String?
+  frequency         Frequency @default(quarterly)
+  weight            Decimal   @default(1) @db.Decimal
+  /// Marks this thematic area as the sector's executive dashboard (one per sector).
+  /// Used for /manage/sector-dashboard entry and the weekly digest PDF.
+  isSectorDashboard Boolean   @default(false) @map("is_sector_dashboard")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  sector            Sector    @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  domains           Domain[]
 
   @@unique([sectorId, name])
   @@map("thematic_areas")
@@ -286,4 +289,20 @@ model SectorFact {
 
   @@index([sectorId], map: "idx_sector_facts_sector")
   @@map("sector_facts")
+}
+
+/// Public weekly digest subscribers (email-only signup).
+/// Not exposed via public RLS — reads/writes use the service role.
+model DigestSubscription {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String    @unique
+  name              String?
+  unsubscribeToken  String    @unique @default(dbgenerated("gen_random_uuid()")) @map("unsubscribe_token") @db.Uuid
+  subscribedAt      DateTime  @default(now()) @map("subscribed_at") @db.Timestamptz
+  unsubscribedAt    DateTime? @map("unsubscribed_at") @db.Timestamptz
+  lastSentAt        DateTime? @map("last_sent_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([unsubscribedAt], map: "idx_digest_subscriptions_active")
+  @@map("digest_subscriptions")
 }

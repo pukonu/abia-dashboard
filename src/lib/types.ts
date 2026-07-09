@@ -49,6 +49,8 @@ export interface ThematicArea {
   description: string;
   frequency: Frequency;
   weight: number;
+  /** Executive sector dashboard thematic area — at most one per sector. */
+  is_sector_dashboard: boolean;
 }
 
 export interface Domain {

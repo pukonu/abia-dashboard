@@ -164,16 +164,23 @@ export default async function RecordDetailPage({
             <h2 className="mb-4 text-sm font-semibold text-zinc-900">Configuration</h2>
             <fieldset disabled={!live} className="grid gap-4 disabled:opacity-60 sm:grid-cols-2">
               {secondary.map((f) => (
-                <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
+                <div
+                  key={f.name}
+                  className={f.type === "textarea" || f.type === "checkbox" ? "sm:col-span-2" : ""}
+                >
                   <FormField
                     field={f}
                     options={optionsByField(data, [f])[f.name]}
                     defaultValue={
                       f.name === "score_options"
                         ? formatScoreOptionsText(record[f.name])
-                        : record[f.name] == null
-                          ? ""
-                          : String(record[f.name])
+                        : f.type === "checkbox"
+                          ? record[f.name] === true || record[f.name] === "true"
+                            ? "true"
+                            : "false"
+                          : record[f.name] == null
+                            ? ""
+                            : String(record[f.name])
                     }
                   />
                 </div>

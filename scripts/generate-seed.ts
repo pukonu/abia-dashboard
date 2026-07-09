@@ -19,8 +19,9 @@ function uuid(id: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-function q(v: string | number | null | undefined): string {
+function q(v: string | number | boolean | null | undefined): string {
   if (v === null || v === undefined) return "null";
+  if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "number") return String(v);
   return `'${v.replace(/'/g, "''")}'`;
 }
@@ -46,8 +47,8 @@ sql += insert("mdas", ["id", "sector_id", "name", "abbreviation", "description"]
 sql += insert("entities", ["id", "mda_id", "lga_id", "name", "entity_type"],
   d.entities.map((e) => [q(uuid(e.id)), q(uuid(e.mda_id)), q(uuid(e.lga_id)), q(e.name), q(e.entity_type)]));
 
-sql += insert("thematic_areas", ["id", "sector_id", "name", "description", "frequency", "weight"],
-  d.thematicAreas.map((t) => [q(uuid(t.id)), q(uuid(t.sector_id)), q(t.name), q(t.description), q(t.frequency), q(t.weight)]));
+sql += insert("thematic_areas", ["id", "sector_id", "name", "description", "frequency", "weight", "is_sector_dashboard"],
+  d.thematicAreas.map((t) => [q(uuid(t.id)), q(uuid(t.sector_id)), q(t.name), q(t.description), q(t.frequency), q(t.weight), q(t.is_sector_dashboard)]));
 
 sql += insert("domains", ["id", "thematic_area_id", "name", "weight"],
   d.domains.map((x) => [q(uuid(x.id)), q(uuid(x.thematic_area_id)), q(x.name), q(x.weight)]));

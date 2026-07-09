@@ -28,6 +28,30 @@ export function FormField({
   defaultValue?: string;
 }) {
   const opts = options ?? field.options ?? [];
+  if (field.type === "checkbox") {
+    const checked =
+      defaultValue === "true" || defaultValue === "1" || defaultValue === "on";
+    return (
+      <label className="flex items-start gap-3 rounded-md border border-zinc-200 bg-zinc-50/80 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/50">
+        <input
+          type="checkbox"
+          name={field.name}
+          value="true"
+          defaultChecked={checked}
+          className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-200"
+        />
+        <span>
+          <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+            {field.label}
+            {field.required && <span className="text-red-700"> *</span>}
+          </span>
+          {field.help && (
+            <span className="mt-1 block text-[11px] leading-relaxed text-zinc-500">{field.help}</span>
+          )}
+        </span>
+      </label>
+    );
+  }
   return (
     <label className="block">
       <FieldLabel label={field.label} required={field.required} help={field.help} />

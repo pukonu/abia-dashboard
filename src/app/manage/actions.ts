@@ -153,6 +153,10 @@ export async function createRecord(slug: string, formData: FormData) {
 
   const row: Record<string, unknown> = {};
   for (const field of spec.fields) {
+    if (field.type === "checkbox") {
+      row[field.name] = formData.get(field.name) === "true" || formData.get(field.name) === "on";
+      continue;
+    }
     const raw = formData.get(field.name);
     const value = field.type === "number" ? numOrNull(raw) : strOrNull(raw);
     if (field.required && (value === null || value === "")) {
@@ -161,6 +165,7 @@ export async function createRecord(slug: string, formData: FormData) {
     if (value !== null) row[field.name] = value;
   }
   if (slug === "indicators") normalizeIndicatorRow(backTo, row);
+  if (slug === "thematic-areas") await clearOtherSectorDashboards(admin, row, null);
 
   const { error } = await admin.from(spec.table).insert(row);
   if (error) fail(backTo, `Could not save: ${error.message}`);
@@ -189,6 +194,10 @@ export async function updateRecord(slug: string, id: string, formData: FormData)
 
   const row: Record<string, unknown> = {};
   for (const field of spec.fields) {
+    if (field.type === "checkbox") {
+      row[field.name] = formData.get(field.name) === "true" || formData.get(field.name) === "on";
+      continue;
+    }
     const raw = formData.get(field.name);
     const value = field.type === "number" ? numOrNull(raw) : strOrNull(raw);
     if (field.required && value === null) {
@@ -197,6 +206,7 @@ export async function updateRecord(slug: string, id: string, formData: FormData)
     row[field.name] = value;
   }
   if (slug === "indicators") normalizeIndicatorRow(backTo, row, id);
+  if (slug === "thematic-areas") await clearOtherSectorDashboards(admin, row, id);
 
   const { error } = await admin.from(spec.table).update(row).eq("id", id);
   if (error) fail(backTo, `Could not save: ${error.message}`);
@@ -213,6 +223,13 @@ export async function patchRecord(slug: string, id: string, formData: FormData) 
 
   const row: Record<string, unknown> = {};
   for (const field of spec.fields) {
+    // Unchecked checkboxes omit the key from FormData — treat as false when the
+    // field is part of a full settings form that includes the checkbox control.
+    if (field.type === "checkbox") {
+      if (!formData.has(field.name) && !formData.has(`_has_${field.name}`)) continue;
+      row[field.name] = formData.get(field.name) === "true" || formData.get(field.name) === "on";
+      continue;
+    }
     if (!formData.has(field.name)) continue;
     const raw = formData.get(field.name);
     const value = field.type === "number" ? numOrNull(raw) : strOrNull(raw);
@@ -223,11 +240,34 @@ export async function patchRecord(slug: string, id: string, formData: FormData) 
   }
 
   if (Object.keys(row).length === 0) return;
+  if (slug === "thematic-areas") await clearOtherSectorDashboards(admin, row, id);
 
   const { error } = await admin.from(spec.table).update(row).eq("id", id);
   if (error) fail(backTo, `Could not save: ${error.message}`);
   const quiet = formData.get("_quiet") === "1";
   ok(backTo, quiet ? "" : `${spec.labelSingular} updated.`);
+}
+
+/**
+ * Enforce one sector-dashboard thematic area per sector: when marking a row,
+ * clear the flag on any other thematic area in the same sector.
+ */
+async function clearOtherSectorDashboards(
+  admin: SupabaseClient,
+  row: Record<string, unknown>,
+  currentId: string | null
+) {
+  if (row.is_sector_dashboard !== true) return;
+  const sectorId = typeof row.sector_id === "string" ? row.sector_id : null;
+  if (!sectorId) return;
+
+  let query = admin
+    .from("thematic_areas")
+    .update({ is_sector_dashboard: false })
+    .eq("sector_id", sectorId)
+    .eq("is_sector_dashboard", true);
+  if (currentId) query = query.neq("id", currentId);
+  await query;
 }
 
 /* ------------------------------------------------------------------ */

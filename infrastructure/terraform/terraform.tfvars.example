@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and fill in real values.
+# Do not commit terraform.tfvars if it contains secrets.
+
+aws_region  = "eu-west-1"
+name_prefix = "abia-weekly-digest"
+
+# Your Amplify app URL for the digest cron route (no trailing slash, no ?secret=).
+digest_url = "https://YOUR-AMPLIFY-DOMAIN/api/cron/weekly-digest"
+
+# Must match CRON_SECRET in the Amplify environment variables.
+cron_secret = "replace-with-a-long-random-secret"
+
+# EventBridge rule cron is always UTC.
+# 07:00 UTC = 08:00 Africa/Lagos (WAT). Change the hour if needed.
+schedule_expression = "cron(0 7 ? * FRI *)"
+
+enabled = true

@@ -11,8 +11,13 @@ import { DeltaTag, ScoreBadge } from "@/components/score";
 import type { WidgetIndicatorDatum } from "@/lib/dashboards";
 import { fmtValue, ratingFor } from "@/lib/scoring";
 import type { DashboardChartType } from "@/lib/types";
+import IndicatorQuickEdit from "./IndicatorQuickEdit";
 
 const PALETTE = ["#14683c", "#1d4ed8", "#b45309", "#9d174d", "#0f766e", "#6d28d9"];
+
+type SaveAction = (
+  formData: FormData
+) => Promise<{ ok: true; uploaded: number } | { ok: false; error: string }>;
 
 function shortName(name: string, max = 22): string {
   return name.length > max ? `${name.slice(0, max - 1)}…` : name;
@@ -40,11 +45,23 @@ function briefingText(ind: WidgetIndicatorDatum): string {
   return `${value} recorded for the latest reporting period.`;
 }
 
-function StatGrid({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
+function StatGrid({
+  indicators,
+  canEdit,
+  saveAction,
+}: {
+  indicators: WidgetIndicatorDatum[];
+  canEdit: boolean;
+  saveAction?: SaveAction;
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {indicators.map((ind) => (
-        <div key={ind.id} className="rounded-md border border-zinc-100 bg-zinc-50/60 p-3">
+        <div
+          key={ind.id}
+          className="group relative rounded-md border border-zinc-100 bg-zinc-50/60 p-3"
+        >
+          {canEdit && saveAction && <IndicatorQuickEdit indicator={ind} saveAction={saveAction} />}
           <div className="line-clamp-2 text-xs font-medium text-zinc-500" title={ind.name}>
             {ind.name}
           </div>
@@ -110,7 +127,15 @@ function TrendWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
   );
 }
 
-function PieWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
+function PieWidget({
+  indicators,
+  canEdit,
+  saveAction,
+}: {
+  indicators: WidgetIndicatorDatum[];
+  canEdit: boolean;
+  saveAction?: SaveAction;
+}) {
   const points = indicators
     .map((ind, i) => ({
       label: shortName(ind.name, 28),
@@ -120,7 +145,29 @@ function PieWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
     .filter((p) => p.value > 0);
 
   if (points.length < 2) {
-    return <Note>Pie charts need at least two indicators with positive latest values.</Note>;
+    return (
+      <div>
+        <Note>Pie charts need at least two indicators with positive latest values.</Note>
+        {canEdit && saveAction && (
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {indicators.map((ind) => (
+              <div
+                key={ind.id}
+                className="group relative flex items-center justify-between gap-2 rounded-md border border-dashed border-zinc-200 px-2 py-1.5 text-[11px] text-zinc-500"
+              >
+                <span className="truncate pr-14" title={ind.name}>
+                  {ind.name}
+                </span>
+                <span className="shrink-0 font-medium text-zinc-700">
+                  {fmtValue(ind.latestValue, ind.unit)}
+                </span>
+                <IndicatorQuickEdit indicator={ind} saveAction={saveAction} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const total = points.reduce((sum, p) => sum + p.value, 0);
@@ -137,8 +184,11 @@ function PieWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
       />
       <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
         {indicators.map((ind, i) => (
-          <div key={ind.id} className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-            <span className="flex min-w-0 items-center gap-1.5">
+          <div
+            key={ind.id}
+            className="group relative flex items-center justify-between gap-2 text-[11px] text-zinc-500"
+          >
+            <span className="flex min-w-0 items-center gap-1.5 pr-12">
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
@@ -150,6 +200,9 @@ function PieWidget({ indicators }: { indicators: WidgetIndicatorDatum[] }) {
             <span className="shrink-0 font-medium text-zinc-700">
               {fmtValue(ind.latestValue, ind.unit)}
             </span>
+            {canEdit && saveAction && (
+              <IndicatorQuickEdit indicator={ind} saveAction={saveAction} />
+            )}
           </div>
         ))}
       </div>
@@ -162,10 +215,14 @@ export default function DashboardWidgetChart({
   chartType,
   indicatorIds,
   data,
+  canEdit = false,
+  saveAction,
 }: {
   chartType: DashboardChartType;
   indicatorIds: string[];
   data: Record<string, WidgetIndicatorDatum>;
+  canEdit?: boolean;
+  saveAction?: SaveAction;
 }) {
   const indicators = indicatorIds
     .map((id) => data[id])
@@ -183,7 +240,7 @@ export default function DashboardWidgetChart({
 
   switch (chartType) {
     case "stat":
-      return <StatGrid indicators={indicators} />;
+      return <StatGrid indicators={indicators} canEdit={canEdit} saveAction={saveAction} />;
     case "trend":
       return <TrendWidget indicators={indicators} />;
     case "bar":
@@ -198,7 +255,7 @@ export default function DashboardWidgetChart({
         />
       );
     case "pie":
-      return <PieWidget indicators={indicators} />;
+      return <PieWidget indicators={indicators} canEdit={canEdit} saveAction={saveAction} />;
     case "radar":
       if (indicators.length < 3) {
         return <Note>Radar charts need at least 3 indicators.</Note>;
