@@ -5,8 +5,9 @@ import CustomDashboards from "@/components/dashboard/CustomDashboards";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import SectorIcon from "@/components/SectorIcon";
-import { ActionLink, CardList, Crumbs, PageHeader, RowLink, SectionTitle } from "@/components/ui";
+import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { adminLandingInsights } from "@/lib/admin-insights";
+import { dashboardsFor } from "@/lib/dashboards";
 import { loadDashboardData } from "@/lib/datasource";
 import { economyLandingInsights } from "@/lib/economy-insights";
 import { educationLandingInsights } from "@/lib/education-insights";
@@ -135,6 +136,15 @@ export default async function SectorPage({
     lgaSectorEntities?.reduce((sum, item) => sum + item.readings, 0) ??
     c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity").length;
 
+  // Live sector pages are driven by published dashboard-builder widgets.
+  // Demo keeps the richer hardcoded / computed landing chrome.
+  const isLive = data.mode === "live";
+  const hasSectorDashboards = dashboardsFor(data, "sector", sector.id).length > 0;
+  const liveEmpty = isLive && !hasSectorDashboards;
+  const showDemoChrome = !isLive;
+  const showLiveThematicNav = isLive && hasSectorDashboards;
+  const effectiveThematic = liveEmpty ? null : selectedThematic;
+
   return (
     <>
       <Crumbs
@@ -165,6 +175,10 @@ export default async function SectorPage({
             >
               Clear LGA filter
             </Link>
+          ) : liveEmpty ? (
+            <ActionLink href="/manage/dashboards" primary>
+              Build a dashboard
+            </ActionLink>
           ) : (
             <ActionLink href={`/api/reports/sector/${sector.slug}`} primary>
               Sector report (PDF)
@@ -173,7 +187,22 @@ export default async function SectorPage({
         }
       />
 
-      {lgaContext ? (
+      {liveEmpty && (
+        <EmptyState>
+          <p className="text-base font-medium text-zinc-800">No dashboard built for {sector.name} yet</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
+            In live mode, this sector view only shows charts and facts from published dashboards created in the
+            dashboard builder. Build one to start tracking {sector.name}.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <ActionLink href="/manage/dashboards" primary>
+              Build a dashboard
+            </ActionLink>
+          </div>
+        </EmptyState>
+      )}
+
+      {showDemoChrome && lgaContext && (
         <section className="card card-pad flex flex-col gap-5 border-l-4 sm:flex-row sm:items-center" style={{ borderLeftColor: sector.color }}>
           <ScoreRing score={pair.score} size={108} />
           <div>
@@ -189,7 +218,9 @@ export default async function SectorPage({
             </p>
           </div>
         </section>
-      ) : (
+      )}
+
+      {showDemoChrome && !lgaContext && (
         <>
           <SectionTitle hint="Fast briefing points">Executive facts</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -204,7 +235,7 @@ export default async function SectorPage({
         </>
       )}
 
-      {!selectedThematic && !lgaContext && manualSectorFacts.length > 0 && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && manualSectorFacts.length > 0 && (
         <section>
           <SectionTitle hint="Manually entered values from the management console">Executive sector facts</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -224,7 +255,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {selectedThematic && (
+      {showDemoChrome && effectiveThematic && (
         <>
           <section className="card card-pad flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="flex items-center gap-5">
@@ -262,7 +293,7 @@ export default async function SectorPage({
               resultName="Result"
               color={sector.color}
               points={data.domains
-                .filter((d) => d.thematic_area_id === selectedThematic.thematicArea.id)
+                .filter((d) => d.thematic_area_id === effectiveThematic.thematicArea.id)
                 .map((d) => ({
                   axis: d.name,
                   result: c.domainScores.get(d.id)?.score ?? null,
@@ -295,10 +326,10 @@ export default async function SectorPage({
         </>
       )}
 
-      {/* Custom dashboards built in the manage console */}
-      {!selectedThematic && <CustomDashboards c={c} scope="sector" targetId={sector.id} />}
+      {/* Custom dashboards built in the manage console (live source of truth) */}
+      {!liveEmpty && !effectiveThematic && <CustomDashboards c={c} scope="sector" targetId={sector.id} />}
 
-      {!selectedThematic && !lgaContext && adminInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && adminInsights && (
         <section>
           <SectionTitle hint="Executive delivery, service quality and accountability">Administration command centre</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -362,7 +393,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && healthInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && healthInsights && (
         <section>
           <SectionTitle hint="Facility coverage, readiness and service risks">Health service snapshot</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -465,7 +496,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && educationInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && educationInsights && (
         <section>
           <SectionTitle hint="School access, enrolment and gender balance">Education snapshot</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -574,7 +605,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && securityInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && securityInsights && (
         <section>
           <SectionTitle hint="Coverage, incidents and response capacity">Security snapshot</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -636,7 +667,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && infrastructureInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && infrastructureInsights && (
         <section>
           <SectionTitle hint="Road delivery, monthly progress and LGA spread">Road infrastructure tracker</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -731,7 +762,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && powerInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && powerInsights && (
         <section>
           <SectionTitle hint="Generation, gas constraints, outages and feeder reliability">Power snapshot</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -797,7 +828,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && !lgaContext && economyInsights && (
+      {showDemoChrome && !effectiveThematic && !lgaContext && economyInsights && (
         <section>
           <SectionTitle hint="Revenue, markets, SMEs and investor pipeline">Economy & trade command centre</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -858,7 +889,7 @@ export default async function SectorPage({
         </section>
       )}
 
-      {!selectedThematic && mix.length > 0 && (
+      {showDemoChrome && !effectiveThematic && mix.length > 0 && (
         <div className="mt-7 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(340px,1fr)]">
           <div>
             <SectionTitle hint={lgaContext ? `Measured facilities and service points in ${lgaContext.name}` : "Measured facilities and service points"}>
@@ -883,7 +914,7 @@ export default async function SectorPage({
         </div>
       )}
 
-      {!selectedThematic && lgaContext && (
+      {showDemoChrome && !effectiveThematic && lgaContext && (
         <div className="mt-7 grid gap-4 lg:grid-cols-2">
           <section>
             <SectionTitle hint={`Scored from entities in ${lgaContext.name}`}>MDAs in this LGA context</SectionTitle>
@@ -938,116 +969,117 @@ export default async function SectorPage({
         </div>
       )}
 
-      {/* Thematic areas → domains → indicators */}
-      {!selectedThematic ? (
-        thematicGroups.map((group) => (
-          <section key={group.id}>
-            <SectionTitle hint={group.hint}>{group.title}</SectionTitle>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {group.items.map((ta) => {
-                const domains = domainsByThematic.get(ta.id) ?? [];
-                const score = c.thematicScores.get(ta.id)?.score ?? null;
-                const indicatorCount = domains.reduce(
-                  (sum, domain) =>
-                    sum +
-                    c.indicators.filter(
-                      (i) => i.domain.id === domain.id && i.indicator.indicator_scope !== "entity"
-                    ).length,
-                  0
+      {/* Thematic areas → domains → indicators (demo always; live only when dashboards exist) */}
+      {(showDemoChrome || showLiveThematicNav) &&
+        (!effectiveThematic ? (
+          thematicGroups.map((group) => (
+            <section key={group.id}>
+              <SectionTitle hint={group.hint}>{group.title}</SectionTitle>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {group.items.map((ta) => {
+                  const domains = domainsByThematic.get(ta.id) ?? [];
+                  const score = c.thematicScores.get(ta.id)?.score ?? null;
+                  const indicatorCount = domains.reduce(
+                    (sum, domain) =>
+                      sum +
+                      c.indicators.filter(
+                        (i) => i.domain.id === domain.id && i.indicator.indicator_scope !== "entity"
+                      ).length,
+                    0
+                  );
+                  return (
+                    <Link
+                      key={ta.id}
+                      href={`/sectors/${sector.slug}?thematic=${ta.id}${lgaQuery}`}
+                      className="card card-pad group transition-shadow hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                            {group.title.replace(" Thematic Areas", "").replace(" Frameworks", "")}
+                          </div>
+                          <h3 className="mt-1 text-base font-semibold text-zinc-900 group-hover:text-abia-dark">
+                            {ta.name}
+                          </h3>
+                        </div>
+                        <ScoreBadge score={score} />
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{ta.description}</p>
+                      <div className="mt-4 flex items-center justify-between text-xs text-zinc-400">
+                        <span>
+                          {domains.length} domain{domains.length === 1 ? "" : "s"}
+                        </span>
+                        <span>
+                          {indicatorCount} indicator{indicatorCount === 1 ? "" : "s"}
+                        </span>
+                        <span>{ta.frequency}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))
+        ) : (
+          <section>
+            <SectionTitle
+              hint={`${effectiveThematic.group.title} · ${FREQ_LABEL[effectiveThematic.thematicArea.frequency]} reporting`}
+            >
+              {effectiveThematic.thematicArea.name}
+            </SectionTitle>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-3xl text-sm text-zinc-500">{effectiveThematic.thematicArea.description}</p>
+              <div className="flex items-center gap-3">
+                <ScoreBadge score={effectiveThematic.score} showLabel />
+                <Link
+                  href={lgaContext ? `/sectors/${sector.slug}?lga=${lgaContext.id}` : `/sectors/${sector.slug}`}
+                  className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+                >
+                  Back to thematic areas
+                </Link>
+              </div>
+            </div>
+            <div className="card overflow-hidden">
+              {effectiveThematic.domains.map((dom) => {
+                const domPair = c.domainScores.get(dom.id) ?? { score: null, prevScore: null };
+                const domIndicators = c.indicators.filter(
+                  (i) => i.domain.id === dom.id && i.indicator.indicator_scope !== "entity"
                 );
                 return (
-                  <Link
-                    key={ta.id}
-                    href={`/sectors/${sector.slug}?thematic=${ta.id}${lgaQuery}`}
-                    className="card card-pad group transition-shadow hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                          {group.title.replace(" Thematic Areas", "").replace(" Frameworks", "")}
-                        </div>
-                        <h3 className="mt-1 text-base font-semibold text-zinc-900 group-hover:text-abia-dark">
-                          {ta.name}
-                        </h3>
+                  <div key={dom.id} className="border-b border-zinc-100 last:border-b-0">
+                    <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3 sm:px-5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        {dom.name}
+                      </h3>
+                      <div className="w-28">
+                        <ScoreBar score={domPair.score} />
                       </div>
-                      <ScoreBadge score={score} />
                     </div>
-                    <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{ta.description}</p>
-                    <div className="mt-4 flex items-center justify-between text-xs text-zinc-400">
-                      <span>
-                        {domains.length} domain{domains.length === 1 ? "" : "s"}
-                      </span>
-                      <span>
-                        {indicatorCount} indicator{indicatorCount === 1 ? "" : "s"}
-                      </span>
-                      <span>{ta.frequency}</span>
-                    </div>
-                  </Link>
+                    {domIndicators.map((i) => (
+                      <Link
+                        key={i.indicator.id}
+                        href={`/indicators/${i.indicator.id}`}
+                        className="flex items-start justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm text-zinc-800">{i.indicator.name}</div>
+                          <IndicatorResultLine
+                            result={i.latest?.abia ?? null}
+                            nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
+                            target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
+                            unit={i.indicator.unit}
+                            targetSource={i.indicator.target_source}
+                          />
+                        </div>
+                        <ScoreBadge score={i.score} />
+                      </Link>
+                    ))}
+                  </div>
                 );
               })}
             </div>
           </section>
-        ))
-      ) : (
-        <section>
-          <SectionTitle
-            hint={`${selectedThematic.group.title} · ${FREQ_LABEL[selectedThematic.thematicArea.frequency]} reporting`}
-          >
-            {selectedThematic.thematicArea.name}
-          </SectionTitle>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-3xl text-sm text-zinc-500">{selectedThematic.thematicArea.description}</p>
-            <div className="flex items-center gap-3">
-              <ScoreBadge score={selectedThematic.score} showLabel />
-              <Link
-                href={lgaContext ? `/sectors/${sector.slug}?lga=${lgaContext.id}` : `/sectors/${sector.slug}`}
-                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
-              >
-                Back to thematic areas
-              </Link>
-            </div>
-          </div>
-          <div className="card overflow-hidden">
-            {selectedThematic.domains.map((dom) => {
-              const domPair = c.domainScores.get(dom.id) ?? { score: null, prevScore: null };
-              const domIndicators = c.indicators.filter(
-                (i) => i.domain.id === dom.id && i.indicator.indicator_scope !== "entity"
-              );
-              return (
-                <div key={dom.id} className="border-b border-zinc-100 last:border-b-0">
-                  <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3 sm:px-5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      {dom.name}
-                    </h3>
-                    <div className="w-28">
-                      <ScoreBar score={domPair.score} />
-                    </div>
-                  </div>
-                  {domIndicators.map((i) => (
-                    <Link
-                      key={i.indicator.id}
-                      href={`/indicators/${i.indicator.id}`}
-                      className="flex items-start justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50 sm:px-5"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm text-zinc-800">{i.indicator.name}</div>
-                        <IndicatorResultLine
-                          result={i.latest?.abia ?? null}
-                          nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
-                          target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
-                          unit={i.indicator.unit}
-                          targetSource={i.indicator.target_source}
-                        />
-                      </div>
-                      <ScoreBadge score={i.score} />
-                    </Link>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+        ))}
     </>
   );
 }
