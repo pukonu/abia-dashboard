@@ -135,6 +135,11 @@ export interface DashboardWidget {
   indicator_ids: string[];
   /** grid columns occupied (1 = half width, 2 = full width) */
   span: number;
+  /**
+   * Stat tiles only: when true, show period-over-period change (▲/▼/steady).
+   * Default false = simple value-only view.
+   */
+  show_change: boolean;
   position: number;
 }
 

@@ -61,6 +61,7 @@ export default function CustomDashboards({
                     data={subset}
                     canEdit={allowInlineEdit}
                     saveAction={allowInlineEdit ? saveResultRow : undefined}
+                    showChange={w.show_change}
                   />
                 </div>
               ))}

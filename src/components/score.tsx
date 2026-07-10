@@ -20,7 +20,11 @@ export function DeltaTag({ value, suffix = "pts" }: { value: number | null; suff
   }
   const up = value > 0;
   return (
-    <span className={`text-xs font-semibold ${up ? "text-green-800" : "text-red-800"}`}>
+    <span
+      className={`text-xs font-semibold ${
+        up ? "text-green-800 dark:text-green-300" : "text-red-800 dark:text-red-300"
+      }`}
+    >
       {up ? "▲" : "▼"} {fmt(Math.abs(value), 1)} {suffix}
     </span>
   );
@@ -44,7 +48,15 @@ export function ScoreRing({
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e4e4e7" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          className="text-zinc-200 dark:text-zinc-700"
+        />
         <circle
           cx={size / 2}
           cy={size / 2}

@@ -161,7 +161,7 @@ export default async function OverviewPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-green-700">Leading</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-400">Leading</div>
               <ul className="space-y-2">
                 {topLgas.map((l, i) => (
                   <li key={l.lga.id}>
@@ -174,7 +174,7 @@ export default async function OverviewPage() {
               </ul>
             </div>
             <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-red-700">Needs attention</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-red-700 dark:text-red-400">Needs attention</div>
               <ul className="space-y-2">
                 {bottomLgas.map((l) => (
                   <li key={l.lga.id}>

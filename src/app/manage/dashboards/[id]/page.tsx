@@ -52,7 +52,7 @@ export default async function DashboardBuilderPage({
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500 lg:hidden">
             {dashboard.scope === "sector" ? "Sector dashboard" : "LGA dashboard"} ·{" "}
             {target?.name ?? "—"}
           </div>
@@ -111,7 +111,7 @@ export default async function DashboardBuilderPage({
       <Flash msg={msg} err={err} />
       <DemoModeNotice show={disabled} />
       {!dashboard.published && (
-        <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
           This dashboard is a <strong>draft</strong> — it is hidden from{" "}
           {dashboard.scope === "sector" ? "the sector page" : "the LGA page"} until you publish it.
         </div>

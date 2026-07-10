@@ -490,6 +490,7 @@ def ensure_dashboard(sb: Supabase, health_id: str, name_to_id: dict[str, str], r
                 "title": w["title"],
                 "indicator_ids": [name_to_id[n] for n in w["indicator_names"]],
                 "span": w["span"],
+                "show_change": False,
                 "position": w["position"],
             }
         )

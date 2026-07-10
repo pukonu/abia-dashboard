@@ -399,6 +399,7 @@ def apply(sb: Supabase, specs: list[dict], replace: bool) -> None:
                     "title": w["title"],
                     "indicator_ids": w["indicator_ids"],
                     "span": w["span"],
+                    "show_change": False,
                     "position": w["position"],
                 }
             )

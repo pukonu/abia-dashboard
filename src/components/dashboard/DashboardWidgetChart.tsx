@@ -49,17 +49,19 @@ function StatGrid({
   indicators,
   canEdit,
   saveAction,
+  showChange,
 }: {
   indicators: WidgetIndicatorDatum[];
   canEdit: boolean;
   saveAction?: SaveAction;
+  showChange: boolean;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {indicators.map((ind) => (
         <div
           key={ind.id}
-          className="group relative rounded-md border border-zinc-100 bg-zinc-50/60 p-3"
+          className="group relative rounded-md border border-zinc-100 bg-zinc-50/60 p-3 dark:border-zinc-800 dark:bg-zinc-800/60"
         >
           {canEdit && saveAction && <IndicatorQuickEdit indicator={ind} saveAction={saveAction} />}
           <div className="line-clamp-2 text-xs font-medium text-zinc-500" title={ind.name}>
@@ -72,15 +74,17 @@ function StatGrid({
             <ScoreBadge score={ind.latestScore} />
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{briefingText(ind)}</p>
-          <div className="mt-1.5">
-            <DeltaTag
-              value={
-                ind.latestScore != null && ind.prevScore != null
-                  ? ind.latestScore - ind.prevScore
-                  : null
-              }
-            />
-          </div>
+          {showChange && (
+            <div className="mt-1.5">
+              <DeltaTag
+                value={
+                  ind.latestScore != null && ind.prevScore != null
+                    ? ind.latestScore - ind.prevScore
+                    : null
+                }
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -217,12 +221,15 @@ export default function DashboardWidgetChart({
   data,
   canEdit = false,
   saveAction,
+  showChange = false,
 }: {
   chartType: DashboardChartType;
   indicatorIds: string[];
   data: Record<string, WidgetIndicatorDatum>;
   canEdit?: boolean;
   saveAction?: SaveAction;
+  /** Stat tiles: show ▲/▼/steady vs previous period. Default is simple (hidden). */
+  showChange?: boolean;
 }) {
   const indicators = indicatorIds
     .map((id) => data[id])
@@ -240,7 +247,14 @@ export default function DashboardWidgetChart({
 
   switch (chartType) {
     case "stat":
-      return <StatGrid indicators={indicators} canEdit={canEdit} saveAction={saveAction} />;
+      return (
+        <StatGrid
+          indicators={indicators}
+          canEdit={canEdit}
+          saveAction={saveAction}
+          showChange={showChange}
+        />
+      );
     case "trend":
       return <TrendWidget indicators={indicators} />;
     case "bar":

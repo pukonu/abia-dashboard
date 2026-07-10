@@ -1244,6 +1244,7 @@ export function buildDemoData(): DashboardData {
         ind("TB treatment success rate"),
       ],
       span: 2,
+      show_change: false,
       position: 0,
     },
     {
@@ -1253,6 +1254,7 @@ export function buildDemoData(): DashboardData {
       title: "Immunization coverage over time",
       indicator_ids: [ind("Immunization coverage (Penta-3)")],
       span: 1,
+      show_change: false,
       position: 1,
     },
     {
@@ -1267,6 +1269,7 @@ export function buildDemoData(): DashboardData {
         ind("Essential drugs availability"),
       ],
       span: 1,
+      show_change: false,
       position: 2,
     },
     {
@@ -1282,6 +1285,7 @@ export function buildDemoData(): DashboardData {
         ind("Functional health facilities"),
       ],
       span: 2,
+      show_change: false,
       position: 3,
     },
     {
@@ -1296,6 +1300,7 @@ export function buildDemoData(): DashboardData {
         ind("Planned patrols completed"),
       ],
       span: 2,
+      show_change: false,
       position: 0,
     },
     {
@@ -1305,6 +1310,7 @@ export function buildDemoData(): DashboardData {
       title: "Violent crime over time",
       indicator_ids: [ind("Violent crime incidents")],
       span: 1,
+      show_change: false,
       position: 1,
     },
     {
@@ -1320,6 +1326,7 @@ export function buildDemoData(): DashboardData {
         ind("Asset protection coverage"),
       ],
       span: 1,
+      show_change: false,
       position: 2,
     },
     {
@@ -1335,6 +1342,7 @@ export function buildDemoData(): DashboardData {
         ind("Tip-offs acted on within 24 hours"),
       ],
       span: 2,
+      show_change: false,
       position: 3,
     },
     {
@@ -1349,6 +1357,7 @@ export function buildDemoData(): DashboardData {
         ind("WAEC 5 credits incl. Eng & Maths"),
       ],
       span: 2,
+      show_change: false,
       position: 0,
     },
     {
@@ -1358,6 +1367,7 @@ export function buildDemoData(): DashboardData {
       title: "Enrolment & completion over time",
       indicator_ids: [ind("Net primary enrollment"), ind("Primary completion rate")],
       span: 1,
+      show_change: false,
       position: 1,
     },
     {
@@ -1372,6 +1382,7 @@ export function buildDemoData(): DashboardData {
         ind("Qualified teachers"),
       ],
       span: 1,
+      show_change: false,
       position: 2,
     },
     {
@@ -1387,6 +1398,7 @@ export function buildDemoData(): DashboardData {
         ind("Qualified teachers"),
       ],
       span: 2,
+      show_change: false,
       position: 3,
     },
     // Aba North's demo entities are a school, a water scheme and a market,
@@ -1403,6 +1415,7 @@ export function buildDemoData(): DashboardData {
         ind("Projects on schedule"),
       ],
       span: 2,
+      show_change: false,
       position: 0,
     },
     {
@@ -1412,6 +1425,7 @@ export function buildDemoData(): DashboardData {
       title: "Service delivery trend",
       indicator_ids: [ind("Net primary enrollment"), ind("Primary completion rate")],
       span: 1,
+      show_change: false,
       position: 1,
     },
     {
@@ -1426,6 +1440,7 @@ export function buildDemoData(): DashboardData {
         ind("Pupil-teacher ratio"),
       ],
       span: 1,
+      show_change: false,
       position: 2,
     },
   ];

@@ -266,6 +266,8 @@ model DashboardWidget {
   indicatorIds Json               @default("[]") @map("indicator_ids")
   /// grid columns occupied (1 = half width, 2 = full width)
   span         Int                @default(1)
+  /// Stat tiles: show ▲/▼/steady vs previous period (false = simple value-only view)
+  showChange   Boolean            @default(false) @map("show_change")
   position     Int                @default(0)
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz
   dashboard    Dashboard          @relation(fields: [dashboardId], references: [id], onDelete: Cascade)

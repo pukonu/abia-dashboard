@@ -126,6 +126,8 @@ export interface WidgetInput {
   title: string | null;
   indicator_ids: string[];
   span: number;
+  /** Stat tiles: show ▲/▼/steady. Ignored (forced false) for other chart types. */
+  show_change?: boolean;
   position?: number;
 }
 
@@ -155,6 +157,7 @@ export async function saveWidgetInline(
     title: input.title?.trim() || null,
     indicator_ids: indicatorIds,
     span: input.span === 2 ? 2 : 1,
+    show_change: input.chart_type === "stat" && input.show_change === true,
   };
 
   if (input.id) {

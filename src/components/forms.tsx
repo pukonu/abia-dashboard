@@ -102,8 +102,8 @@ export function Flash({ msg, err }: { msg?: string; err?: string }) {
     <div
       className={`mb-4 rounded-md border px-4 py-3 text-sm ${
         err
-          ? "border-red-200 bg-red-50 text-red-900"
-          : "border-green-200 bg-green-50 text-green-900"
+          ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+          : "border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
       }`}
     >
       {err ?? msg}
@@ -114,7 +114,7 @@ export function Flash({ msg, err }: { msg?: string; err?: string }) {
 export function DemoModeNotice({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
       You are viewing <strong>demo data</strong>. Configuration and data entry write to Supabase —
       switch to <strong>Live</strong> mode (sidebar) with Supabase configured in <code>.env</code> to save.
       Forms below are disabled meanwhile.

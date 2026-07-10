@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -15,7 +14,10 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {
-    root: path.join(__dirname),
+    // Amplify runs the build from the configured app root. Avoid `__dirname`
+    // here: Next bundles this config and can resolve it relative to `src/app`,
+    // which makes Turbopack look for `next/package.json` in the wrong place.
+    root: process.cwd(),
   },
 };
 

@@ -458,10 +458,10 @@ export default async function SectorPage({
                     <div
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${
                         signal.tone === "good"
-                          ? "bg-green-50 text-green-800 dark:bg-green-50 dark:text-green-900"
+                          ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
                           : signal.tone === "critical"
-                            ? "bg-red-50 text-red-800 dark:bg-red-50 dark:text-red-900"
-                            : "bg-amber-50 text-amber-800 dark:bg-amber-50 dark:text-amber-900"
+                            ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       }`}
                     >
                       {signal.value}
@@ -489,7 +489,9 @@ export default async function SectorPage({
                   </div>
                   <div
                     className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                      matter.severity === "Critical"
+                          ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                          : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                     }`}
                   >
                     {matter.severity}
@@ -566,7 +568,9 @@ export default async function SectorPage({
                     <div className="shrink-0 text-right">
                       <div
                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                          matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                          matter.severity === "Critical"
+                          ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                          : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                         }`}
                       >
                         {matter.severity}
@@ -670,10 +674,10 @@ export default async function SectorPage({
                     <div
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${
                         incident.tone === "good"
-                          ? "bg-green-50 text-green-800"
+                          ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
                           : incident.tone === "critical"
-                            ? "bg-red-50 text-red-800"
-                            : "bg-amber-50 text-amber-800"
+                            ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       }`}
                     >
                       {incident.value}
@@ -702,7 +706,9 @@ export default async function SectorPage({
                     </div>
                     <div
                       className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        matter.severity === "Critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"
+                        matter.severity === "Critical"
+                          ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                          : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       }`}
                     >
                       {matter.severity}
@@ -809,10 +815,10 @@ export default async function SectorPage({
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                         project.status === "Completed"
-                          ? "bg-green-50 text-green-800"
+                          ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
                           : project.status === "Planned"
                             ? "bg-zinc-100 text-zinc-600"
-                            : "bg-orange-50 text-orange-800"
+                            : "bg-orange-50 text-orange-800 dark:bg-orange-950 dark:text-orange-300"
                       }`}
                     >
                       {project.status}
@@ -875,10 +881,10 @@ export default async function SectorPage({
                     <div
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${
                         incident.tone === "good"
-                          ? "bg-green-50 text-green-800"
+                          ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300"
                           : incident.tone === "critical"
-                            ? "bg-red-50 text-red-800"
-                            : "bg-amber-50 text-amber-800"
+                            ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300"
+                            : "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                       }`}
                     >
                       {incident.value}

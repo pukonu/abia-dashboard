@@ -15,6 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import AiChatWidget from "@/components/AiChatWidget";
 import ThemeMenu from "@/components/ThemeMenu";
+import { TopBarHeading, TopBarProvider } from "@/components/TopBar";
 import type { DataMode } from "@/lib/types";
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -116,99 +117,104 @@ export default function AppShell({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Desktop sidebar — solid dark ground */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-zinc-950 lg:flex">
-        <Link href="/" className="flex items-center gap-3 px-6 py-6">
-          <Image
-            src="/abia-logo.png"
-            alt="Seal of the Government of Abia State"
-            width={44}
-            height={44}
-            className="h-11 w-11 rounded-full bg-white object-contain"
-            priority
-          />
-          <span className="leading-tight">
-            <span className="display block text-[15px] font-semibold text-white">Abia State</span>
-            <span className="block text-xs text-zinc-500">Executive Dashboard</span>
-          </span>
-        </Link>
-        <nav className="mt-3 flex flex-col gap-0.5 px-3">
+    <TopBarProvider>
+      <div className="flex min-h-dvh">
+        {/* Desktop sidebar — one step above page ground so it separates in dark mode */}
+        <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900 lg:flex">
+          <Link href="/" className="flex items-center gap-3 px-6 py-6">
+            <Image
+              src="/abia-logo.png"
+              alt="Seal of the Government of Abia State"
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-full bg-white object-contain"
+              priority
+            />
+            <span className="leading-tight">
+              <span className="display block text-[15px] font-semibold text-white">Abia State</span>
+              <span className="block text-xs text-zinc-500">Executive Dashboard</span>
+            </span>
+          </Link>
+          <nav className="mt-3 flex flex-col gap-0.5 px-3">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive(pathname, item.href)
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100"
+                }`}
+              >
+                <item.icon className="h-[18px] w-[18px] shrink-0 opacity-80" strokeWidth={1.5} />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="mt-auto px-6 py-5">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Data source</div>
+              <div className="mt-2">
+                <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} />
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Desktop top bar — page title / crumbs on the left, appearance on the right */}
+          <header className="sticky top-0 z-20 hidden items-center gap-4 border-b border-zinc-200 bg-white/95 px-6 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:flex">
+            <TopBarHeading />
+            <div className="ml-auto shrink-0">
+              <ThemeMenu />
+            </div>
+          </header>
+
+          {/* Mobile header */}
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
+            <Link href="/" className="flex items-center gap-2.5">
+              <Image
+                src="/abia-logo.png"
+                alt="Seal of the Government of Abia State"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-full object-contain"
+                priority
+              />
+              <span className="display text-[15px] font-semibold text-zinc-900 dark:text-zinc-50">
+                Abia State Dashboard
+              </span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeMenu />
+              <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} compact />
+            </div>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 sm:px-6 lg:pb-12 lg:pt-6">
+            {children}
+          </main>
+        </div>
+
+        {/* Mobile bottom navigation */}
+        <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 text-[10px] font-medium ${
                 isActive(pathname, item.href)
-                  ? "bg-zinc-800/80 text-white"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                  ? "text-zinc-950 dark:text-zinc-50"
+                  : "text-zinc-400 dark:text-zinc-500"
               }`}
             >
-              <item.icon className="h-[18px] w-[18px] shrink-0 opacity-80" strokeWidth={1.5} />
+              <item.icon className="h-5 w-5" strokeWidth={1.5} />
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="mt-auto px-6 py-5">
-          <div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-600">Data source</div>
-            <div className="mt-2">
-              <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} />
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Desktop top bar — appearance top-right */}
-        <header className="sticky top-0 z-20 hidden items-center justify-end border-b border-zinc-200 bg-white/95 px-6 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:flex">
-          <ThemeMenu />
-        </header>
-
-        {/* Mobile header */}
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Image
-              src="/abia-logo.png"
-              alt="Seal of the Government of Abia State"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-full object-contain"
-              priority
-            />
-            <span className="display text-[15px] font-semibold text-zinc-900 dark:text-zinc-50">
-              Abia State Dashboard
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <ThemeMenu />
-            <ModeSwitch mode={mode} supabaseConfigured={supabaseConfigured} compact />
-          </div>
-        </header>
-
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 sm:px-6 lg:pb-12 lg:pt-8">
-          {children}
-        </main>
+        <AiChatWidget mode={mode} />
       </div>
-
-      {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
-        {NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-1 flex-col items-center gap-0.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 text-[10px] font-medium ${
-              isActive(pathname, item.href)
-                ? "text-zinc-950 dark:text-zinc-50"
-                : "text-zinc-400 dark:text-zinc-500"
-            }`}
-          >
-            <item.icon className="h-5 w-5" strokeWidth={1.5} />
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <AiChatWidget mode={mode} />
-    </div>
+    </TopBarProvider>
   );
 }

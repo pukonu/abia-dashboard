@@ -92,7 +92,9 @@ export default async function ManageUsersPage({
               <div className="flex shrink-0 items-center gap-2">
                 <span
                   className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                    user.banned_until ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                    user.banned_until
+                      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                      : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
                   }`}
                 >
                   {user.banned_until ? "Disabled" : "Active"}

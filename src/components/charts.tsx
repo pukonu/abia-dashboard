@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/components/ThemeProvider";
 import {
   Bar,
   BarChart,
@@ -22,11 +23,27 @@ import {
   YAxis,
 } from "recharts";
 
-const AXIS = { fontSize: 11, fill: "#71717a" };
-const GRID = "#e4e4e7";
-const TOOLTIP_STYLE = { borderRadius: 10, border: "1px solid #e4e4e7", fontSize: 12 };
 const MUTED = "#a1a1aa"; // zinc-400 — comparisons
 const ACCENT = "#14683c"; // abia green — the default data color
+
+function useChartTheme() {
+  const { resolved } = useTheme();
+  const dark = resolved === "dark";
+  return {
+    axis: { fontSize: 11, fill: dark ? "#a1a1aa" : "#71717a" },
+    angleTick: { fontSize: 11, fill: dark ? "#a1a1aa" : "#52525b" },
+    grid: dark ? "#3f3f46" : "#e4e4e7",
+    tooltip: {
+      borderRadius: 10,
+      border: dark ? "1px solid #3f3f46" : "1px solid #e4e4e7",
+      fontSize: 12,
+      backgroundColor: dark ? "#18181b" : "#ffffff",
+      color: dark ? "#fafafa" : "#18181b",
+    },
+    cursorFill: dark ? "rgba(161,161,170,0.12)" : "rgba(161,161,170,0.08)",
+    target: dark ? "#fbbf24" : "#92400e",
+  };
+}
 
 export interface TrendSeries {
   key: string;
@@ -44,15 +61,22 @@ export function TrendChart({
   series: TrendSeries[];
   height?: number;
 }) {
+  const theme = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} interval="preserveStartEnd" />
-        <YAxis domain={[0, 100]} tick={AXIS} tickLine={false} axisLine={false} width={46} />
+        <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={theme.axis}
+          tickLine={false}
+          axisLine={{ stroke: theme.grid }}
+          interval="preserveStartEnd"
+        />
+        <YAxis domain={[0, 100]} tick={theme.axis} tickLine={false} axisLine={false} width={46} />
         <Tooltip
           formatter={(v) => (typeof v === "number" ? v.toFixed(1) : String(v ?? ""))}
-          contentStyle={TOOLTIP_STYLE}
+          contentStyle={theme.tooltip}
         />
         {series.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {series.map((s) => (
@@ -63,7 +87,8 @@ export function TrendChart({
             name={s.name}
             stroke={s.color}
             strokeWidth={2.2}
-            dot={false} isAnimationActive={false}
+            dot={false}
+            isAnimationActive={false}
             connectNulls
           />
         ))}
@@ -84,27 +109,56 @@ export function IndicatorTrendChart({
   unit: string;
   height?: number;
 }) {
+  const theme = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} interval="preserveStartEnd" />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={52} domain={["auto", "auto"]} />
+        <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={theme.axis}
+          tickLine={false}
+          axisLine={{ stroke: theme.grid }}
+          interval="preserveStartEnd"
+        />
+        <YAxis tick={theme.axis} tickLine={false} axisLine={false} width={52} domain={["auto", "auto"]} />
         <Tooltip
           formatter={(v) => [`${typeof v === "number" ? v.toLocaleString() : String(v ?? "")} ${unit}`]}
-          contentStyle={TOOLTIP_STYLE}
+          contentStyle={theme.tooltip}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {target != null && (
           <ReferenceLine
             y={target}
-            stroke="#92400e"
+            stroke={theme.target}
             strokeDasharray="6 4"
-            label={{ value: `Target ${target.toLocaleString()}`, fontSize: 11, fill: "#92400e", position: "insideTopRight" }}
+            label={{
+              value: `Target ${target.toLocaleString()}`,
+              fontSize: 11,
+              fill: theme.target,
+              position: "insideTopRight",
+            }}
           />
         )}
-        <Line type="monotone" dataKey="Abia" stroke={ACCENT} strokeWidth={2.4} dot={false} isAnimationActive={false} connectNulls />
-        <Line type="monotone" dataKey="Nigeria" stroke={MUTED} strokeWidth={2} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls />
+        <Line
+          type="monotone"
+          dataKey="Abia"
+          stroke={ACCENT}
+          strokeWidth={2.4}
+          dot={false}
+          isAnimationActive={false}
+          connectNulls
+        />
+        <Line
+          type="monotone"
+          dataKey="Nigeria"
+          stroke={MUTED}
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          dot={false}
+          isAnimationActive={false}
+          connectNulls
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -118,16 +172,23 @@ export function ScoreBarChart({
   points: Array<{ label: string; score: number | null; color?: string }>;
   height?: number;
 }) {
+  const theme = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} interval={0} />
-        <YAxis domain={[0, 100]} tick={AXIS} tickLine={false} axisLine={false} width={46} />
+        <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={theme.axis}
+          tickLine={false}
+          axisLine={{ stroke: theme.grid }}
+          interval={0}
+        />
+        <YAxis domain={[0, 100]} tick={theme.axis} tickLine={false} axisLine={false} width={46} />
         <Tooltip
           formatter={(v) => (typeof v === "number" ? v.toFixed(1) : String(v ?? ""))}
-          contentStyle={TOOLTIP_STYLE}
-          cursor={{ fill: "rgba(161,161,170,0.08)" }}
+          contentStyle={theme.tooltip}
+          cursor={{ fill: theme.cursorFill }}
         />
         <Bar dataKey="score" name="Score" radius={[5, 5, 0, 0]} fill={ACCENT} isAnimationActive={false}>
           {points.map((p, i) => (
@@ -157,17 +218,18 @@ export function ScoreRadarChart({
   color?: string;
   height?: number;
 }) {
+  const theme = useChartTheme();
   const data = points.map((p) => ({ ...p, target: p.target ?? 100 }));
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} margin={{ top: 12, right: 24, bottom: 12, left: 24 }}>
-        <PolarGrid stroke={GRID} />
-        <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "#52525b" }} />
+        <PolarGrid stroke={theme.grid} />
+        <PolarAngleAxis dataKey="axis" tick={theme.angleTick} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Radar
           name="Target"
           dataKey="target"
-          stroke="#92400e"
+          stroke={theme.target}
           strokeDasharray="5 4"
           strokeWidth={1.4}
           fill="none"
@@ -194,7 +256,7 @@ export function ScoreRadarChart({
         />
         <Tooltip
           formatter={(v) => (typeof v === "number" ? v.toFixed(1) : String(v ?? ""))}
-          contentStyle={TOOLTIP_STYLE}
+          contentStyle={theme.tooltip}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
       </RadarChart>
@@ -210,6 +272,7 @@ export function DonutChart({
   points: Array<{ label: string; value: number; color: string }>;
   height?: number;
 }) {
+  const theme = useChartTheme();
   const total = points.reduce((sum, point) => sum + point.value, 0);
   if (total <= 0) {
     return <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No distribution data yet.</div>;
@@ -237,7 +300,7 @@ export function DonutChart({
               typeof v === "number" ? v.toLocaleString() : String(v ?? ""),
               String(name),
             ]}
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={theme.tooltip}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -264,6 +327,7 @@ export function FullPieChart({
   points: Array<{ label: string; value: number; color: string }>;
   height?: number;
 }) {
+  const theme = useChartTheme();
   const total = points.reduce((sum, point) => sum + point.value, 0);
   if (total <= 0) {
     return <div className="flex h-40 items-center justify-center text-sm text-zinc-400">No pie data yet.</div>;
@@ -278,7 +342,12 @@ export function FullPieChart({
             dataKey="value"
             nameKey="label"
             outerRadius="82%"
-            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+            label={({ name, percent, x, y, textAnchor }) => (
+              <text x={x} y={y} textAnchor={textAnchor} fill={theme.axis.fill} fontSize={11}>
+                {`${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+              </text>
+            )}
+            labelLine={{ stroke: theme.grid }}
             isAnimationActive={false}
           >
             {points.map((point) => (
@@ -286,8 +355,11 @@ export function FullPieChart({
             ))}
           </Pie>
           <Tooltip
-            formatter={(v, name) => [`${typeof v === "number" ? v.toLocaleString() : String(v ?? "")}%`, String(name)]}
-            contentStyle={TOOLTIP_STYLE}
+            formatter={(v, name) => [
+              `${typeof v === "number" ? v.toLocaleString() : String(v ?? "")}%`,
+              String(name),
+            ]}
+            contentStyle={theme.tooltip}
           />
         </PieChart>
       </ResponsiveContainer>

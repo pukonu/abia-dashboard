@@ -94,7 +94,9 @@ export default async function ManageDashboardsPage({
                 right={
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      d.published ? "bg-green-50 text-green-900" : "bg-zinc-100 text-zinc-500"
+                      d.published
+                        ? "bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-300"
+                        : "bg-zinc-100 text-zinc-500"
                     }`}
                   >
                     {d.published ? "Published" : "Draft"}

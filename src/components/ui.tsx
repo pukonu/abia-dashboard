@@ -1,6 +1,7 @@
 import { ChevronRight, Download, Mail } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SetTopBar } from "@/components/TopBar";
 
 export function PageHeader({
   eyebrow,
@@ -13,36 +14,80 @@ export function PageHeader({
   subtitle?: string;
   actions?: ReactNode;
 }) {
+  // Only plain text crosses into the sticky top bar (avoids storing React nodes in client state).
+  const plainTitle = typeof title === "string" || typeof title === "number" ? String(title) : null;
+  const plainEyebrow =
+    typeof eyebrow === "string" || typeof eyebrow === "number" ? String(eyebrow) : null;
+  const showDesktopBlock = plainTitle == null || Boolean(subtitle) || Boolean(actions);
+
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        {eyebrow && (
-          <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">{eyebrow}</div>
-        )}
-        <h1 className="display text-2xl font-semibold text-zinc-950 sm:text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">{subtitle}</p>}
+    <>
+      <SetTopBar
+        {...(plainTitle != null ? { title: plainTitle } : {})}
+        {...(plainEyebrow != null ? { eyebrow: plainEyebrow } : {})}
+      />
+      {/* Desktop: plain titles live in the top bar; keep rich titles, subtitle, and actions here. */}
+      {showDesktopBlock && (
+        <div className="mb-6 hidden flex-wrap items-end justify-between gap-3 lg:flex">
+          <div className="min-w-0 flex-1">
+            {plainTitle == null && (
+              <>
+                {eyebrow && (
+                  <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    {eyebrow}
+                  </div>
+                )}
+                <h1 className="display text-2xl font-semibold text-zinc-950 sm:text-3xl">{title}</h1>
+              </>
+            )}
+            {subtitle && (
+              <p
+                className={`max-w-2xl text-sm leading-relaxed text-zinc-500 ${
+                  plainTitle == null ? "mt-1.5" : ""
+                }`}
+              >
+                {subtitle}
+              </p>
+            )}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        </div>
+      )}
+      {/* Mobile / tablet: full in-page header (mobile chrome has no page title). */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3 lg:hidden">
+        <div className="min-w-0">
+          {eyebrow && (
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">{eyebrow}</div>
+          )}
+          <h1 className="display text-2xl font-semibold text-zinc-950 sm:text-3xl">{title}</h1>
+          {subtitle && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-    </div>
+    </>
   );
 }
 
 export function Crumbs({ items }: { items: Array<{ href?: string; label: string }> }) {
   return (
-    <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-      {items.map((item, i) => (
-        <span key={i} className="flex items-center gap-1.5">
-          {i > 0 && <span className="text-zinc-300">/</span>}
-          {item.href ? (
-            <Link href={item.href} className="hover:text-zinc-900 hover:underline">
-              {item.label}
-            </Link>
-          ) : (
-            <span className="text-zinc-800">{item.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
+    <>
+      <SetTopBar crumbs={items} />
+      {/* Desktop crumbs live in the top bar; keep a compact trail on smaller screens. */}
+      <nav className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 lg:hidden">
+        {items.map((item, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            {i > 0 && <span className="text-zinc-300">/</span>}
+            {item.href ? (
+              <Link href={item.href} className="hover:text-zinc-900 hover:underline">
+                {item.label}
+              </Link>
+            ) : (
+              <span className="text-zinc-800">{item.label}</span>
+            )}
+          </span>
+        ))}
+      </nav>
+    </>
   );
 }
 
@@ -103,7 +148,7 @@ export function Tabs({
           href={t.href}
           className={`-mb-px whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium transition-colors ${
             active === t.id
-              ? "border-zinc-900 text-zinc-900"
+              ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
               : "border-transparent text-zinc-500 hover:text-zinc-800"
           }`}
         >
@@ -135,8 +180,8 @@ export function ActionLink({
       download={download}
       className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-colors ${
         primary
-          ? "bg-zinc-950 text-white hover:bg-zinc-800"
-          : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+          ? "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+          : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
       }`}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />

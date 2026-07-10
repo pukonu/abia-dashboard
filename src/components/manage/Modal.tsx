@@ -45,7 +45,7 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="manage-modal-title"
-        className={`relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-xl ${
+        className={`relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-none ${
           wide ? "max-w-2xl" : "max-w-lg"
         }`}
       >

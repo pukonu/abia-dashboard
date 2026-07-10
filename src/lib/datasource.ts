@@ -70,6 +70,8 @@ async function loadCustomDashboards(
         ? w.indicator_ids.map(String)
         : [],
       span: w.span === 2 ? 2 : 1,
+      // Missing column (pre-migration) or null → simple view
+      show_change: w.show_change === true,
     })),
   };
 }

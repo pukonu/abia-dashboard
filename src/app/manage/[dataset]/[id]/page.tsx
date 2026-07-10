@@ -75,7 +75,7 @@ export default async function RecordDetailPage({
       />
 
       <div className="mb-5">
-        <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500 lg:hidden">
           {spec.labelSingular}
         </div>
         <GhostTitleField
