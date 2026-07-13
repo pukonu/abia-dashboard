@@ -122,6 +122,17 @@ export default function SectorDashboardPanel({
                             {item.latest?.period.label ?? "—"}
                           </span>
                         </span>
+                        {(() => {
+                          const mda = data.mdas.find((m) => m.id === item.indicator.responsible_mda_id);
+                          if (!mda) return null;
+                          const label = mda.abbreviation?.trim() || mda.name;
+                          return (
+                            <>
+                              <span>·</span>
+                              <span title={mda.name}>MDA: {label}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     <ScoreBadge score={item.score} />

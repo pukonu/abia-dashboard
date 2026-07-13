@@ -77,7 +77,8 @@ export function endOfYear(d: Date): Date {
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function labelForPeriod(frequency: Frequency, start: Date): string {
+export function labelForPeriod(frequency: Frequency, start: Date, _end?: Date): string {
+  void _end;
   const day = start.getUTCDate();
   const month = MONTH_SHORT[start.getUTCMonth()];
   const year = start.getUTCFullYear();

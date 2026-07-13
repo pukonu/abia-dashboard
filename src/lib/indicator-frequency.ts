@@ -13,7 +13,11 @@ export function isFrequency(value: unknown): value is Frequency {
  * Explicit indicator frequency wins; otherwise defaults to monthly
  * (can be changed manually in Manage → Indicators).
  */
-export function indicatorFrequency(indicator: Pick<Indicator, "frequency">): Frequency {
+export function indicatorFrequency(
+  indicator: Pick<Indicator, "frequency">,
+  _thematic?: unknown
+): Frequency {
+  void _thematic;
   return isFrequency(indicator.frequency) ? indicator.frequency : DEFAULT_INDICATOR_FREQUENCY;
 }
 

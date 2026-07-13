@@ -85,6 +85,8 @@ export interface Indicator {
    * when the true cadence differs (weekly, quarterly, yearly, etc.).
    */
   frequency?: Frequency | null;
+  /** MDA accountable for reporting this indicator (Sector Dashboard ownership). */
+  responsible_mda_id?: string | null;
 }
 
 export interface TimePeriod {

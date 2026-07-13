@@ -31,6 +31,13 @@ function valueChangeFor(item: IndicatorComputed): number | null {
   return item.latest.abia - item.previous.abia;
 }
 
+/** Number only for the presentation hero — unit is shown separately as muted text. */
+function formatHeroNumber(value: number | null | undefined): string {
+  if (value == null) return "—";
+  const digits = Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 10 ? 1 : 2;
+  return fmt(value, digits);
+}
+
 function directionVerb(change: number, direction: Direction): string {
   const up = change > 0;
   const improved = direction === "lower_is_better" ? !up : up;
@@ -78,7 +85,20 @@ function buildIndicatorStory(item: IndicatorComputed): string {
   return bits.join(" · ");
 }
 
+function responsibleMdaLabel(
+  data: DashboardData,
+  mdaId: string | null | undefined
+): string | null {
+  if (!mdaId) return null;
+  const mda = data.mdas.find((m) => m.id === mdaId);
+  if (!mda) return null;
+  return mda.abbreviation?.trim()
+    ? `${mda.name} (${mda.abbreviation.trim()})`
+    : mda.name;
+}
+
 function buildQuestionSlide(
+  data: DashboardData,
   item: IndicatorComputed,
   code: string,
   fallbackPeriod: string
@@ -102,6 +122,7 @@ function buildQuestionSlide(
     domainLabel: item.domain.name,
     code,
     question: item.indicator.name,
+    description: item.indicator.description?.trim() || null,
     score: item.score,
     comparison: buildIndicatorStory(item),
     stateScore: item.score,
@@ -110,8 +131,8 @@ function buildQuestionSlide(
     period: reported,
     periodLabel: freshnessCaption(freshness, item.latest?.period.label, freq),
     stateLabel: "Indicator score",
-    valueLabel: formatIndicatorMetric(item.latest?.abia ?? null, item.indicator.unit),
-    valueUnit: item.indicator.unit,
+    valueLabel: formatHeroNumber(item.latest?.abia ?? null),
+    valueUnit: item.indicator.unit || null,
     valueChange: change,
     valueChangeSuffix: item.indicator.unit,
     direction: item.indicator.direction,
@@ -121,6 +142,7 @@ function buildQuestionSlide(
     previousLabel: item.previous
       ? `${formatIndicatorMetric(item.previous.abia, item.indicator.unit)} · ${item.previous.period.label}`
       : null,
+    responsibleMdaLabel: responsibleMdaLabel(data, item.indicator.responsible_mda_id),
     chart:
       trendPoints.length >= 2
         ? {
@@ -217,7 +239,7 @@ export function buildOverviewSlides(data: DashboardData, c: Computed): Slide[] {
   }
 
   attention.forEach((item, index) => {
-    slides.push(buildQuestionSlide(item, String(index + 1).padStart(2, "0"), period));
+    slides.push(buildQuestionSlide(data, item, String(index + 1).padStart(2, "0"), period));
   });
 
   return slides;
@@ -321,6 +343,7 @@ export function buildSectorSlides(data: DashboardData, c: Computed, sector: Sect
     indicators.forEach((item, indicatorIndex) => {
       slides.push(
         buildQuestionSlide(
+          data,
           item,
           `${domainIndex + 1}.${indicatorIndex + 1}`,
           period

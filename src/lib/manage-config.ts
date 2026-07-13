@@ -246,6 +246,13 @@ export const DATASETS: DatasetSpec[] = [
         options: FREQUENCY_OPTIONS,
         help: "Defaults to monthly. Change manually when an indicator reports weekly, quarterly, yearly, etc.",
       },
+      {
+        name: "responsible_mda_id",
+        label: "Responsible MDA",
+        type: "select",
+        optionsFrom: "mdas",
+        help: "Ministry or agency accountable for reporting this indicator on the Sector Dashboard.",
+      },
       { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach" },
       { name: "target_source", label: "Target source", type: "text", placeholder: "SDG, WHO, UN, State Plan…" },
       { name: "weight", label: "Weight within domain", type: "number", placeholder: "1" },
@@ -253,10 +260,16 @@ export const DATASETS: DatasetSpec[] = [
     list: (d) =>
       d.indicators.map((i) => {
         const freq = i.frequency ?? "monthly";
+        const mda = d.mdas.find((m) => m.id === i.responsible_mda_id);
+        const mdaLabel = mda
+          ? mda.abbreviation?.trim() || mda.name
+          : null;
         return {
           id: i.id,
           title: i.name,
-          subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${freq} · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit}`,
+          subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${freq}${
+            mdaLabel ? ` · ${mdaLabel}` : ""
+          } · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit}`,
         };
       }),
   },
@@ -359,7 +372,12 @@ export function optionsFor(
     case "lgas":
       return data.lgas.map((l) => ({ value: l.id, label: l.name }));
     case "mdas":
-      return data.mdas.map((m) => ({ value: m.id, label: `${m.name} (${m.abbreviation ?? ""})` }));
+      return data.mdas.map((m) => ({
+        value: m.id,
+        label: `${m.name}${m.abbreviation ? ` (${m.abbreviation})` : ""} — ${
+          data.sectors.find((s) => s.id === m.sector_id)?.name ?? ""
+        }`,
+      }));
     case "thematic_areas":
       return data.thematicAreas.map((t) => ({
         value: t.id,

@@ -54,9 +54,9 @@ export function ratingFor(score: number | null): RatingBand {
   if (score == null)
     return {
       label: "No data",
-      color: "#a1a1aa",
-      textClass: "text-zinc-500 dark:text-zinc-400",
-      bgClass: "bg-zinc-100 dark:bg-zinc-800",
+      color: "#ef4444",
+      textClass: "text-red-800 dark:text-red-300",
+      bgClass: "border border-red-300 bg-red-50 dark:border-red-500/50 dark:bg-red-950/60",
     };
   if (score >= 95)
     return {

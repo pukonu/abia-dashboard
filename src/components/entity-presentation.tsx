@@ -45,6 +45,8 @@ export type Slide =
       domainLabel: string;
       code: string;
       question: string;
+      /** Indicator description — muted, brightens on hover */
+      description?: string | null;
       score: number | null;
       comparison: string | null;
       stateScore: number | null;
@@ -64,6 +66,8 @@ export type Slide =
       nigeriaLabel?: string | null;
       targetLabel?: string | null;
       previousLabel?: string | null;
+      /** MDA accountable for reporting this indicator */
+      responsibleMdaLabel?: string | null;
       chart?: {
         points: Array<{ label: string; Abia: number | null; Nigeria: number | null }>;
         target: number | null;
@@ -93,7 +97,7 @@ function FreshnessBadge({ freshness }: { freshness?: IndicatorFreshness }) {
       ? "border-amber-400/40 bg-amber-400/15 text-amber-200"
       : freshness === "due"
         ? "border-sky-400/40 bg-sky-400/15 text-sky-200"
-        : "border-zinc-500/40 bg-zinc-500/15 text-zinc-300";
+        : "border-red-400/60 bg-red-500/20 text-red-200";
   const label =
     freshness === "stale" ? "Stale data" : freshness === "due" ? "Update due" : "No data";
   return (
@@ -202,6 +206,11 @@ function SlideBody({ slide }: { slide: Slide }) {
           {slide.question}
         </h2>
       </div>
+      {slide.description ? (
+        <p className="mt-3 max-w-3xl cursor-default text-sm leading-relaxed text-zinc-600 transition-colors duration-200 hover:text-zinc-300">
+          {slide.description}
+        </p>
+      ) : null}
 
       {hasStory ? (
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center">
@@ -251,6 +260,12 @@ function SlideBody({ slide }: { slide: Slide }) {
             <div className="mt-3 text-sm text-zinc-500">
               {slide.periodLabel ?? `${slide.period} assessment`}
             </div>
+            {slide.responsibleMdaLabel ? (
+              <div className="mt-2 text-sm text-zinc-400">
+                Reported by{" "}
+                <span className="font-semibold text-zinc-200">{slide.responsibleMdaLabel}</span>
+              </div>
+            ) : null}
             {slide.rationale && (
               <p className="mt-6 max-w-md border-l-2 border-emerald-500/50 pl-4 text-sm leading-relaxed text-zinc-400">
                 {slide.rationale}
@@ -308,6 +323,12 @@ function SlideBody({ slide }: { slide: Slide }) {
                 </div>
               )}
               <div>{slide.periodLabel ?? `${slide.period} assessment`}</div>
+              {slide.responsibleMdaLabel ? (
+                <div>
+                  Reported by{" "}
+                  <span className="font-semibold text-zinc-300">{slide.responsibleMdaLabel}</span>
+                </div>
+              ) : null}
             </div>
             {slide.rationale && (
               <p className="mt-6 max-w-md border-l-2 border-emerald-500/50 pl-4 text-sm leading-relaxed text-zinc-400">

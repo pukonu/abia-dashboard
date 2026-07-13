@@ -101,6 +101,7 @@ model Mda {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   sector       Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
   entities     Entity[]
+  responsibleIndicators Indicator[]
 
   @@unique([sectorId, name])
   @@map("mdas")
@@ -177,14 +178,18 @@ model Indicator {
   weight            Decimal         @default(1) @db.Decimal
   /// Reporting cadence for this indicator. Defaults to monthly; change manually when needed.
   frequency         Frequency?      @default(monthly)
+  /// MDA accountable for reporting this indicator (especially Sector Dashboard).
+  responsibleMdaId  String?         @map("responsible_mda_id") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
   domain            Domain          @relation(fields: [domainId], references: [id], onDelete: Cascade)
   stateIndicator    Indicator?      @relation("IndicatorRollup", fields: [stateIndicatorId], references: [id], onDelete: SetNull)
   entityIndicators  Indicator[]     @relation("IndicatorRollup")
+  responsibleMda    Mda?            @relation(fields: [responsibleMdaId], references: [id], onDelete: SetNull)
   results           Result[]
 
   @@unique([domainId, name, indicatorScope])
   @@index([stateIndicatorId], map: "idx_indicators_state_indicator")
+  @@index([responsibleMdaId], map: "idx_indicators_responsible_mda")
   @@map("indicators")
 }
 
