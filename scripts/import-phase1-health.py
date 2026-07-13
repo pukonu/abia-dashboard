@@ -229,7 +229,7 @@ def main():
 
     period = sb.upsert(
         "time_periods",
-        [{"frequency": "quarterly", "label": "Q2 2026", "start_date": "2026-04-01", "end_date": "2026-06-30"}],
+        [{"frequency": "quarterly", "label": "2026 Q2", "start_date": "2026-04-01", "end_date": "2026-06-30"}],
         on_conflict="frequency,start_date",
     )[0]
 

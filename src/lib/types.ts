@@ -80,6 +80,11 @@ export interface Indicator {
   target_value: number | null;
   target_source: string | null;
   weight: number;
+  /**
+   * Reporting cadence for this indicator. Defaults to monthly; change manually
+   * when the true cadence differs (weekly, quarterly, yearly, etc.).
+   */
+  frequency?: Frequency | null;
 }
 
 export interface TimePeriod {

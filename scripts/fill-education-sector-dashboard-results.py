@@ -38,7 +38,7 @@ EDUCATION_SLUG = "education"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jun 2026"
 # Clear any earlier mistaken quarterly fill so only Jun 2026 remains.
-CLEAR_PERIOD_LABELS = ("Jun 2026", "Q2 2026")
+CLEAR_PERIOD_LABELS = ("Jun 2026", "Q2 2026", "2026 Q2")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {

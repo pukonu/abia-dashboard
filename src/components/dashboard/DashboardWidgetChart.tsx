@@ -78,10 +78,16 @@ function StatGrid({
             <div className="mt-1.5">
               <DeltaTag
                 value={
-                  ind.latestScore != null && ind.prevScore != null
-                    ? ind.latestScore - ind.prevScore
-                    : null
+                  ind.latestValue != null && ind.prevValue != null
+                    ? ind.latestValue - ind.prevValue
+                    : ind.latestScore != null && ind.prevScore != null
+                      ? ind.latestScore - ind.prevScore
+                      : null
                 }
+                suffix={
+                  ind.latestValue != null && ind.prevValue != null ? ind.unit : "pts"
+                }
+                direction={ind.direction}
               />
             </div>
           )}

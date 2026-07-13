@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DonutChart, FullPieChart, ScoreRadarChart, TrendChart } from "@/components/charts";
 import CustomDashboards from "@/components/dashboard/CustomDashboards";
+import { PresentationDeck } from "@/components/entity-presentation";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
+import SectorDashboardPanel from "@/components/SectorDashboardPanel";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import SectorIcon from "@/components/SectorIcon";
 import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
@@ -17,6 +19,8 @@ import { infrastructureLandingInsights } from "@/lib/infrastructure-insights";
 import { domainNigeriaScore } from "@/lib/benchmark-comparisons";
 import { sectorEntitiesForLga, sectorMdasForLga, sectorMixForLga, sectorPairForLga } from "@/lib/lga-sector-context";
 import { powerLandingInsights } from "@/lib/power-insights";
+import { buildSectorSlides } from "@/lib/presentation-slides";
+import { sectorDashboardThematic } from "@/lib/sector-dashboard";
 import { computeDashboard, delta } from "@/lib/scoring";
 import { securityLandingInsights } from "@/lib/security-insights";
 import { getServerUser } from "@/lib/supabase-auth";
@@ -137,16 +141,18 @@ export default async function SectorPage({
     lgaSectorEntities?.reduce((sum, item) => sum + item.readings, 0) ??
     c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity").length;
 
-  // Live sector pages are driven by published dashboard-builder widgets.
-  // Demo keeps the richer hardcoded / computed landing chrome.
+  // Live sector pages show Sector Dashboard latest+trends when configured,
+  // plus any published custom dashboards from the builder.
   const isLive = data.mode === "live";
   const hasSectorDashboards = dashboardsFor(data, "sector", sector.id).length > 0;
-  const liveEmpty = isLive && !hasSectorDashboards;
+  const hasSectorDashboardTheme = sectorDashboardThematic(data.thematicAreas, sector.id) != null;
+  const liveEmpty = isLive && !hasSectorDashboards && !hasSectorDashboardTheme && !lgaContext;
   const showDemoChrome = !isLive;
   const showLiveThematicNav = isLive && hasSectorDashboards;
   const effectiveThematic = liveEmpty ? null : selectedThematic;
   const user = await getServerUser();
   const canEditIndicators = isLive && Boolean(user) && !lgaContext;
+  const presentationSlides = buildSectorSlides(data, c, sector);
 
   return (
     <>
@@ -179,30 +185,38 @@ export default async function SectorPage({
               Clear LGA filter
             </Link>
           ) : liveEmpty ? (
-            <ActionLink href="/manage/dashboards" primary>
-              Build a dashboard
+            <ActionLink href="/manage/sector-dashboard" primary>
+              Enter Sector Dashboard data
             </ActionLink>
           ) : (
-            <ActionLink href={`/api/reports/sector/${sector.slug}`} primary>
-              Sector report (PDF)
-            </ActionLink>
+            <>
+              <PresentationDeck slides={presentationSlides} />
+              <ActionLink href={`/api/reports/sector/${sector.slug}`} primary>
+                Sector report (PDF)
+              </ActionLink>
+            </>
           )
         }
       />
 
       {liveEmpty && (
         <EmptyState>
-          <p className="text-base font-medium text-zinc-800">No dashboard built for {sector.name} yet</p>
+          <p className="text-base font-medium text-zinc-800">No Sector Dashboard for {sector.name} yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
-            In live mode, this sector view only shows charts and facts from published dashboards created in the
-            dashboard builder. Build one to start tracking {sector.name}.
+            Mark a thematic area as Sector Dashboard and enter period-based readings, or build a custom
+            dashboard in the builder.
           </p>
-          <div className="mt-4 flex justify-center">
-            <ActionLink href="/manage/dashboards" primary>
-              Build a dashboard
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <ActionLink href="/manage/sector-dashboard" primary>
+              Enter Sector Dashboard data
             </ActionLink>
+            <ActionLink href="/manage/dashboards">Dashboard builder</ActionLink>
           </div>
         </EmptyState>
+      )}
+
+      {!lgaContext && hasSectorDashboardTheme && (
+        <SectorDashboardPanel data={data} c={c} sector={sector} canEdit={canEditIndicators} />
       )}
 
       {showDemoChrome && lgaContext && (
@@ -330,7 +344,7 @@ export default async function SectorPage({
       )}
 
       {/* Custom dashboards built in the manage console (live source of truth) */}
-      {!liveEmpty && !effectiveThematic && (
+      {!liveEmpty && !effectiveThematic && hasSectorDashboards && (
         <CustomDashboards c={c} scope="sector" targetId={sector.id} canEdit={canEditIndicators} />
       )}
 

@@ -11,6 +11,7 @@ import type {
   ThematicArea,
   TimePeriod,
 } from "./types";
+import { indicatorFrequency } from "./indicator-frequency";
 
 /* ------------------------------------------------------------------ */
 /* Score normalization                                                 */
@@ -37,11 +38,18 @@ export function scoreValue(
 
 export interface RatingBand {
   label: string;
-  color: string; // hex used for chart accents
+  color: string; // hex used for chart accents / presentation on dark bg
   textClass: string;
   bgClass: string;
 }
 
+/**
+ * Traffic bands vs target (score is already 0–100 % of expectation):
+ * - Excellent (~100%): sky blue
+ * - Meets / just passes: green
+ * - Close: orange
+ * - Off track: red
+ */
 export function ratingFor(score: number | null): RatingBand {
   if (score == null)
     return {
@@ -50,31 +58,31 @@ export function ratingFor(score: number | null): RatingBand {
       textClass: "text-zinc-500 dark:text-zinc-400",
       bgClass: "bg-zinc-100 dark:bg-zinc-800",
     };
-  if (score >= 85)
+  if (score >= 95)
     return {
       label: "Excellent",
-      color: "#166534",
-      textClass: "text-green-900 dark:text-green-300",
-      bgClass: "bg-green-50 dark:bg-green-950",
+      color: "#38bdf8", // sky-400 — readable on dark presentation bg
+      textClass: "text-sky-800 dark:text-sky-300",
+      bgClass: "bg-sky-50 dark:bg-sky-950",
     };
   if (score >= 70)
     return {
-      label: "Good",
-      color: "#3f6212",
-      textClass: "text-lime-900 dark:text-lime-300",
-      bgClass: "bg-lime-50 dark:bg-lime-950",
+      label: "Meets expectation",
+      color: "#22c55e", // green-500
+      textClass: "text-green-800 dark:text-green-300",
+      bgClass: "bg-green-50 dark:bg-green-950",
     };
   if (score >= 50)
     return {
-      label: "Fair",
-      color: "#92400e",
-      textClass: "text-amber-900 dark:text-amber-300",
-      bgClass: "bg-amber-50 dark:bg-amber-950",
+      label: "Close",
+      color: "#f97316", // orange-500
+      textClass: "text-orange-800 dark:text-orange-300",
+      bgClass: "bg-orange-50 dark:bg-orange-950",
     };
   return {
-    label: "Poor",
-    color: "#991b1b",
-    textClass: "text-red-900 dark:text-red-300",
+    label: "Off track",
+    color: "#ef4444", // red-500
+    textClass: "text-red-800 dark:text-red-300",
     bgClass: "bg-red-50 dark:bg-red-950",
   };
 }
@@ -234,16 +242,22 @@ export function computeDashboard(data: DashboardData): Computed {
     const sector = thematicArea ? sectorById.get(thematicArea.sector_id) : undefined;
     if (!domain || !thematicArea || !sector) continue;
 
-    const series: SeriesPoint[] = (stateResults.get(ind.id) ?? []).map((r) => {
-      const target = r.target_value ?? ind.target_value;
-      return {
-        period: periodById.get(r.time_period_id)!,
-        abia: r.abia_value,
-        nigeria: r.nigeria_value,
-        target,
-        score: scoreValue(r.abia_value, target, ind.direction),
-      };
-    });
+    const expectedFrequency = indicatorFrequency(ind, thematicArea);
+    const series: SeriesPoint[] = (stateResults.get(ind.id) ?? [])
+      .map((r) => {
+        const period = periodById.get(r.time_period_id);
+        if (!period || period.frequency !== expectedFrequency) return null;
+        const target = r.target_value ?? ind.target_value;
+        return {
+          period,
+          abia: r.abia_value,
+          nigeria: r.nigeria_value,
+          target,
+          score: scoreValue(r.abia_value, target, ind.direction),
+        };
+      })
+      .filter((pt): pt is SeriesPoint => pt != null)
+      .sort((a, b) => a.period.start_date.localeCompare(b.period.start_date));
 
     const latest = series.at(-1) ?? null;
     const previous = series.at(-2) ?? null;
@@ -314,8 +328,12 @@ export function computeDashboard(data: DashboardData): Computed {
     const [indicatorId, entityId] = key.split("|");
     const ind = indicatorById.get(indicatorId);
     if (!ind || !isEntityIndicator(ind)) return;
-    const latest = list.at(-1);
-    const prev = list.at(-2);
+    const domain = domainById.get(ind.domain_id);
+    const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
+    const expectedFrequency = indicatorFrequency(ind, thematic ?? null);
+    const matching = list.filter((r) => periodById.get(r.time_period_id)?.frequency === expectedFrequency);
+    const latest = matching.at(-1);
+    const prev = matching.at(-2);
     const agg = entityAgg.get(entityId) ?? { latest: [], prev: [] };
     if (latest) {
       agg.latest.push({

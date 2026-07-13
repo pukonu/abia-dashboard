@@ -112,6 +112,7 @@ export default async function IndicatorPage({
                   : null
               }
               suffix={indicator.unit}
+              direction={indicator.direction}
             />
           </div>
         </div>

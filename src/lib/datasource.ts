@@ -162,6 +162,7 @@ export async function loadDashboardData(opts?: { forceLive?: boolean }): Promise
         score_options: resolveIndicatorScoreOptions(i),
         target_value: i.target_value == null ? null : Number(i.target_value),
         weight: Number(i.weight ?? 1),
+        frequency: i.frequency ?? "monthly",
       })),
       timePeriods: timePeriods.data ?? [],
       results: (results.data ?? []).map((r) => ({

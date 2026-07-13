@@ -103,13 +103,31 @@ export function IndicatorTrendChart({
   target,
   unit,
   height = 280,
+  forceDark = false,
 }: {
   points: Array<{ label: string; Abia: number | null; Nigeria: number | null }>;
   target: number | null;
   unit: string;
   height?: number;
+  /** Use dark axis/tooltip colors (e.g. presentation deck on zinc-950). */
+  forceDark?: boolean;
 }) {
-  const theme = useChartTheme();
+  const themeFromApp = useChartTheme();
+  const theme = forceDark
+    ? {
+        axis: { fontSize: 11, fill: "#a1a1aa" },
+        grid: "#3f3f46",
+        tooltip: {
+          borderRadius: 10,
+          border: "1px solid #3f3f46",
+          fontSize: 12,
+          backgroundColor: "#18181b",
+          color: "#fafafa",
+        },
+        target: "#fbbf24",
+      }
+    : themeFromApp;
+  const accent = forceDark ? "#34d399" : ACCENT;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -10 }}>
@@ -126,7 +144,7 @@ export function IndicatorTrendChart({
           formatter={(v) => [`${typeof v === "number" ? v.toLocaleString() : String(v ?? "")} ${unit}`]}
           contentStyle={theme.tooltip}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12, color: forceDark ? "#a1a1aa" : undefined }} />
         {target != null && (
           <ReferenceLine
             y={target}
@@ -143,7 +161,7 @@ export function IndicatorTrendChart({
         <Line
           type="monotone"
           dataKey="Abia"
-          stroke={ACCENT}
+          stroke={accent}
           strokeWidth={2.4}
           dot={false}
           isAnimationActive={false}

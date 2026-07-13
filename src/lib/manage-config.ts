@@ -239,16 +239,26 @@ export const DATASETS: DatasetSpec[] = [
       },
       { name: "unit", label: "Unit", type: "text", required: true, placeholder: "%, per 1,000, NGN bn…" },
       { name: "direction", label: "Direction", type: "select", required: true, options: DIRECTION_OPTIONS },
+      {
+        name: "frequency",
+        label: "Reporting frequency",
+        type: "select",
+        options: FREQUENCY_OPTIONS,
+        help: "Defaults to monthly. Change manually when an indicator reports weekly, quarterly, yearly, etc.",
+      },
       { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach" },
       { name: "target_source", label: "Target source", type: "text", placeholder: "SDG, WHO, UN, State Plan…" },
       { name: "weight", label: "Weight within domain", type: "number", placeholder: "1" },
     ],
     list: (d) =>
-      d.indicators.map((i) => ({
-        id: i.id,
-        title: i.name,
-        subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit} (${i.target_source ?? "—"})`,
-      })),
+      d.indicators.map((i) => {
+        const freq = i.frequency ?? "monthly";
+        return {
+          id: i.id,
+          title: i.name,
+          subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${freq} · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit}`,
+        };
+      }),
   },
   {
     slug: "time-periods",

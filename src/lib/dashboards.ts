@@ -1,10 +1,12 @@
 import type { Computed } from "./scoring";
 import { scoreValue, weightedMean } from "./scoring";
+import { indicatorFrequency } from "./indicator-frequency";
 import type {
   CustomDashboard,
   DashboardChartType,
   DashboardData,
   DashboardWidget,
+  Direction,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -27,10 +29,23 @@ export const CHART_TYPES: Array<{
 ];
 
 export interface WidgetSeriesPoint {
+  periodId?: string;
   label: string;
   value: number | null;
   nigeria: number | null;
   score: number | null;
+}
+
+export interface WidgetEditPeriod {
+  id: string;
+  label: string;
+  startDate: string;
+}
+
+export interface WidgetPeriodValue {
+  value: number | null;
+  nigeria: number | null;
+  notes: string | null;
 }
 
 /** Everything a widget needs to plot one indicator, serializable for client components. */
@@ -39,8 +54,10 @@ export interface WidgetIndicatorDatum {
   name: string;
   unit: string;
   description: string | null;
+  direction: Direction;
   target: number | null;
   latestValue: number | null;
+  prevValue: number | null;
   latestScore: number | null;
   prevScore: number | null;
   nigeriaScore: number | null;
@@ -51,12 +68,17 @@ export interface WidgetIndicatorDatum {
   latestNigeria: number | null;
   latestNotes: string | null;
   /**
-   * Period to write when editing on the dashboard. Uses the latest reading's
-   * period when present; otherwise the newest period matching the thematic
-   * area frequency (so empty indicators can be filled on the fly).
+   * Default period when opening the edit modal — newest period matching the
+   * indicator frequency (so retrospective entry can still pick older months).
    */
   editPeriodId: string | null;
   editPeriodLabel: string | null;
+  /** Reporting frequency used to filter editable periods. */
+  frequency: string;
+  /** All periods of this indicator's frequency, oldest → newest. */
+  editPeriods: WidgetEditPeriod[];
+  /** Existing statewide readings keyed by time_period_id. */
+  periodValues: Record<string, WidgetPeriodValue>;
 }
 
 export interface IndicatorOption {
@@ -109,13 +131,21 @@ export function dashboardIndicatorData(
   return lgaIndicatorData(c, dashboard.lga_id ?? "");
 }
 
+function periodsForFrequency(
+  periods: Computed["data"]["timePeriods"],
+  frequency: string
+): Array<{ id: string; label: string; startDate: string }> {
+  return periods
+    .filter((p) => p.frequency === frequency)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))
+    .map((p) => ({ id: p.id, label: p.label, startDate: p.start_date }));
+}
+
 function latestPeriodForFrequency(
   periods: Computed["data"]["timePeriods"],
   frequency: string
 ): { id: string; label: string } | null {
-  const matched = periods
-    .filter((p) => p.frequency === frequency)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const matched = periodsForFrequency(periods, frequency);
   const last = matched.at(-1);
   return last ? { id: last.id, label: last.label } : null;
 }
@@ -137,25 +167,52 @@ function sectorIndicatorData(
 
   for (const ic of c.indicators) {
     if (ic.sector.id !== sectorId || ic.indicator.indicator_scope === "entity") continue;
-    const series: WidgetSeriesPoint[] = ic.series.map((pt) => ({
-      label: pt.period.label,
-      value: pt.abia,
-      nigeria: pt.nigeria,
-      score: pt.score,
-    }));
+    const frequency = indicatorFrequency(ic.indicator, ic.thematicArea);
+    const editPeriods = periodsForFrequency(c.data.timePeriods, frequency);
+    const series: WidgetSeriesPoint[] = [...ic.series]
+      .sort((a, b) => a.period.start_date.localeCompare(b.period.start_date))
+      .map((pt) => ({
+        periodId: pt.period.id,
+        label: pt.period.label,
+        value: pt.abia,
+        nigeria: pt.nigeria,
+        score: pt.score,
+      }));
+    const periodValues: Record<string, WidgetPeriodValue> = {};
+    for (const pt of ic.series) {
+      const meta = resultMeta.get(`${ic.indicator.id}|${pt.period.id}`);
+      periodValues[pt.period.id] = {
+        value: pt.abia,
+        nigeria: meta?.nigeria ?? pt.nigeria,
+        notes: meta?.notes ?? null,
+      };
+    }
     const latest = ic.latest;
-    const fallbackPeriod = latestPeriodForFrequency(c.data.timePeriods, ic.thematicArea.frequency);
+    const currentPeriod = latestPeriodForFrequency(c.data.timePeriods, frequency);
     const meta =
       latest != null
         ? resultMeta.get(`${ic.indicator.id}|${latest.period.id}`)
         : undefined;
+    let latestNigeria: number | null = meta?.nigeria ?? latest?.nigeria ?? null;
+    if (latestNigeria == null) {
+      for (const pt of [...ic.series].reverse()) {
+        const ptMeta = resultMeta.get(`${ic.indicator.id}|${pt.period.id}`);
+        const candidate = ptMeta?.nigeria ?? pt.nigeria;
+        if (candidate != null) {
+          latestNigeria = candidate;
+          break;
+        }
+      }
+    }
     data[ic.indicator.id] = {
       id: ic.indicator.id,
       name: ic.indicator.name,
       unit: ic.indicator.unit,
       description: ic.indicator.description ?? null,
+      direction: ic.indicator.direction,
       target: latest?.target ?? ic.indicator.target_value,
       latestValue: latest?.abia ?? null,
+      prevValue: ic.previous?.abia ?? null,
       latestScore: ic.score,
       prevScore: ic.prevScore,
       nigeriaScore:
@@ -165,10 +222,15 @@ function sectorIndicatorData(
       series,
       latestPeriodId: latest?.period.id ?? null,
       latestPeriodLabel: latest?.period.label ?? null,
-      latestNigeria: meta?.nigeria ?? latest?.nigeria ?? null,
+      latestNigeria,
       latestNotes: meta?.notes ?? null,
-      editPeriodId: latest?.period.id ?? fallbackPeriod?.id ?? null,
-      editPeriodLabel: latest?.period.label ?? fallbackPeriod?.label ?? null,
+      // Prefer the current (newest) period for this frequency so admins can
+      // enter this month/quarter/year, then switch back for retrospective fills.
+      editPeriodId: currentPeriod?.id ?? latest?.period.id ?? null,
+      editPeriodLabel: currentPeriod?.label ?? latest?.period.label ?? null,
+      frequency,
+      editPeriods,
+      periodValues,
     };
     options.push({
       id: ic.indicator.id,
@@ -212,12 +274,14 @@ function lgaIndicatorData(
 
   byIndicator.forEach((periods, indicatorId) => {
     const ic = c.indicatorById.get(indicatorId)!;
+    const expectedFrequency = indicatorFrequency(ic.indicator, ic.thematicArea);
     const points = [...periods.entries()]
       .map(([periodId, readings]) => ({ period: periodById.get(periodId), readings }))
-      .filter((x) => x.period)
+      .filter((x) => x.period && x.period.frequency === expectedFrequency)
       .sort((a, b) => a.period!.start_date.localeCompare(b.period!.start_date));
 
     const series: WidgetSeriesPoint[] = points.map(({ period, readings }) => ({
+      periodId: period!.id,
       label: period!.label,
       value: readings.reduce((sum, r) => sum + r.value, 0) / readings.length,
       nigeria: null,
@@ -227,13 +291,16 @@ function lgaIndicatorData(
     const latest = series.at(-1) ?? null;
     const previous = series.at(-2) ?? null;
     const latestPeriod = points.at(-1)?.period ?? null;
+    const frequency = indicatorFrequency(ic.indicator, ic.thematicArea);
     data[indicatorId] = {
       id: indicatorId,
       name: ic.indicator.name,
       unit: ic.indicator.unit,
       description: ic.indicator.description ?? null,
+      direction: ic.indicator.direction,
       target: ic.indicator.target_value,
       latestValue: latest?.value ?? null,
+      prevValue: previous?.value ?? null,
       latestScore: latest?.score ?? null,
       prevScore: previous?.score ?? null,
       nigeriaScore: null,
@@ -245,6 +312,9 @@ function lgaIndicatorData(
       latestNotes: null,
       editPeriodId: null,
       editPeriodLabel: null,
+      frequency,
+      editPeriods: [],
+      periodValues: {},
     };
     options.push({
       id: indicatorId,

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode } from "@/lib/data-mode";
+import { isFrequency } from "@/lib/indicator-frequency";
 import {
   normalizeIndicatorValueType,
   parseLegacyScoreOptions,
@@ -13,6 +14,8 @@ import {
 import { getDataset } from "@/lib/manage-config";
 import { getServerUser } from "@/lib/supabase-auth";
 import { ensureEvidenceBucket, evidenceBucket, getAdminClient } from "@/lib/supabase-admin";
+import type { Frequency } from "@/lib/types";
+import { isProvisionalPeriodId, periodBoundsForDate, provisionalStartDate } from "@/lib/time-period";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -274,6 +277,135 @@ async function clearOtherSectorDashboards(
 /* Result entry (with evidence images)                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Ensures the chosen time period matches the indicator's reporting frequency
+ * (explicit on the indicator, otherwise inherited from its thematic area).
+ */
+async function assertPeriodMatchesIndicatorFrequency(
+  admin: SupabaseClient,
+  indicatorId: string,
+  timePeriodId: string
+): Promise<string | null> {
+  const [indicatorRes, periodRes] = await Promise.all([
+    admin
+      .from("indicators")
+      .select("id, frequency, domain_id, domains(thematic_area_id, thematic_areas(frequency))")
+      .eq("id", indicatorId)
+      .single(),
+    admin.from("time_periods").select("id, frequency, label").eq("id", timePeriodId).single(),
+  ]);
+  if (indicatorRes.error) return `Could not load indicator: ${indicatorRes.error.message}`;
+  if (periodRes.error) return `Could not load time period: ${periodRes.error.message}`;
+
+  const domains = indicatorRes.data.domains as
+    | { thematic_areas?: { frequency?: string } | null }
+    | { thematic_areas?: { frequency?: string } | null }[]
+    | null;
+  const domain = Array.isArray(domains) ? domains[0] : domains;
+  const thematicFrequency = domain?.thematic_areas?.frequency;
+  const expected = isFrequency(indicatorRes.data.frequency)
+    ? indicatorRes.data.frequency
+    : isFrequency(thematicFrequency)
+      ? thematicFrequency
+      : "monthly";
+  if (periodRes.data.frequency !== expected) {
+    return `Pick a ${expected} period for this indicator (selected “${periodRes.data.label}” is ${periodRes.data.frequency}).`;
+  }
+  return null;
+}
+
+async function ensurePeriodRow(
+  admin: SupabaseClient,
+  frequency: Frequency,
+  isoDate: string
+): Promise<{ id: string; label: string } | { error: string }> {
+  const bounds = periodBoundsForDate(frequency, isoDate);
+  const existing = await admin
+    .from("time_periods")
+    .select("id, label")
+    .eq("frequency", frequency)
+    .eq("start_date", bounds.startDate)
+    .maybeSingle();
+  if (existing.error) return { error: existing.error.message };
+  if (existing.data) return { id: existing.data.id, label: existing.data.label };
+
+  const inserted = await admin
+    .from("time_periods")
+    .insert({
+      frequency,
+      label: bounds.label,
+      start_date: bounds.startDate,
+      end_date: bounds.endDate,
+    })
+    .select("id, label")
+    .single();
+  if (inserted.error) {
+    // Race: another writer may have created the same (frequency, start_date).
+    const again = await admin
+      .from("time_periods")
+      .select("id, label")
+      .eq("frequency", frequency)
+      .eq("start_date", bounds.startDate)
+      .maybeSingle();
+    if (again.data) return { id: again.data.id, label: again.data.label };
+    return { error: inserted.error.message };
+  }
+  return { id: inserted.data.id, label: inserted.data.label };
+}
+
+/**
+ * Create (or reuse) a time period for a frequency + calendar date.
+ * Used by daily date-picker entry and when provisional weekly/monthly slots are chosen.
+ */
+export async function ensureReportingPeriod(
+  formData: FormData
+): Promise<{ ok: true; id: string; label: string } | { ok: false; error: string }> {
+  const inline = await getInlineAdmin();
+  if (!inline.admin) return { ok: false, error: inline.error ?? "Writes are disabled." };
+  const frequencyRaw = strOrNull(formData.get("frequency"));
+  const startDate = strOrNull(formData.get("start_date"));
+  if (!isFrequency(frequencyRaw)) return { ok: false, error: "A valid reporting frequency is required." };
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    return { ok: false, error: "A valid reporting date (YYYY-MM-DD) is required." };
+  }
+  const ensured = await ensurePeriodRow(inline.admin, frequencyRaw, startDate);
+  if ("error" in ensured) return { ok: false, error: ensured.error };
+  revalidatePath("/", "layout");
+  return { ok: true, id: ensured.id, label: ensured.label };
+}
+
+async function resolveTimePeriodId(
+  admin: SupabaseClient,
+  formData: FormData,
+  indicatorId: string
+): Promise<{ id: string } | { error: string }> {
+  const timePeriodId = strOrNull(formData.get("time_period_id"));
+  const periodStart = strOrNull(formData.get("period_start_date"));
+  const periodFrequencyRaw = strOrNull(formData.get("period_frequency"));
+
+  if (timePeriodId && isProvisionalPeriodId(timePeriodId)) {
+    const start = provisionalStartDate(timePeriodId) ?? periodStart;
+    if (!start || !isFrequency(periodFrequencyRaw)) {
+      return { error: "Could not resolve the selected reporting period." };
+    }
+    const ensured = await ensurePeriodRow(admin, periodFrequencyRaw, start);
+    if ("error" in ensured) return { error: ensured.error };
+    return { id: ensured.id };
+  }
+
+  if (!timePeriodId && periodStart && isFrequency(periodFrequencyRaw)) {
+    const ensured = await ensurePeriodRow(admin, periodFrequencyRaw, periodStart);
+    if ("error" in ensured) return { error: ensured.error };
+    return { id: ensured.id };
+  }
+
+  if (!timePeriodId) return { error: "Indicator and time period are required." };
+
+  const mismatch = await assertPeriodMatchesIndicatorFrequency(admin, indicatorId, timePeriodId);
+  if (mismatch) return { error: mismatch };
+  return { id: timePeriodId };
+}
+
 async function upsertResult(
   admin: SupabaseClient,
   row: {
@@ -413,6 +545,9 @@ export async function saveResult(formData: FormData) {
   if (!indicator_id || !time_period_id) fail(backTo, "Indicator and time period are required.");
   if (abia_value === null) fail(backTo, "Abia value is required and must be a number.");
 
+  const periodMismatch = await assertPeriodMatchesIndicatorFrequency(admin, indicator_id, time_period_id);
+  if (periodMismatch) fail(backTo, periodMismatch);
+
   const indicator = await admin
     .from("indicators")
     .select("id, name, indicator_scope, value_type, score_options, description, unit")
@@ -462,15 +597,18 @@ export async function saveResultRow(
   const admin = inline.admin;
 
   const indicator_id = strOrNull(formData.get("indicator_id"));
-  const time_period_id = strOrNull(formData.get("time_period_id"));
   const entity_id = strOrNull(formData.get("entity_id"));
   const abia_value = numOrNull(formData.get("abia_value"));
-  if (!indicator_id || !time_period_id) {
+  if (!indicator_id) {
     return { ok: false, error: "Indicator and time period are required." };
   }
   if (abia_value === null) {
     return { ok: false, error: "A value is required before this row can be saved." };
   }
+
+  const resolvedPeriod = await resolveTimePeriodId(admin, formData, indicator_id);
+  if ("error" in resolvedPeriod) return { ok: false, error: resolvedPeriod.error };
+  const time_period_id = resolvedPeriod.id;
 
   const indicator = await admin
     .from("indicators")
@@ -524,7 +662,7 @@ export async function saveResultsBatch(formData: FormData) {
 
   const time_period_id = strOrNull(formData.get("time_period_id"));
   const entity_id = strOrNull(formData.get("entity_id"));
-  if (!time_period_id) fail(backTo, "A reporting period is required.");
+  if (!time_period_id) fail(backTo, "A reporting period is required. Select when this data was captured before saving.");
 
   const rows: Array<{ indicatorId: string; value: number; nigeria: number | null; notes: string | null }> = [];
   for (const [key, raw] of formData.entries()) {
@@ -540,6 +678,11 @@ export async function saveResultsBatch(formData: FormData) {
     });
   }
   if (rows.length === 0) fail(backTo, "Fill at least one indicator value before saving.");
+
+  for (const row of rows) {
+    const mismatch = await assertPeriodMatchesIndicatorFrequency(admin, row.indicatorId, time_period_id);
+    if (mismatch) fail(backTo, mismatch);
+  }
 
   const indicators = await admin
     .from("indicators")

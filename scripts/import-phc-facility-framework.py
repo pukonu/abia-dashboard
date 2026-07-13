@@ -200,26 +200,46 @@ def parse_first_number(text: str) -> float | None:
 
 
 def infer_direction(entry: dict) -> str:
-    text = " ".join(
-        [
-            entry["name"].lower(),
-            entry["target_standard"].lower(),
-            entry["guidance"].lower(),
-        ]
-    )
+    """Higher is better by default. Only mark lower when the metric itself is a harm/delay/shortage."""
+    name = entry["name"].lower()
+    target = entry["target_standard"].lower()
+    guidance = entry["guidance"].lower()
+    blob = f"{name} {target} {guidance}"
+
+    # Explicit positive framing wins (availability/coverage scored to 100).
     if any(
-        token in text
-        for token in [
+        token in name
+        for token in (
+            "availability",
+            "available",
+            "coverage",
+            "concordance",
+            "closure rate",
+            "acknowledged",
+            "planned vs conducted",
+            "attendance",
+        )
+    ):
+        return "higher_is_better"
+
+    if any(
+        token in blob
+        for token in (
             "stock-out",
             "stock out",
-            "days = 1",
+            "stockout",
             "response time",
-            "less than",
-            "<",
-            "below",
-        ]
+            "wait time",
+            "waiting time",
+        )
     ):
         return "lower_is_better"
+
+    # Only treat threshold language on the metric name itself — not scoring rubrics
+    # in guidance that say "score < 50 = weak".
+    if any(token in name for token in ("stock-out days", "response time")):
+        return "lower_is_better"
+
     return "higher_is_better"
 
 

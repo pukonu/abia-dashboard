@@ -1,4 +1,5 @@
 import { fmt, ratingFor } from "@/lib/scoring";
+import type { Direction } from "@/lib/types";
 
 /** Small colored pill showing a 0–100 composite score. */
 export function ScoreBadge({ score, showLabel = false }: { score: number | null; showLabel?: boolean }) {
@@ -13,16 +14,32 @@ export function ScoreBadge({ score, showLabel = false }: { score: number | null;
   );
 }
 
-/** Up/down change tag in score points. */
-export function DeltaTag({ value, suffix = "pts" }: { value: number | null; suffix?: string }) {
+/**
+ * Up/down change tag.
+ * Pass `direction` for raw indicator values so colour reflects whether the
+ * move is an improvement (green) or a decline (red). Composite 0–100 scores
+ * are already normalized — leave direction at the default.
+ */
+export function DeltaTag({
+  value,
+  suffix = "pts",
+  direction = "higher_is_better",
+}: {
+  value: number | null;
+  suffix?: string;
+  direction?: Direction;
+}) {
   if (value == null || Math.abs(value) < 0.05) {
     return <span className="text-xs font-medium text-zinc-400">— steady</span>;
   }
   const up = value > 0;
+  const improved = direction === "lower_is_better" ? !up : up;
   return (
     <span
       className={`text-xs font-semibold ${
-        up ? "text-green-800 dark:text-green-300" : "text-red-800 dark:text-red-300"
+        improved
+          ? "text-green-800 dark:text-green-300"
+          : "text-red-800 dark:text-red-300"
       }`}
     >
       {up ? "▲" : "▼"} {fmt(Math.abs(value), 1)} {suffix}

@@ -3,6 +3,7 @@ import { DemoModeNotice, Flash } from "@/components/forms";
 import SectorDashboardEntry from "@/components/manage/SectorDashboardEntry";
 import { ActionLink, Crumbs, PageHeader } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import { indicatorFrequency } from "@/lib/indicator-frequency";
 import { saveResultRow } from "../actions";
 
 export const metadata = { title: "Sector Dashboard data" };
@@ -37,17 +38,22 @@ export default async function SectorDashboardDataPage({
   }));
   const entryIndicators = data.indicators
     .filter((i) => i.indicator_scope !== "entity")
-    .map((i) => ({
-      id: i.id,
-      domainId: i.domain_id,
-      name: i.name,
-      unit: i.unit,
-      description: i.description ?? null,
-      targetValue: i.target_value,
-    }));
+    .map((i) => {
+      const domain = data.domains.find((d) => d.id === i.domain_id);
+      const thematic = data.thematicAreas.find((t) => t.id === domain?.thematic_area_id);
+      return {
+        id: i.id,
+        domainId: i.domain_id,
+        name: i.name,
+        unit: i.unit,
+        description: i.description ?? null,
+        targetValue: i.target_value,
+        frequency: thematic ? indicatorFrequency(i, thematic) : i.frequency ?? "monthly",
+      };
+    });
   const entryPeriods = [...data.timePeriods]
-    .sort((a, b) => b.start_date.localeCompare(a.start_date))
-    .map((p) => ({ id: p.id, label: p.label, frequency: p.frequency }));
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))
+    .map((p) => ({ id: p.id, label: p.label, frequency: p.frequency, startDate: p.start_date }));
   const existingResults = data.results
     .filter((r) => r.entity_id == null)
     .map((r) => ({
@@ -64,7 +70,7 @@ export default async function SectorDashboardDataPage({
       <PageHeader
         eyebrow="Data entry"
         title="Sector Dashboard data"
-        subtitle="Enter statewide values for each sector’s Sector Dashboard thematic area (the one marked with the Sector Dashboard flag). These numbers power executive sector dashboards and the Friday weekly digest."
+        subtitle="Enter statewide values for each sector’s Sector Dashboard thematic area. You must select the reporting period when the data was captured (e.g. June 2026 for monthly indicators). These numbers power executive sector views, Present mode, and the Friday weekly digest."
         actions={
           <div className="flex flex-wrap gap-2">
             <ActionLink href="/sectors/health">View Health sector</ActionLink>
@@ -78,7 +84,8 @@ export default async function SectorDashboardDataPage({
       <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950">
         <p className="font-medium">How to use this page</p>
         <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-emerald-900/90">
-          <li>Pick the sector (Health) and the reporting month.</li>
+          <li>Pick the sector and the reporting period when the data was captured.</li>
+          <li>Only indicators matching that period’s frequency are shown.</li>
           <li>Fill Abia values under each domain — leave blank anything you do not have yet.</li>
           <li>Click Save on each row. Optional: add a Nigeria benchmark and a short source note.</li>
         </ol>

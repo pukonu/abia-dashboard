@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { DonutChart, ScoreRadarChart, TrendChart } from "@/components/charts";
+import { PresentationDeck } from "@/components/entity-presentation";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
 import PwaSetupCta from "@/components/PwaSetupCta";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
@@ -9,6 +10,7 @@ import { ActionLink, CardList, PageHeader, RowLink, SectionTitle } from "@/compo
 import { loadDashboardData } from "@/lib/datasource";
 import { abiaFootprintStats, sectorIndicatorMix, stateExecutiveStats } from "@/lib/executive-insights";
 import { sectorNigeriaScore } from "@/lib/benchmark-comparisons";
+import { buildOverviewSlides } from "@/lib/presentation-slides";
 import { computeDashboard, delta, ratingFor } from "@/lib/scoring";
 
 export default async function OverviewPage() {
@@ -39,6 +41,8 @@ export default async function OverviewPage() {
     .map((i) => i.latest?.period.start_date ?? "")
     .reduce((a, b) => (b > a ? b : a), "");
 
+  const presentationSlides = buildOverviewSlides(data, c);
+
   return (
     <>
       <PageHeader
@@ -47,6 +51,7 @@ export default async function OverviewPage() {
         subtitle="One composite view of how the state is performing across every sector, benchmarked against national figures and official targets."
         actions={
           <>
+            <PresentationDeck slides={presentationSlides} />
             <ActionLink href="#get-the-app">Get the app</ActionLink>
             <ActionLink href="/subscribe" icon="mail">
               Weekly digest
@@ -102,7 +107,8 @@ export default async function OverviewPage() {
         <div className="card card-pad">
           <div className="mb-1 text-base font-semibold text-zinc-900">Indicator coverage by sector</div>
           <p className="mb-2 text-xs text-zinc-500">
-            This is a true part-of-whole view: how the configured datapoints are distributed across sectors.
+            Sector-level (statewide) indicators only — how those datapoints are distributed across
+            sectors.
           </p>
           <DonutChart points={indicatorCoverageMix} />
         </div>

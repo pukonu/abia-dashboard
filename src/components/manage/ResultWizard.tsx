@@ -143,7 +143,7 @@ export default function ResultWizard({
   const [mdaId, setMdaId] = useState<string | null>(null);
   /** null = not chosen yet; "" = statewide; otherwise entity id */
   const [entityId, setEntityId] = useState<string | null>(null);
-  const [periodId, setPeriodId] = useState<string>(periods[0]?.id ?? "");
+  const [periodId, setPeriodId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [filledCount, setFilledCount] = useState(0);
   const [filledRowIds, setFilledRowIds] = useState<string[]>([]);
@@ -205,12 +205,11 @@ export default function ResultWizard({
     [existingResults, periodId, existingResultKey]
   );
 
-  /** Periods matching the sector's dominant frequency, falling back to all. */
+  /** Periods matching indicator/thematic frequencies in the sector — no all-period fallback. */
   const gridPeriods = useMemo(() => {
-    if (!sectorId) return periods;
+    if (!sectorId) return [];
     const freqs = new Set(thematicAreas.filter((t) => t.sectorId === sectorId).map((t) => t.frequency));
-    const matching = periods.filter((p) => freqs.has(p.frequency));
-    return matching.length > 0 ? matching : periods;
+    return periods.filter((p) => freqs.has(p.frequency));
   }, [periods, thematicAreas, sectorId]);
 
   const summary = [
@@ -404,11 +403,12 @@ export default function ResultWizard({
                   value={periodId}
                   onChange={(e) => setPeriodId(e.target.value)}
                   required
-                  className={`${inputClass} w-full sm:w-44`}
+                  className={`${inputClass} w-full sm:w-52`}
                 >
+                  <option value="">Select reporting period…</option>
                   {gridPeriods.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.label}
+                      {p.label} ({p.frequency})
                     </option>
                   ))}
                 </select>

@@ -175,6 +175,8 @@ model Indicator {
   targetValue       Decimal?        @map("target_value") @db.Decimal
   targetSource      String?         @map("target_source")
   weight            Decimal         @default(1) @db.Decimal
+  /// Reporting cadence for this indicator. Defaults to monthly; change manually when needed.
+  frequency         Frequency?      @default(monthly)
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
   domain            Domain          @relation(fields: [domainId], references: [id], onDelete: Cascade)
   stateIndicator    Indicator?      @relation("IndicatorRollup", fields: [stateIndicatorId], references: [id], onDelete: SetNull)

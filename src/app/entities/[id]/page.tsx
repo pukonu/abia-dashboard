@@ -123,6 +123,8 @@ export default async function EntityPage({
       subtitle: `${ec.mda.name} · ${ec.lga.name} LGA (${ec.lga.zone})`,
       period: latestPeriod,
       score: ec.score,
+      metaLine: latestPeriod ? `${latestPeriod} field assessment` : undefined,
+      statsLine: `${domainGroups.length} domains · ${readings.length} questions`,
       domainCount: domainGroups.length,
       questionCount: readings.length,
     });
@@ -142,6 +144,7 @@ export default async function EntityPage({
         score: group.score,
         questionCount: group.items.length,
         position: `${gi + 1} of ${domainGroups.length}`,
+        scoreCaption: `Weighted score across ${group.items.length} assessment question${group.items.length === 1 ? "" : "s"} at this facility`,
       });
       for (const r of group.items) {
         const { options, rationale } = parseDescription(r.ic.indicator.description);
@@ -167,6 +170,7 @@ export default async function EntityPage({
           options: slideOptions,
           rationale,
           period: r.periodLabel,
+          periodLabel: `${r.periodLabel} PHC field assessment`,
         });
       }
     }

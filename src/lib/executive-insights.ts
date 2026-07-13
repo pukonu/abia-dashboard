@@ -76,39 +76,51 @@ export function stateExecutiveStats(data: DashboardData, c: Computed): Executive
 }
 
 export function abiaFootprintStats(data: DashboardData): ExecutiveStat[] {
+  // Statewide / sector roll-up indicators only — not facility-level entity readings.
+  const sectorIndicatorCount = data.indicators.filter(
+    (indicator) => indicator.indicator_scope !== "entity"
+  ).length;
+
   const counts = new Map<string, number>();
   for (const entity of data.entities) {
     counts.set(entity.entity_type, (counts.get(entity.entity_type) ?? 0) + 1);
   }
 
   const preferred = [
-    ["Primary Health Centre", "Primary healthcare centres", "Frontline PHCs where residents meet the health system first."],
     ["General Hospital", "General hospitals", "Secondary-care hospitals serving LGA and zonal needs."],
     ["Specialist Hospital", "Specialist hospitals", "Higher-level referral assets for complex care."],
     ["Primary School", "Primary schools", "Basic education access points across local communities."],
     ["Secondary School", "Secondary schools", "Post-primary schools supporting skills and progression."],
     ["Road Project", "Road projects", "Visible infrastructure works that connect commerce and services."],
+    ["Primary Health Centre", "Primary healthcare centres", "Frontline PHCs where residents meet the health system first."],
   ] as const;
 
-  const stats = preferred
+  const assetStats = preferred
     .map(([type, label, caption]) => ({ label, value: counts.get(type) ?? 0, caption }))
     .filter((stat) => stat.value > 0)
     .map((stat) => ({ ...stat, value: fmt(stat.value) }));
-
-  if (stats.length >= 4) return stats.slice(0, 6);
 
   const used = new Set<string>(preferred.map(([type]) => type));
   const fallback = [...counts.entries()]
     .filter(([type]) => !used.has(type))
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6 - stats.length)
     .map(([type, count]) => ({
       label: pluralizeType(type, count),
       value: fmt(count),
       caption: "Measured Abia service or project asset.",
     }));
 
-  return [...stats, ...fallback];
+  const assets = [...assetStats, ...fallback].slice(0, 5);
+
+  return [
+    {
+      label: "Sector indicators",
+      value: fmt(sectorIndicatorCount),
+      caption:
+        "Statewide measures rolled up by sector on the executive dashboard — excludes facility-level entity readings.",
+    },
+    ...assets,
+  ];
 }
 
 export function sectorIndicatorMix(data: DashboardData): MixSlice[] {
@@ -117,6 +129,7 @@ export function sectorIndicatorMix(data: DashboardData): MixSlice[] {
   const counts = new Map<string, number>();
 
   for (const indicator of data.indicators) {
+    if (indicator.indicator_scope === "entity") continue;
     const domain = domainById.get(indicator.domain_id);
     const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
     if (!thematic) continue;

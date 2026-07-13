@@ -32,12 +32,15 @@ export interface EntryIndicator {
   unit: string;
   description: string | null;
   targetValue: number | null;
+  /** Effective reporting frequency for this indicator. */
+  frequency: string;
 }
 
 export interface EntryPeriod {
   id: string;
   label: string;
   frequency: string;
+  startDate: string;
 }
 
 export interface EntryExistingResult {
@@ -95,13 +98,25 @@ export default function SectorDashboardEntry({
     [thematicAreas, sectorId]
   );
 
-  const matchingPeriods = useMemo(() => {
-    if (!thematic) return periods;
-    const matched = periods.filter((p) => p.frequency === thematic.frequency);
-    return matched.length > 0 ? matched : periods;
-  }, [periods, thematic]);
+  const frameworkIndicators = useMemo(() => {
+    if (!thematic) return [];
+    const domainIds = new Set(domains.filter((d) => d.thematicAreaId === thematic.id).map((d) => d.id));
+    return indicators.filter((i) => domainIds.has(i.domainId));
+  }, [domains, indicators, thematic]);
 
-  const [periodId, setPeriodId] = useState<string>(matchingPeriods[0]?.id ?? "");
+  const frequenciesOnPage = useMemo(() => {
+    const freqs = new Set(frameworkIndicators.map((i) => i.frequency));
+    return [...freqs];
+  }, [frameworkIndicators]);
+
+  const matchingPeriods = useMemo(() => {
+    if (frequenciesOnPage.length === 0) return [];
+    return periods
+      .filter((p) => frequenciesOnPage.includes(p.frequency))
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [periods, frequenciesOnPage]);
+
+  const [periodId, setPeriodId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [statusById, setStatusById] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
   const [errorById, setErrorById] = useState<Record<string, string>>({});
@@ -109,10 +124,9 @@ export default function SectorDashboardEntry({
     Record<string, { abia: string; nigeria: string; notes: string }>
   >({});
 
-  // Keep period in sync when sector/thematic frequency changes
-  const effectivePeriodId = matchingPeriods.some((p) => p.id === periodId)
-    ? periodId
-    : matchingPeriods[0]?.id ?? "";
+  // Period must be an explicit selection — never auto-fallback to unrelated frequencies.
+  const effectivePeriodId = matchingPeriods.some((p) => p.id === periodId) ? periodId : "";
+  const selectedPeriod = matchingPeriods.find((p) => p.id === effectivePeriodId) ?? null;
 
   const existingByIndicator = useMemo(
     () =>
@@ -133,10 +147,11 @@ export default function SectorDashboardEntry({
         domain: d,
         indicators: indicators
           .filter((i) => i.domainId === d.id)
+          .filter((i) => !selectedPeriod || i.frequency === selectedPeriod.frequency)
           .sort((a, b) => numericCompare(a.name, b.name)),
       }))
       .filter((g) => g.indicators.length > 0);
-  }, [domains, indicators, thematic]);
+  }, [domains, indicators, thematic, selectedPeriod]);
 
   const query = search.trim().toLowerCase();
   const filledCount = groups.reduce(
@@ -173,8 +188,11 @@ export default function SectorDashboardEntry({
       setStatusById((prev) => ({ ...prev, [indicatorId]: "error" }));
       return;
     }
-    if (!effectivePeriodId) {
-      setErrorById((prev) => ({ ...prev, [indicatorId]: "Pick a reporting month first." }));
+    if (!effectivePeriodId || !selectedPeriod) {
+      setErrorById((prev) => ({
+        ...prev,
+        [indicatorId]: "Select the reporting period when this data was captured before saving.",
+      }));
       setStatusById((prev) => ({ ...prev, [indicatorId]: "error" }));
       return;
     }
@@ -237,23 +255,32 @@ export default function SectorDashboardEntry({
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-zinc-700">Reporting month</span>
+              <span className="mb-1 block text-xs font-semibold text-zinc-700">
+                Reporting period <span className="font-normal text-zinc-400">(required)</span>
+              </span>
               <select
                 className={inputClass}
                 value={effectivePeriodId}
+                required
                 onChange={(e) => {
                   setPeriodId(e.target.value);
                   setDraftById({});
                   setStatusById({});
                 }}
               >
-                {matchingPeriods.length === 0 && <option value="">No monthly periods yet</option>}
+                <option value="">Select when the data was captured…</option>
                 {matchingPeriods.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label}
+                    {p.label} ({p.frequency})
                   </option>
                 ))}
               </select>
+              {matchingPeriods.length === 0 && (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  No time periods match this Sector Dashboard’s indicator frequencies. Add periods under
+                  Measurement framework → Time periods.
+                </p>
+              )}
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-zinc-700">Filter indicators</span>
@@ -273,12 +300,21 @@ export default function SectorDashboardEntry({
                 {thematic?.name ?? "No Sector Dashboard thematic area for this sector"}
               </span>
               {thematic && (
-                <span className="text-zinc-400"> · {thematic.frequency} reporting</span>
+                <span className="text-zinc-400">
+                  {" "}
+                  · {frequenciesOnPage.join(" / ") || thematic.frequency} reporting
+                </span>
               )}
             </div>
             <div>
-              <span className="font-semibold text-zinc-800">{filledCount}</span> of {totalCount} filled
-              for this month
+              {selectedPeriod ? (
+                <>
+                  <span className="font-semibold text-zinc-800">{filledCount}</span> of {totalCount}{" "}
+                  filled for {selectedPeriod.label}
+                </>
+              ) : (
+                <span className="font-medium text-amber-700">Select a reporting period to enter values</span>
+              )}
             </div>
           </div>
         </fieldset>
@@ -310,7 +346,9 @@ export default function SectorDashboardEntry({
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-900">{group.domain.name}</h3>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {groupFilled} of {visible.length} indicators have a value this month
+                    {selectedPeriod
+                      ? `${groupFilled} of ${visible.length} indicators have a value for ${selectedPeriod.label}`
+                      : `${visible.length} indicators — select a reporting period above`}
                   </p>
                 </div>
               </div>
@@ -331,6 +369,7 @@ export default function SectorDashboardEntry({
                           )}
                           <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-zinc-400">
                             <span>Unit: {ind.unit}</span>
+                            <span className="capitalize">{ind.frequency}</span>
                             {ind.targetValue != null && <span>Target: {ind.targetValue}</span>}
                             {existing && status !== "saved" && (
                               <span className="font-medium text-emerald-700">Saved previously</span>
