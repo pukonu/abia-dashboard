@@ -1,8 +1,14 @@
-import { RefreshCw, Smartphone } from "lucide-react";
+import { RefreshCw, Sparkles, Smartphone } from "lucide-react";
 import { Flash } from "@/components/forms";
 import { PageHeader } from "@/components/ui";
+import { nextAutoBuildId } from "@/lib/pwa-build-id";
 import { getAdminClient } from "@/lib/supabase-admin";
-import { clearForceFlags, forceReloadToLatest, savePwaReleaseConfig } from "./actions";
+import {
+  clearForceFlags,
+  forceReloadToLatest,
+  publishAutoPwaUpdate,
+  savePwaReleaseConfig,
+} from "./actions";
 
 export const metadata = { title: "PWA releases" };
 
@@ -47,6 +53,8 @@ export default async function ManagePwaReleasePage({
     }
   }
 
+  const previewBuild = nextAutoBuildId(row?.latest_build ?? null);
+
   return (
     <>
       <PageHeader
@@ -57,28 +65,58 @@ export default async function ManagePwaReleasePage({
 
       <Flash msg={msg} err={err} />
 
-      <div className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-        <p className="font-medium text-zinc-800 dark:text-zinc-100">How to force an update</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>Deploy a new PWA build to production.</li>
-          <li>
-            Open the installed app → Settings and copy the <strong>Build ID</strong> (14-digit stamp).
-          </li>
-          <li>
-            Paste it into <strong>Latest build</strong> below, then use{" "}
-            <strong>Require reload to latest</strong> — or set Minimum build + Force reload manually.
-          </li>
-          <li>
-            Use <strong>Force reinstall</strong> only when icons / manifest identity changed (mostly
-            iOS).
-          </li>
-        </ol>
-      </div>
-
       {loadError ? (
         <div className="card card-pad text-sm text-red-800">{loadError}</div>
       ) : (
         <>
+          <div className="card card-pad mb-6 space-y-4 border-orange-200 bg-orange-50/60 dark:border-orange-900/40 dark:bg-orange-950/20">
+            <div>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Publish update now
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                One click creates the next build stamp from today&apos;s date plus an increment
+                (preview <span className="font-mono text-xs">{previewBuild}</span>), sets it as
+                latest/minimum, and turns on force reload. You do not need to paste a build ID.
+              </p>
+            </div>
+            <form action={publishAutoPwaUpdate} className="flex flex-wrap items-end gap-3">
+              <label className="min-w-[14rem] flex-1 text-sm">
+                <span className="mb-1.5 block font-medium text-zinc-800 dark:text-zinc-200">
+                  Message (optional)
+                </span>
+                <input
+                  name="message"
+                  defaultValue={row?.message ?? ""}
+                  placeholder="Shown in the orange update banner"
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                />
+              </label>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-md bg-orange-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-orange-500"
+              >
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Publish update now
+              </button>
+            </form>
+          </div>
+
+          <div className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+            <p className="font-medium text-zinc-800 dark:text-zinc-100">Manual control (optional)</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Deploy a new PWA build to production when you have code changes.</li>
+              <li>
+                Prefer <strong>Publish update now</strong> above — or paste a Build ID from the
+                installed app → Settings into <strong>Latest build</strong> and save.
+              </li>
+              <li>
+                Use <strong>Force reinstall</strong> only when icons / manifest identity changed
+                (mostly iOS).
+              </li>
+            </ol>
+          </div>
+
           <form action={savePwaReleaseConfig} className="card card-pad space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm">
@@ -86,7 +124,7 @@ export default async function ManagePwaReleasePage({
                 <input
                   name="latest_build"
                   defaultValue={row?.latest_build ?? ""}
-                  placeholder="e.g. 20260713094122"
+                  placeholder="e.g. 2026071301 (auto) or 20260713094122"
                   className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-950"
                 />
                 <span className="mt-1 block text-xs text-zinc-500">
@@ -98,7 +136,7 @@ export default async function ManagePwaReleasePage({
                 <input
                   name="min_client_build"
                   defaultValue={row?.min_client_build ?? ""}
-                  placeholder="e.g. 20260713094122"
+                  placeholder="e.g. 2026071301"
                   className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-950"
                 />
                 <span className="mt-1 block text-xs text-zinc-500">
@@ -174,6 +212,7 @@ export default async function ManagePwaReleasePage({
               <Smartphone className="h-3.5 w-3.5" strokeWidth={1.5} />
               Last updated {new Date(row.updated_at).toLocaleString("en-NG")}
               {row.effective_at ? ` · effective ${new Date(row.effective_at).toLocaleString("en-NG")}` : ""}
+              {row.latest_build ? ` · latest ${row.latest_build}` : ""}
             </p>
           )}
         </>

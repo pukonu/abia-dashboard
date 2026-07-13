@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase-admin";
 import { getServerUser } from "@/lib/supabase-auth";
+import { nextAutoBuildId } from "@/lib/pwa-build-id";
 
 function isRedirectError(err: unknown): boolean {
   return (
@@ -54,6 +55,61 @@ export async function savePwaReleaseConfig(formData: FormData) {
   }
 }
 
+/**
+ * One-click: mint the next date+increment build stamp, set it as latest/minimum,
+ * and require clients to reload. No manual build ID needed.
+ */
+export async function publishAutoPwaUpdate(formData: FormData) {
+  const user = await getServerUser();
+  if (!user) redirect("/login?next=/manage/pwa-release");
+
+  const admin = getAdminClient();
+  if (!admin) {
+    redirect(
+      "/manage/pwa-release?err=" + encodeURIComponent("Service role is not configured.")
+    );
+  }
+
+  const { data, error } = await admin
+    .from("pwa_release_config")
+    .select("latest_build, message")
+    .eq("id", "default")
+    .maybeSingle();
+
+  if (error) {
+    redirect("/manage/pwa-release?err=" + encodeURIComponent(error.message));
+  }
+
+  const buildId = nextAutoBuildId(data?.latest_build ?? null);
+  const message =
+    cleanBuild(formData.get("message")) ??
+    (typeof data?.message === "string" && data.message.trim() ? data.message.trim() : null) ??
+    "A new version of the Abia Dashboard is ready. Tap Update to reload.";
+
+  const { error: upErr } = await admin.from("pwa_release_config").upsert(
+    {
+      id: "default",
+      min_client_build: buildId,
+      latest_build: buildId,
+      force_reload: true,
+      force_reinstall: false,
+      message,
+      effective_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" }
+  );
+
+  if (upErr) {
+    redirect("/manage/pwa-release?err=" + encodeURIComponent(upErr.message));
+  }
+
+  redirect(
+    "/manage/pwa-release?msg=" +
+      encodeURIComponent(`Update published · build ${buildId} · force reload on.`)
+  );
+}
+
 /** Convenience: require reload for anyone below the latest build stamp. */
 export async function forceReloadToLatest() {
   const user = await getServerUser();
@@ -80,7 +136,9 @@ export async function forceReloadToLatest() {
   if (!latest) {
     redirect(
       "/manage/pwa-release?err=" +
-        encodeURIComponent("Set Latest build first (paste the build ID from the PWA Settings screen).")
+        encodeURIComponent(
+          "No build stamp yet — use “Publish update now” to auto-create one, or save a Latest build first."
+        )
     );
   }
 
