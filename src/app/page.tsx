@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { DonutChart, ScoreRadarChart, TrendChart } from "@/components/charts";
 import { IndicatorResultLine } from "@/components/indicator-result-line";
+import PwaSetupCta from "@/components/PwaSetupCta";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import SectorIcon from "@/components/SectorIcon";
 import { ActionLink, CardList, PageHeader, RowLink, SectionTitle } from "@/components/ui";
@@ -46,6 +47,7 @@ export default async function OverviewPage() {
         subtitle="One composite view of how the state is performing across every sector, benchmarked against national figures and official targets."
         actions={
           <>
+            <ActionLink href="#get-the-app">Get the app</ActionLink>
             <ActionLink href="/subscribe" icon="mail">
               Weekly digest
             </ActionLink>
@@ -222,6 +224,10 @@ export default async function OverviewPage() {
           />
         ))}
       </CardList>
+
+      <div className="mt-8">
+        <PwaSetupCta />
+      </div>
     </>
   );
 }

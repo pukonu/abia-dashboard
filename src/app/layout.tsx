@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+import ThemeInitScript from "@/components/ThemeInitScript";
 import ThemeProvider from "@/components/ThemeProvider";
 import { loadDashboardData } from "@/lib/datasource";
-import { THEME_STORAGE_KEY, themeInitScript } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,9 +50,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <Script id="theme-init" strategy="beforeInteractive">
-          {themeInitScript(THEME_STORAGE_KEY)}
-        </Script>
+        <ThemeInitScript />
         <ThemeProvider>
           <AppShell mode={data.mode} supabaseConfigured={data.supabaseConfigured}>
             {children}
