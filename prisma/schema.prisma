@@ -308,3 +308,24 @@ model DigestSubscription {
   @@index([unsubscribedAt], map: "idx_digest_subscriptions_active")
   @@map("digest_subscriptions")
 }
+
+/// Singleton remote-config row announcing PWA releases / force updates.
+/// Not exposed via public RLS — the webapp `/api/pwa-config` endpoint
+/// reads it with the service role and CORS-exposes a public JSON payload.
+model PwaReleaseConfig {
+  id              String    @id @default("default")
+  /// Comparable build stamp (YYYYMMDDHHmmss). Clients below this must update.
+  minClientBuild  String?   @map("min_client_build")
+  /// Newest known good build — soft "update available" when client is older.
+  latestBuild     String?   @map("latest_build")
+  /// Block the app until the client clears caches and reloads.
+  forceReload     Boolean   @default(false) @map("force_reload")
+  /// Block with reinstall instructions (icon/manifest identity changes).
+  forceReinstall  Boolean   @default(false) @map("force_reinstall")
+  /// Optional operator message shown in the update UI.
+  message         String?
+  effectiveAt     DateTime  @default(now()) @map("effective_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("pwa_release_config")
+}

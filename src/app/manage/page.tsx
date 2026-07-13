@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Mail,
   PenLine,
+  RefreshCw,
   Shield,
   Upload,
 } from "lucide-react";
@@ -179,7 +180,7 @@ export default async function ManagePage() {
       </div>
 
       <SectionTitle hint="Who can access the console">Access control</SectionTitle>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           href="/manage/users"
           className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
@@ -210,6 +211,23 @@ export default async function ManagePage() {
             </div>
             <p className="mt-1 text-sm text-zinc-500">
               View weekly digest signups, preview the PDF, and send a test email to a subscriber.
+            </p>
+          </div>
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
+        </Link>
+        <Link
+          href="/manage/pwa-release"
+          className="card card-pad group flex items-start gap-4 transition-shadow hover:shadow-md"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="display text-base font-semibold text-zinc-900 group-hover:underline">
+              PWA releases
+            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Force installed apps to reload or reinstall after a critical deploy.
             </p>
           </div>
           <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300" strokeWidth={1.5} />
