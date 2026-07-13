@@ -12,6 +12,7 @@ import type {
   TimePeriod,
 } from "./types";
 import { indicatorFrequency } from "./indicator-frequency";
+import { isIndicatorPublic } from "./visibility";
 
 /* ------------------------------------------------------------------ */
 /* Score normalization                                                 */
@@ -241,6 +242,8 @@ export function computeDashboard(data: DashboardData): Computed {
     const thematicArea = domain ? thematicById.get(domain.thematic_area_id) : undefined;
     const sector = thematicArea ? sectorById.get(thematicArea.sector_id) : undefined;
     if (!domain || !thematicArea || !sector) continue;
+    // Unpublished domain or indicator — omit from public rollups / Present / Sector Dashboard.
+    if (!isIndicatorPublic(ind, domainById)) continue;
 
     const expectedFrequency = indicatorFrequency(ind, thematicArea);
     const series: SeriesPoint[] = (stateResults.get(ind.id) ?? [])

@@ -13,6 +13,8 @@ export interface FieldSpec {
   /** for selects: fixed options or a reference to another dataset */
   options?: Array<{ value: string; label: string }>;
   optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains" | "state_indicators";
+  /** checkbox only — used when creating a new record with no defaultValue */
+  defaultChecked?: boolean;
 }
 
 /** A related dataset shown as a tab on a record's detail page. */
@@ -207,12 +209,21 @@ export const DATASETS: DatasetSpec[] = [
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Maternal & Child Health" },
       { name: "description", label: "Description", type: "textarea" },
       { name: "weight", label: "Weight within thematic area", type: "number", placeholder: "1" },
+      {
+        name: "is_published",
+        label: "Published",
+        type: "checkbox",
+        defaultChecked: true,
+        help: "Uncheck to hide this domain and all of its indicators from public pages and Present mode. They remain editable in Manage.",
+      },
     ],
     list: (d) =>
       d.domains.map((x) => ({
         id: x.id,
         title: x.name,
-        subtitle: d.thematicAreas.find((t) => t.id === x.thematic_area_id)?.name ?? "",
+        subtitle: `${d.thematicAreas.find((t) => t.id === x.thematic_area_id)?.name ?? ""}${
+          x.is_published === false ? " · Unpublished" : ""
+        }`,
       })),
   },
   {
@@ -256,6 +267,13 @@ export const DATASETS: DatasetSpec[] = [
       { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach" },
       { name: "target_source", label: "Target source", type: "text", placeholder: "SDG, WHO, UN, State Plan…" },
       { name: "weight", label: "Weight within domain", type: "number", placeholder: "1" },
+      {
+        name: "is_published",
+        label: "Published",
+        type: "checkbox",
+        defaultChecked: true,
+        help: "Uncheck to hide this indicator from public pages and Present mode. It remains editable in Manage.",
+      },
     ],
     list: (d) =>
       d.indicators.map((i) => {
@@ -264,12 +282,15 @@ export const DATASETS: DatasetSpec[] = [
         const mdaLabel = mda
           ? mda.abbreviation?.trim() || mda.name
           : null;
+        const domain = d.domains.find((x) => x.id === i.domain_id);
+        const unpublished =
+          i.is_published === false || domain?.is_published === false;
         return {
           id: i.id,
           title: i.name,
           subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${freq}${
             mdaLabel ? ` · ${mdaLabel}` : ""
-          } · ${d.domains.find((x) => x.id === i.domain_id)?.name ?? ""} · target ${i.target_value ?? "—"} ${i.unit}`,
+          } · ${domain?.name ?? ""}${unpublished ? " · Unpublished" : ""} · target ${i.target_value ?? "—"} ${i.unit}`,
         };
       }),
   },

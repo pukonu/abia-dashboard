@@ -153,7 +153,11 @@ export async function loadDashboardData(opts?: { forceLive?: boolean }): Promise
         weight: Number(t.weight ?? 1),
         is_sector_dashboard: Boolean(t.is_sector_dashboard),
       })),
-      domains: domains.data ?? [],
+      domains: (domains.data ?? []).map((d) => ({
+        ...d,
+        weight: Number(d.weight ?? 1),
+        is_published: d.is_published !== false,
+      })),
       indicators: (indicators.data ?? []).map((i) => ({
         ...i,
         indicator_scope: i.indicator_scope ?? "state",
@@ -163,6 +167,7 @@ export async function loadDashboardData(opts?: { forceLive?: boolean }): Promise
         target_value: i.target_value == null ? null : Number(i.target_value),
         weight: Number(i.weight ?? 1),
         frequency: i.frequency ?? "monthly",
+        is_published: i.is_published !== false,
       })),
       timePeriods: timePeriods.data ?? [],
       results: (results.data ?? []).map((r) => ({

@@ -30,23 +30,27 @@ export function FormField({
   const opts = options ?? field.options ?? [];
   if (field.type === "checkbox") {
     const checked =
-      defaultValue === "true" || defaultValue === "1" || defaultValue === "on";
+      defaultValue === undefined
+        ? field.defaultChecked === true
+        : defaultValue === "true" || defaultValue === "1" || defaultValue === "on";
     return (
-      <label className="flex items-start gap-3 rounded-md border border-zinc-200 bg-zinc-50/80 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/50">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-gradient-to-br from-white to-zinc-50 px-4 py-3.5 shadow-sm transition-colors hover:border-zinc-300 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-950 dark:hover:border-zinc-600">
         <input
           type="checkbox"
           name={field.name}
           value="true"
           defaultChecked={checked}
-          className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-200"
+          className="mt-0.5 h-5 w-5 rounded-md border-zinc-300 text-emerald-600 focus:ring-emerald-200 dark:border-zinc-600 dark:bg-zinc-900 dark:text-emerald-400"
         />
-        <span>
-          <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-zinc-800 dark:text-zinc-100">
             {field.label}
             {field.required && <span className="text-red-700"> *</span>}
           </span>
           {field.help && (
-            <span className="mt-1 block text-[11px] leading-relaxed text-zinc-500">{field.help}</span>
+            <span className="mt-1.5 block text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              {field.help}
+            </span>
           )}
         </span>
       </label>

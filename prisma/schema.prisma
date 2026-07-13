@@ -153,6 +153,8 @@ model Domain {
   /// Official target, free text (e.g. "≤70 / 100,000")
   benchmarkTarget  String?    @map("benchmark_target")
   weight         Decimal      @default(1) @db.Decimal
+  /// When false, this domain and all its indicators are hidden from public views.
+  isPublished    Boolean      @default(true) @map("is_published")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   thematicArea   ThematicArea @relation(fields: [thematicAreaId], references: [id], onDelete: Cascade)
   indicators     Indicator[]
@@ -180,6 +182,8 @@ model Indicator {
   frequency         Frequency?      @default(monthly)
   /// MDA accountable for reporting this indicator (especially Sector Dashboard).
   responsibleMdaId  String?         @map("responsible_mda_id") @db.Uuid
+  /// When false, this indicator is hidden from public views (even if its domain is published).
+  isPublished       Boolean         @default(true) @map("is_published")
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
   domain            Domain          @relation(fields: [domainId], references: [id], onDelete: Cascade)
   stateIndicator    Indicator?      @relation("IndicatorRollup", fields: [stateIndicatorId], references: [id], onDelete: SetNull)

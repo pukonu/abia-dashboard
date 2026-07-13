@@ -252,16 +252,16 @@ export default function IndicatorQuickEdit({
             ? "opacity-100"
             : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         }`}
-        aria-label={`Edit ${indicator.name}`}
+        aria-label={`Manage data for ${indicator.name}`}
       >
         <Pencil className="h-3 w-3" strokeWidth={1.75} />
-        {isEmpty ? "Add" : "Edit"}
+        Manage data
       </button>
 
       <Modal
         open={open}
         onClose={() => !pending && setOpen(false)}
-        title={selectedReading?.value != null ? "Edit reading" : "Add reading"}
+        title="Manage data"
         description={`${indicator.name}${descriptionSuffix}`}
       >
         <form onSubmit={onSave} className="space-y-4">

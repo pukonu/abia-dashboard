@@ -63,6 +63,8 @@ export interface Domain {
   /** official target, free text (e.g. "≤70 / 100,000") */
   benchmark_target?: string | null;
   weight: number;
+  /** When false, this domain and its indicators are hidden from public views. */
+  is_published?: boolean;
 }
 
 export interface Indicator {
@@ -87,6 +89,8 @@ export interface Indicator {
   frequency?: Frequency | null;
   /** MDA accountable for reporting this indicator (Sector Dashboard ownership). */
   responsible_mda_id?: string | null;
+  /** When false, this indicator is hidden from public views. */
+  is_published?: boolean;
 }
 
 export interface TimePeriod {
