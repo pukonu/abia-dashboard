@@ -109,6 +109,16 @@ export default async function RecordDetailPage({
 
       {tab === "overview" && (
         <>
+          {(spec.slug === "domains" || spec.slug === "indicators") &&
+            record.is_published === false && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                <span className="font-semibold">Unpublished.</span>{" "}
+                {spec.slug === "domains"
+                  ? "This domain and all of its indicators are hidden from public pages and Present mode."
+                  : "This indicator is hidden from public pages and Present mode."}{" "}
+                Turn on <strong>Published</strong> in Settings to show it again.
+              </div>
+            )}
           {children.length > 0 && (
             <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {children.map((c) => (
