@@ -75,8 +75,9 @@ export default async function ManagePwaReleasePage({
                 Publish update now
               </p>
               <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                One click creates the next build stamp from today&apos;s date plus an increment
-                (preview <span className="font-mono text-xs">{previewBuild}</span>), sets it as
+                One click creates a Vite-compatible build stamp (UTC{" "}
+                <span className="font-mono text-xs">YYYYMMDDHHmmss</span>, preview{" "}
+                <span className="font-mono text-xs">{previewBuild}</span>), sets it as
                 latest/minimum, and turns on force reload. You do not need to paste a build ID.
               </p>
             </div>

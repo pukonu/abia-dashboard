@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatViteBuildStamp } from "@/lib/pwa-build-id";
 import { getAdminClient } from "@/lib/supabase-admin";
 
 /**
@@ -23,6 +24,29 @@ const EMPTY = {
   message: null as string | null,
   effectiveAt: null as string | null,
 };
+
+/**
+ * Coerce legacy YYYYMMDDNN stamps to Vite-comparable YYYYMMDDHHmmss.
+ * Uses effective_at when present so same-day clients that already rebuilt
+ * after the publish are not stuck in a force-reload loop.
+ */
+function coerceBuildStamp(
+  raw: string | null | undefined,
+  effectiveAt: string | null | undefined
+): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+  if (digits.length === 14) return digits;
+  if (effectiveAt) {
+    const d = new Date(effectiveAt);
+    if (!Number.isNaN(d.getTime())) return formatViteBuildStamp(d);
+  }
+  if (digits.length >= 8) {
+    return `${digits.slice(0, 8)}120000`;
+  }
+  return digits.padEnd(14, "0").slice(0, 14);
+}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
@@ -59,14 +83,16 @@ export async function GET() {
       );
     }
 
+    const effectiveAt = data?.effective_at ?? null;
+
     return NextResponse.json(
       {
-        minClientBuild: data?.min_client_build ?? null,
-        latestBuild: data?.latest_build ?? null,
+        minClientBuild: coerceBuildStamp(data?.min_client_build, effectiveAt),
+        latestBuild: coerceBuildStamp(data?.latest_build, effectiveAt),
         forceReload: Boolean(data?.force_reload),
         forceReinstall: Boolean(data?.force_reinstall),
         message: data?.message ?? null,
-        effectiveAt: data?.effective_at ?? null,
+        effectiveAt,
       },
       { headers: { ...CORS_HEADERS, "Cache-Control": "no-store" } }
     );
