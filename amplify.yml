@@ -8,6 +8,11 @@ frontend:
         - yarn install --immutable
     build:
       commands:
+        # Amplify console env vars exist only at BUILD time. Next.js reads
+        # server-side secrets at RUNTIME (SSR lambda), so bake them into
+        # .env.production during the build or process.env comes back empty
+        # in API routes (e.g. /api/pwa-config fails open to nulls).
+        - env | grep -E '^(SUPABASE_SERVICE_ROLE_KEY|GEMINI_API_KEY|GEMINI_MODEL|SENDGRID_API_KEY|DIGEST_FROM_EMAIL|CRON_SECRET)=' >> .env.production || true
         - yarn build
   artifacts:
     baseDirectory: .next
