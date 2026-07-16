@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Environment Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - ASEPA GM Ogbonnia Okereke interview (Vanguard, 30 May 2026) —
+    emergency evacuation >4,000 truckloads / >80,000 tonnes in first 4 weeks;
+    annual waste collected ~650,000 tonnes in 2025 (vs ~200,000 in 2022);
+    >4,000 sanitation workers across 17 LGAs; >20 heavy-duty trucks and
+    >30 collection vans (from 6 trucks at start); 4 plastic recycling
+    facilities; ASEPA IGR from <₦20m to >₦100m
+  - Gov. Otti anniversary / media briefings — >2,000 jobs created through
+    ASEPA / environmental management (Punch / TechTrends / Peoples Gazette)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-environment-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-environment-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +32,83 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+ENVIRONMENT_SLUG = "environment"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Annual waste collected": (
+        650000,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "ASEPA GM Ogbonnia Okereke (Vanguard, 30 May 2026): agency collected "
+        "about 650,000 tonnes of waste in 2025, up from about 200,000 tonnes "
+        "in 2022. Pegged to Jul 2026 as latest published full-year outturn.",
     ),
-    "Cult-related incidents": (
-        13,
+    "Emergency refuse evacuated (first 4 weeks)": (
+        80000,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Same ASEPA GM interview: within four weeks of the sanitation "
+        "emergency at inauguration, task force evacuated more than 80,000 "
+        "tonnes of abandoned refuse across Aba and Umuahia (>4,000 truckloads).",
     ),
-    "Area commands": (
-        6,
+    "LGAs with ASEPA operations": (
+        17,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "ASEPA GM: sanitation workers now operate across all 17 local "
+        "government areas (expanded from the two major towns at takeover). "
+        "Target: State Plan 17.",
     ),
-    "Functional emergency vehicles": (
+    "ASEPA sanitation workers": (
+        4000,
+        None,
+        "ASEPA GM (Vanguard, May 2026): ASEPA has over 4,000 sanitation "
+        "workers statewide, plus over 200 civil servants on regulation and "
+        "inspection. Value uses the published “over 4,000” floor.",
+    ),
+    "Jobs created through ASEPA": (
+        2000,
+        None,
+        "Gov. Alex Otti anniversary / May 2026 briefings: environmental "
+        "reforms facilitated creation of more than 2,000 jobs through ASEPA "
+        "(Punch / TechTrends / Peoples Gazette). Target: State Plan ≥2,000.",
+    ),
+    "Heavy-duty waste trucks": (
         20,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "ASEPA GM: fleet rebuilt from only six operational trucks at takeover "
+        "to over 20 heavy-duty trucks statewide (Vanguard, May 2026). Value "
+        "uses the published “over 20” floor.",
+    ),
+    "Waste collection vans": (
+        30,
+        None,
+        "Same interview: over 30 smaller collection vans now operate across "
+        "the state alongside the heavy-duty fleet.",
+    ),
+    "ASEPA annual IGR": (
+        100,
+        None,
+        "ASEPA GM: internally generated revenue increased from less than "
+        "₦20 million annually to over ₦100 million last year (Vanguard, "
+        "May 2026). Value uses the published “over ₦100m” floor.",
+    ),
+    "Plastic recycling facilities operational": (
+        4,
+        None,
+        "ASEPA GM: Abia currently has four operational plastic recycling and "
+        "conversion facilities (some supported by FBRA and partners), with "
+        "sites in Umuahia and Aba converting PET/plastics (Vanguard, May 2026).",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Urban waste collection coverage",  # house-to-house rollout mid-July 2026; no published %
+    "Markets meeting sanitation standard",
+    "Drainage desilting completed",
+    "Active erosion sites under control",
+    "Monthly flood incidents",
 ]
 
 
@@ -170,17 +181,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{ENVIRONMENT_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Environment sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    environment_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{environment_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-environment-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

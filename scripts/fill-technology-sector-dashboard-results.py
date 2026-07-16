@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Technology Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - WIOCC / Abia fibre duct groundbreaking (Oct 2025) — open-access duct
+    infrastructure underway (Abia State Government / Guardian /
+    Nigeria CommunicationsWeek). Job claims are not recorded as results.
+  - Umuahia Dedicated Internet Access / WAN flag-off (21 Mar 2025) — first
+    phase digital government connectivity for MDAs (Abia State Government)
+  - MTN Nigeria MoU — six focus areas incl. 100% broadband coverage target,
+    device scheme, digital governance/cloud, digital mall, 4G/5G in
+    Umuahia/Aba/Ohafia, digital marketplace (Punch / Exco briefing)
+  - Land documents digitised — State Plan target 5 million; no verified
+    statewide count entered until confirmed
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-technology-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-technology-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +34,57 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+TECHNOLOGY_SLUG = "technology"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Fibre duct infrastructure projects underway": (
+        1,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "Gov. Alex Otti groundbreaking for the WIOCC Abia State Duct "
+        "Infrastructure Project (Aba South, ~29 Oct 2025) — open-access "
+        "underground fibre duct for statewide broadband (Abia State "
+        "Government / Guardian / Nigeria CommunicationsWeek). Pegged to "
+        "Jul 2026 as active major connectivity project.",
     ),
-    "Cult-related incidents": (
-        13,
+    "Priority cities for 4G/5G rollout": (
+        3,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Abia–MTN MoU (Exco briefing / Punch): provision of 4G and 5G "
+        "services in Umuahia, Aba and Ohafia before year-end — three "
+        "priority cities. Target: State Plan 3.",
     ),
-    "Area commands": (
+    "Strategic digital partnership focus areas": (
         6,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "Same MTN MoU covers six areas: (1) 100% broadband coverage, "
+        "(2) civil-servant device ownership scheme, (3) digital governance "
+        "/ cloud, (4) Abia digital mall for SMEs, (5) 4G/5G in major "
+        "cities, (6) digital marketplace for e-governance and e-commerce "
+        "(Punch / Commissioner Okey Kanu briefing). Target: State Plan 6.",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "Digital government WAN projects flagged off": (
+        1,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Gov. Otti flagged off the Umuahia Dedicated Internet Access / Wide "
+        "Area Network project (21 Mar 2025) at Nnamdi Azikiwe Secretariat — "
+        "first phase of MDA digital connectivity and device rollout (Abia "
+        "State Government / “The Digital Transformation Journey Begins”).",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Land documents digitised",  # State Plan target 5m; no verified Abia count yet
+    "Broadband population coverage",  # MTN MoU targets 100%; no audited Abia % published
+    "Government services available online",  # no published census of online services
+    "Online service completion rate",
+    "Youth trained in digital skills",
+    "Startups supported by state programmes",
+    "Tech-enabled SMEs onboarded",
+    "Public Wi-Fi sites active",
 ]
 
 
@@ -170,17 +157,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{TECHNOLOGY_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Technology sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    technology_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{technology_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-technology-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Agriculture Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - Abia Ministry of Agriculture / ADDS input flag-off (~10 Jul 2026) —
+    Agbaeze / Gov. Otti: 18,634 verified farmers; 3,312 received inputs at
+    flag-off; remaining distribution via LGAs; coverage across 17 LGAs and
+    184 wards (Punch / Daily News Lead / state briefings)
+  - Presco / Abia palm oil MoU — ~USD 200m, ~14,000–14,086 ha identified,
+    ~5,000 jobs targeted (Ozuitem / Abam / Ulonna corridor)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-agriculture-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-agriculture-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +30,85 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+AGRICULTURE_SLUG = "agriculture"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Verified farmers on state database": (
+        18634,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "Abia Agricultural Dynamic Database System (ADDS) / input programme "
+        "flag-off (~10 Jul 2026): Commission for Agriculture Agbaeze and Gov. "
+        "Otti briefings report 18,634 verified farmers registered statewide "
+        "(Punch / Daily News Lead / state media).",
     ),
-    "Cult-related incidents": (
-        13,
+    "Farmers receiving improved inputs this season": (
+        18634,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Same ADDS flag-off: all 18,634 verified farmers are scheduled to "
+        "receive free improved seeds/seedlings and fertiliser this season "
+        "(3,312 at flag-off; remainder via LGA distribution). Target: State "
+        "Plan = programme cohort.",
     ),
-    "Area commands": (
-        6,
+    "Farmers receiving inputs at flag-off": (
+        3312,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "Flag-off ceremony (~10 Jul 2026): 3,312 farmers received input packs "
+        "on the day; remaining verified farmers to collect via LGAs "
+        "(Punch / Daily News Lead).",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "LGAs covered by input programme": (
+        17,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Statewide input / ADDS programme covers all 17 Abia LGAs. Target: "
+        "State Plan 17.",
+    ),
+    "Priority crop varieties supported": (
+        7,
+        None,
+        "Input package covers cassava, rice, maize, plantain, sweet potato, "
+        "pepper and tomato (plus fertilisers) — seven priority crop types "
+        "cited at flag-off briefings. Target: State Plan 7.",
+    ),
+    "Palm oil investment MoU": (
+        200,
+        None,
+        "Presco / Abia State palm oil MoU: about USD 200 million committed "
+        "private investment for large-scale plantation development "
+        "(Ozuitem / Abam / Ulonna corridor) — state and press briefings.",
+    ),
+    "Palm plantation land identified": (
+        14086,
+        None,
+        "Palm oil investment corridor: approximately 14,000–14,086 hectares "
+        "identified for plantation development under the Presco MoU "
+        "(state / press briefings).",
+    ),
+    "Jobs targeted from palm oil investment": (
+        5000,
+        None,
+        "Palm oil MoU: about 5,000 direct and indirect jobs targeted from "
+        "plantation and processing investment. Target: State Plan 5,000.",
+    ),
+    "Wards mapped in farmer registration": (
+        184,
+        None,
+        "ADDS / farmer registration rollout reported across 184 political "
+        "wards statewide (Punch coverage of programme launch). Target: "
+        "State Plan 184.",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Cassava yield",  # no reliable published Abia t/ha for this season
+    "Rice paddy yield",
+    "Maize yield",
+    "Post-harvest losses",  # SDG 12.3 framing only; no Abia % published
+    "Extension visits per farm cluster",
+    "Farmers with geo-referenced farmland",
 ]
 
 
@@ -170,17 +181,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{AGRICULTURE_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Agriculture sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    agriculture_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{agriculture_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-agriculture-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

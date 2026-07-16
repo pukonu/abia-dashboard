@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Economy & Trade Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - Abia State Q4 2025 Budget Implementation Report — independent revenue
+    (IGR) ₦66.859 bn vs ₦120.625 bn target (55.4%); cited by FIJ
+  - 2026 Appropriation — ₦1.016 tn budget; ~80% capital; IGR target ₦223.4 bn
+    (Abia State Government / Business Hallmark / Realnews)
+  - Gov. Otti May 2026 media chat / 3rd anniversary — 4,707 CofOs signed;
+    ~4 million land documents digitised (UN-Habitat); debt cut from ~₦191 bn
+    (2023) to ~₦60 bn (~70%); BudgIT fiscal ranking 17th → 4th
+    (THISDAY / New Telegraph / Peoples Gazette)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-economy-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-economy-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +32,86 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+ECONOMY_SLUG = "economy"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Annual IGR": (
+        66.86,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "Abia State Fourth Quarter Budget Implementation Report 2025: "
+        "independent revenue (IGR) year-to-date ₦66,859,046,135.25 "
+        "(~₦66.86 bn) against final budget ₦120.625 bn — 55.4% of target "
+        "(Ministry of Budget / Accountant-General; FIJ analysis). Pegged to "
+        "Jul 2026 as latest full-year published outturn. Target on indicator: "
+        "2026 IGR plan ₦223.4 bn.",
     ),
-    "Cult-related incidents": (
-        13,
+    "IGR collection vs annual target": (
+        55.4,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Same Q4 2025 Budget Implementation Report: independent revenue "
+        "performance 55.4% of the 2025 final IGR budget (₦66.86 bn / "
+        "₦120.625 bn).",
     ),
-    "Area commands": (
-        6,
+    "Certificates of Occupancy signed": (
+        4707,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "Gov. Alex Otti May 2026 media chat / 3rd-anniversary briefings: "
+        "4,707 Certificates of Occupancy signed — more than the total issued "
+        "between 1999 and 2023 (THISDAY / New Telegraph / Peoples Gazette). "
+        "Pegged to Jul 2026 as latest published cumulative stock.",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "Land documents digitised": (
+        4000000,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Same briefings: collaboration with UN-Habitat digitised about four "
+        "million land documents into the state system for verification "
+        "(THISDAY / New Telegraph). Target: State Plan 4,000,000.",
+    ),
+    "Approved annual budget": (
+        1016.23,
+        None,
+        "2026 Appropriation Bill signed into law: ₦1,016,228,072,651.99 "
+        "(~₦1.016 tn) — “Budget of Acceleration and New Possibilities” "
+        "(Abia State Government / House of Assembly).",
+    ),
+    "Capital share of budget": (
+        80,
+        None,
+        "2026 budget presentation: capital expenditure about 80% of total "
+        "outlay (~₦811.8 bn capital vs ~₦204.4 bn recurrent) — Business "
+        "Hallmark / Realnews / state briefings. Target: State Plan 80%.",
+    ),
+    "State debt stock": (
+        60,
+        None,
+        "Gov. Otti May 2026 briefing: state debt profile reduced from about "
+        "₦191 billion in 2023 to about ₦60 billion by end-2025 "
+        "(Peoples Gazette / Vanguard anniversary coverage).",
+    ),
+    "Debt reduction since 2023": (
+        70,
+        None,
+        "Anniversary / May 2026 briefings: debt burden reduced by more than "
+        "70% since 2023 (Vanguard / Peoples Gazette). Target: State Plan ≥70%.",
+    ),
+    "BudgIT fiscal transparency ranking": (
+        4,
+        None,
+        "Gov. Otti: Abia moved from 17th (2023) to 4th (2025) in budget / "
+        "fiscal transparency rankings (Peoples Gazette May 2026 media chat). "
+        "Rank scale: 1 = best. Target: State Plan 1.",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Monthly IGR",  # no clean published Jul 2026 monthly BIR figure
+    "New businesses registered",  # no published monthly CAC/state register count
+    "Jobs created",  # ASEPA ~2,000 cited under Environment; no economy-wide stock
+    "SMEs accessing formal credit",
 ]
 
 
@@ -170,17 +184,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{ECONOMY_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Economy & Trade sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    economy_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{economy_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-economy-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

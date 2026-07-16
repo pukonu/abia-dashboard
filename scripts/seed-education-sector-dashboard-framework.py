@@ -61,7 +61,7 @@ DOMAINS: list[dict] = [
             {"name": "Schools open and functional", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
             {"name": "Schools closed or non-functional", "unit": "count", "direction": "lower_is_better", "value_type": "number", "target": 0, "target_source": "State Plan"},
             {"name": "Functional schools rate", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 95, "target_source": "State Plan"},
-            {"name": "Smart schools live", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
+            {"name": "Smart schools live", "unit": "count", "direction": "higher_is_better", "value_type": "number", "target": 20, "target_source": "State Plan"},
             {"name": "Smart schools in rollout", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
             {"name": "Schools covered by annual census", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
         ],
@@ -179,68 +179,41 @@ INDICATOR_BRIEFINGS: dict[str, str] = {
     "Learners reached by smart-school programme": "Students currently benefiting from smart-school interventions.",
 }
 
-# Simple executive dashboard: briefing stats, then pie + bar from Sector Dashboard domains.
+# Executive dashboard featured widgets — aligned to indicators with published Abia figures.
 WIDGETS = [
     {
         "chart_type": "stat",
-        "title": "Executive briefing — network & people",
+        "title": "Executive briefing — network & smart schools",
         "indicator_names": [
-            "Total public primary schools",
-            "Total public secondary schools",
-            "Total teaching staff",
+            "Schools covered by annual census",
             "Smart schools live",
+            "Smart schools in rollout",
+            "Candidates sitting NECO this year",
         ],
         "span": 2,
         "position": 0,
     },
     {
         "chart_type": "stat",
-        "title": "Executive briefing — enrolment & access",
+        "title": "Executive briefing — enrolment & free education",
         "indicator_names": [
             "Total public school enrolment",
-            "Primary enrolment",
-            "Junior secondary enrolment",
-            "Out-of-school children rate",
+            "Free education beneficiaries (primary & JSS)",
+            "Adult literacy rate (15+)",
+            "NECO 5 credits incl. Eng & Maths",
         ],
         "span": 2,
         "position": 1,
-    },
-    {
-        "chart_type": "pie",
-        "title": "School network mix",
-        "indicator_names": [
-            "Total public primary schools",
-            "Total public secondary schools",
-            "Technical / vocational colleges",
-            "Smart schools live",
-        ],
-        "span": 1,
-        "position": 2,
-    },
-    {
-        "chart_type": "pie",
-        "title": "Enrolment mix",
-        "indicator_names": [
-            "Primary enrolment",
-            "Junior secondary enrolment",
-            "Senior secondary enrolment",
-        ],
-        "span": 1,
-        "position": 3,
     },
     {
         "chart_type": "bar",
         "title": "Priority coverage scores",
         "indicator_names": [
             "NECO 5 credits incl. Eng & Maths",
-            "WAEC 5 credits incl. Eng & Maths",
-            "Net primary enrolment rate",
-            "Qualified teachers",
-            "Functional schools rate",
-            "Teacher attendance rate",
+            "Adult literacy rate (15+)",
         ],
         "span": 2,
-        "position": 4,
+        "position": 2,
     },
 ]
 

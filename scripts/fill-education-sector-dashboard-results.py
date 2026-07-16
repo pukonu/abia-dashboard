@@ -4,18 +4,19 @@
 Only indicators with a clear Abia-specific (or clearly attributable) public
 figure are written. Operational counts without a published source are left blank.
 
-Reporting month: Jun 2026 (one historical record). Values are the latest
-published figures available as of that month — not necessarily measured in June.
+Reporting month: Jul 2026. Values are the latest published figures available as
+of that month — not necessarily measured in July.
 
 Primary sources:
-  - Gov. Otti media briefing (Jan 2026) / Punch / BusinessDay — public school
-    enrolment from ~117,000 to over 300,000 under free education
-  - Abia annual school census (Commissioner Kanu) — 4,150 schools, 45,151 staff
-  - NECO 2025 SSCE Internal (Premium Times / SolaceBase review) — Abia 83.31%
-    five credits incl. Eng & Maths; 11,260 candidates sat
-  - Abia State Government — 5,394 teachers recruited (first batch); 4,000 more
-    in progress (stock note only; not used as total teaching staff)
-  - SchoolRegistry NG directory estimates — literacy, PTR, net enrolment
+  - Gov. Otti media briefing (Jan 2026) / Punch / BusinessDay / Premium Times —
+    public school enrolment from ~117,000 to over 300,000 under free education
+  - Abia annual school census (Commissioner Kanu / NEMIS) — 4,150 schools
+  - NECO 2025 SSCE Internal (Premium Times / SolaceBase / CityMirror) — Abia
+    83.31% five credits incl. Eng & Maths; 11,260 sat; national 60.26%
+  - Smart school inauguration (Minister Alausa / Gov. Otti, Jul 2026) — Ogbo
+    Central Smart School, Ubakala; programme target 20 schools
+  - NBS National Literacy Survey 2010 — adult literacy English Abia 78.2% /
+    national 57.9%
 
 Usage:
   python3 scripts/fill-education-sector-dashboard-results.py          # dry run
@@ -36,9 +37,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 EDUCATION_SLUG = "education"
 THEMATIC_NAME = "Sector Dashboard"
-PERIOD_LABEL = "Jun 2026"
-# Clear any earlier mistaken quarterly fill so only Jun 2026 remains.
-CLEAR_PERIOD_LABELS = ("Jun 2026", "Q2 2026", "2026 Q2")
+PERIOD_LABEL = "Jul 2026"
+# Clear any earlier fills so only Jul 2026 remains for this thematic.
+CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026", "Q2 2026", "2026 Q2")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
@@ -46,69 +47,67 @@ FILLS: dict[str, tuple[float, float | None, str]] = {
     "Schools covered by annual census": (
         4150,
         None,
-        "Abia first statewide annual school census (Commissioner Prince Okey Kanu): "
-        "4,150 schools uploaded via NEMIS. Pegged to Jun 2026 as latest published stock.",
+        "Abia first statewide annual school census (Commissioner Prince Okey Kanu / "
+        "EXCO briefing): 4,150 schools uploaded digitally via NEMIS (exercise from "
+        "20 May 2025; first such census in 24 years). Includes public and private "
+        "participants. Pegged to Jul 2026 as latest published stock.",
+    ),
+    "Smart schools live": (
+        1,
+        None,
+        "Ogbo Central Smart School, Ipupe Ubakala (Umuahia South) inaugurated by "
+        "Federal Minister of Education Dr Tunji Alausa with Gov. Otti (Jul 2026) — "
+        "first of three senatorial-district smart schools in the July tranche. "
+        "Scored against State Plan target of 20 smart schools statewide (no Nigeria "
+        "benchmark — state programme KPI).",
+    ),
+    "Smart schools in rollout": (
+        19,
+        None,
+        "Derived from state smart-school programme: 20 planned (3 senatorial + 17 "
+        "LGAs) minus 1 live (Ubakala). Gov. Otti: remaining schools to be delivered "
+        "across LGAs after the July inauguration tranche.",
     ),
     # --- Enrolment & Access ---
     "Total public school enrolment": (
         300000,
         None,
-        "Gov. Alex Otti (Jan 2026 media briefing, Punch / BusinessDay): public primary "
-        "and secondary enrolment rose from ~117,000 to over 300,000 within one year under "
-        "free education. Pegged to Jun 2026 monthly reporting as latest published figure.",
-    ),
-    "Free education beneficiaries (primary & JSS)": (
-        300000,
-        None,
-        "Aligned with public enrolment surge attributed to free & compulsory education "
-        "in primary and junior secondary (Gov. Otti / ASUBEB). Pegged to Jun 2026.",
-    ),
-    "Net primary enrolment rate": (
-        91,
-        None,
-        "SchoolRegistry NG Abia education metrics (directory estimate): primary net "
-        "enrolment ≈ 91%. Pegged to Jun 2026 as latest published estimate.",
-    ),
-    "Net secondary enrolment rate": (
-        82,
-        None,
-        "SchoolRegistry NG Abia education metrics (directory estimate): secondary net "
-        "enrolment ≈ 82%. Pegged to Jun 2026 as latest published estimate.",
+        "Gov. Alex Otti (Jan 2026 'Governor Otti Speaks to Abians' media chat; "
+        "Punch / BusinessDay / Premium Times): public primary and secondary "
+        "enrolment rose from ~117,000 to over 300,000 within one year under free "
+        "& compulsory basic education. Pegged to Jul 2026 as latest published figure.",
     ),
     # --- Learning Outcomes ---
     "NECO 5 credits incl. Eng & Maths": (
         83.31,
         60.26,
         "NECO 2025 SSCE Internal: Abia ranked 1st nationally with 83.31% five credits "
-        "incl. English & Maths (9,381 of 11,260 candidates). National ≈ 60.26% "
-        "(Premium Times / SolaceBase review of NECO data). Pegged to Jun 2026.",
+        "incl. English & Maths (9,381 of 11,260 candidates). National = 60.26% "
+        "(NECO Registrar Prof. Wushishi; Premium Times / SolaceBase). Target: State Plan ≥75%.",
     ),
     "Candidates sitting NECO this year": (
         11260,
         1358339,
-        "NECO 2025 SSCE Internal: Abia candidates who sat = 11,260. National sat = "
-        "1,358,339 (NECO Registrar / Premium Times). Pegged to Jun 2026 reporting month.",
-    ),
-    # --- Teachers & Workforce ---
-    "Total teaching staff": (
-        45151,
-        None,
-        "Abia annual school census: 45,151 staff captured across all schools in the "
-        "census (includes private; public-only split not published). Pegged to Jun 2026. "
-        "Note: state also recruited 5,394 teachers (first batch) with 4,000 more planned.",
-    ),
-    "Pupil-teacher ratio (primary)": (
-        28,
-        None,
-        "SchoolRegistry NG Abia metrics: teacher-student ratio ≈ 1:28 (directory estimate). "
-        "Pegged to Jun 2026.",
+        "NECO 2025 SSCE Internal: Abia candidates who sat = 11,260. National sat ≈ "
+        "1,358,339 (NECO Registrar / Premium Times state table). Pegged to Jul 2026 "
+        "reporting month as latest published exam cycle.",
     ),
     # --- Equity & Inclusion ---
     "Adult literacy rate (15+)": (
-        84,
-        62,
-        "SchoolRegistry NG Abia metrics: literacy rate ≈ 84% vs national ≈ 62% "
-        "(directory estimate). Pegged to Jun 2026.",
+        78.2,
+        57.9,
+        "NBS National Literacy Survey 2010 — adult literacy in English: Abia = 78.2%; "
+        "national = 57.9%. (Any-language Abia = 81.3%.) Dated official baseline; "
+        "no newer state-disaggregated NBS adult literacy survey published. "
+        "Target: State Plan ≥90%.",
+    ),
+    # --- Finance & Programmes ---
+    "Free education beneficiaries (primary & JSS)": (
+        300000,
+        None,
+        "Aligned with public enrolment surge attributed to free & compulsory education "
+        "in primary and junior secondary (Gov. Otti / ASUBEB; fee waiver to JSS3). "
+        "Pegged to Jul 2026.",
     ),
 }
 
@@ -120,28 +119,30 @@ LEFT_BLANK = [
     "Schools open and functional",
     "Schools closed or non-functional",
     "Functional schools rate",
-    "Smart schools live",
-    "Smart schools in rollout",
     "Primary enrolment",
     "Junior secondary enrolment",
     "Senior secondary enrolment",
+    "Net primary enrolment rate",  # no official Abia NER in recent public releases
+    "Net secondary enrolment rate",
     "Gender parity index (primary)",
     "Out-of-school children rate",
     "Primary completion rate",
     "Transition rate primary to JSS",
-    "WAEC 5 credits incl. Eng & Maths",
+    "WAEC 5 credits incl. Eng & Maths",  # WAEC does not publish Abia state % publicly
     "BECE / JSCE pass rate",
     "P4 pupils meeting literacy benchmark",
     "P4 pupils meeting numeracy benchmark",
     "JAMB UTME average score (Abia candidates)",
     "Candidates sitting WAEC this year",
+    "Total teaching staff",  # census 45,151 includes private; public payroll stock unpublished
     "Primary teachers",
     "Secondary teachers",
     "Qualified teachers",
+    "Pupil-teacher ratio (primary)",
     "Pupil-teacher ratio (secondary)",
     "Teacher attendance rate",
     "Teacher vacancies",
-    "Teachers trained this month (CPD / digital)",
+    "Teachers trained this month (CPD / digital)",  # 11,000 trained is cumulative, not monthly
     "STEM subject teachers",
     "Classrooms needing major rehabilitation",
     "Schools with adequate toilets",
@@ -226,7 +227,7 @@ def main() -> int:
 
     if not apply_flag:
         print(f"\nDry run only. Re-run with --apply to write {PERIOD_LABEL} statewide results.")
-        print("Also sets Sector Dashboard thematic frequency to monthly and clears prior Q2 fills.")
+        print("Also sets Sector Dashboard thematic frequency to monthly and clears prior fills.")
         return 0
 
     env = load_env()
@@ -277,7 +278,6 @@ def main() -> int:
 
     clear_period_ids: list[str] = []
     for label in CLEAR_PERIOD_LABELS:
-        # monthly Jun + any leftover quarterly Q2
         found = sb.select(f"time_periods?select=id,label,frequency&label=eq.{q(label)}")
         for p in found or []:
             clear_period_ids.append(p["id"])
@@ -299,7 +299,7 @@ def main() -> int:
         print(f"Indicators not found in DB: {missing}")
         return 1
 
-    # Clear prior statewide results for this thematic (Jun + mistaken Q2).
+    # Clear prior statewide results for this thematic (Jun/Jul + mistaken Q2).
     cleared = 0
     for iid in all_ind_ids:
         for pid in clear_period_ids:

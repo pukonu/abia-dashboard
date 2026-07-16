@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Power Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - Gov. Otti media chat (~Mar 2026) — Geometric 141 MW (3 turbines); 125 MW
+    GE turbine identified in Netherlands → 266 MW target; 8 LGAs in Aba
+    ring-fence detached from national grid; remaining ~8 still on grid;
+    ~15 MW ABSU IPP planned; Umuahia environs need ~100 MW
+    (THISDAY / Arise / The Source)
+  - Afreximbank commissioning note — 141 MW Aba IPP; ring-fence designed for
+    nine LGAs (used only as context; LGA count follows Otti “detached” figure)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-power-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-power-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +31,73 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+POWER_SLUG = "power"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Geometric installed capacity": (
+        141,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "Gov. Alex Otti media chat (~Mar 2026): Geometric Power, Aba currently "
+        "has 141 MW installed capacity from three turbines (THISDAY / Arise / "
+        "The Source). Matches Afreximbank-backed Aba IPP commissioning figure. "
+        "Target: State Plan 266 MW after planned 125 MW addition.",
     ),
-    "Cult-related incidents": (
-        13,
+    "Geometric turbines online": (
+        3,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Same briefing: Geometric operates three turbines generating 141 MW. "
+        "Target: State Plan 4 turbines after the additional GE unit is installed.",
     ),
-    "Area commands": (
-        6,
+    "LGAs on independent / ring-fenced power": (
+        8,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "Gov. Otti (~Mar 2026): eight local governments in the Aba ring-fence "
+        "area have detached from the national grid with Geometric Power "
+        "operation (THISDAY / Arise). Afreximbank notes the ring-fence was "
+        "designed around nine LGAs — dashboard uses the governor’s published "
+        "“detached” count. Target: State Plan 17.",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "LGAs still on national grid": (
+        9,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Derived from Abia’s 17 LGAs minus the eight Otti reported as detached "
+        "from the national grid (~Mar 2026). State is concentrating on "
+        "independent power for the remaining LGAs. Target: State Plan 0.",
+    ),
+    "Additional turbine capacity identified": (
+        125,
+        None,
+        "Commissioner for Power Monday Ikechukwu / Gov. Otti: a General "
+        "Electric-built 125 MW gas turbine in the Netherlands identified for "
+        "Geometric to acquire — would raise plant capacity to 266 MW "
+        "(THISDAY / Arise / The Source). Pipeline figure, not yet installed. "
+        "Target: State Plan 125.",
+    ),
+    "Planned ABSU independent power capacity": (
+        15,
+        None,
+        "Gov. Otti media chat: about 15 MW independent power (gas turbines) "
+        "planned; Abia State University (Uturu) may detach from the national "
+        "grid when complete (THISDAY / Arise). Target: State Plan 15.",
+    ),
+    "Umuahia area power demand": (
+        100,
+        None,
+        "Gov. Otti: Umuahia and environs require about 100 MW — the planned "
+        "Geometric expansion is intended to extend independent supply there "
+        "(THISDAY / Arise).",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Geometric daily generation output",  # no published steady-state MW/day for Jul 2026
+    "Average daily supply hours",  # 24h aspirational; no audited Abia average published
+    "Gas supply availability",  # disruptions reported anecdotally; no monthly %
+    "Feeder uptime",
 ]
 
 
@@ -170,17 +170,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{POWER_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Power sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    power_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{power_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-power-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

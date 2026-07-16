@@ -57,20 +57,12 @@ SECTORS: list[dict] = [
         "sort_order": 6,
     },
     {
-        "slug": "women-affairs",
-        "name": "Women Affairs",
-        "description": "Women empowerment, child protection, gender inclusion and social welfare.",
-        "icon": "👩🏾‍🤝‍👩🏾",
-        "color": "#be185d",
-        "sort_order": 7,
-    },
-    {
         "slug": "environment",
         "name": "Environment",
         "description": "Waste management, drainage, flood control, erosion response and urban sanitation.",
         "icon": "🌿",
         "color": "#16a34a",
-        "sort_order": 8,
+        "sort_order": 7,
     },
     {
         "slug": "technology",
@@ -78,7 +70,7 @@ SECTORS: list[dict] = [
         "description": "Digital government, broadband access, startup support and public-sector innovation.",
         "icon": "💻",
         "color": "#7c3aed",
-        "sort_order": 9,
+        "sort_order": 8,
     },
     {
         "slug": "administration",
@@ -86,7 +78,7 @@ SECTORS: list[dict] = [
         "description": "Executive coordination, service delivery, procurement, citizen feedback and public-sector performance.",
         "icon": "🏛️",
         "color": "#475569",
-        "sort_order": 10,
+        "sort_order": 9,
     },
 ]
 

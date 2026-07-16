@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fill Sector Dashboard statewide results from published Abia sources.
+"""Fill Health Sector Dashboard statewide results from published sources.
 
 Only indicators with a clear Abia-specific (or clearly attributable) public
 figure are written. Monthly operational counts without a published source
@@ -7,10 +7,10 @@ are left blank.
 
 Primary sources:
   - NDHS 2023-24 Key Indicators Report (PR157) — Abia state rows
-  - Abia State Government / Governor Otti statements on PHC network
-  - ABSACA / Guardian (Jul 2025) — HIV on ART
-  - Abia Health Insurance Scheme press (2025–2026) — enrolment
-  - Peer-reviewed Abia health system description — hospital counts
+  - FMOH / NHSRII Quarterly Performance Dialogue Q1 2026 (DHIS2 / SWAp)
+  - Abia State Government / Project Ekwueme PHC & hospital statements
+  - ABSACA — HIV on ART
+  - FMOH / state briefings — ABSHIS enrolment (Jul 2026)
 
 Usage:
   python3 scripts/fill-health-sector-dashboard-results.py          # dry run
@@ -35,7 +35,6 @@ THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 
 # name → (abia_value, nigeria_value|None, notes)
-# nigeria_value is national NDHS 2023-24 where available for context.
 FILLS: dict[str, tuple[float, float | None, str]] = {
     # --- Facility Network ---
     "Total primary healthcare centres": (
@@ -43,71 +42,80 @@ FILLS: dict[str, tuple[float, float | None, str]] = {
         None,
         "Abia State Government / Gov. Otti: commitment to functionalise all 948 PHCs across the state (Project Ekwueme coverage statements).",
     ),
+    "Active / functional PHCs": (
+        136,
+        None,
+        "Jul 2026 stock: 136 active/functional PHCs. Series: Mar/Q1≈90 (Uche prior count); Apr=110 (EXCO/NAN); May=121 (Otti 3rd-anniversary scorecard); Jun≈135 (Invest Lagos 3.0, 8 Jun 2026).",
+    ),
+    "Functional health facilities rate": (
+        14.3,
+        None,
+        "Derived: 136 functional PHCs ÷ 948 total PHCs × 100. Reflects Project Ekwueme PHC functionalisation share of the registered PHC network (not all facility types).",
+    ),
     "General hospitals": (
         22,
         None,
-        "Abia State project listing: reconstruction of 7 of 22 general hospitals across the state (Factsheet / Gov. Otti project list).",
+        "Abia State / FMINO: 22 secondary healthcare centres / general hospitals across the 17 LGAs (Gov. Otti media engagement; Health Commissioner interviews).",
     ),
     "Specialist / tertiary hospitals": (
-        2,
+        3,
         None,
-        "Published Abia health-system description: 2 tertiary hospitals (plus specialist facilities under upgrade). BMC Health Economics Review / related Abia SHI studies.",
+        "State Health Commissioner / Gov. Otti: three tertiary/referral facilities — ABSUTH (Aba), Amachara Specialist Hospital (Umuahia), Umunnato Specialist Hospital (Bende) — one per senatorial district.",
     ),
-    # --- Maternal & Child Health (NDHS 2023-24 Key Indicators, Abia row) ---
+    # --- Maternal & Child Health ---
+    # Survey baselines (NDHS) for Abia vs Nigeria comparability
     "ANC 4+ contacts coverage": (
         79.1,
         52.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 12 — Abia: women with 4+ ANC visits = 79.1%. National ≈ 52%.",
+        "NDHS 2023-24 Key Indicators Report (PR157), maternal care table — Abia: women with 4+ ANC visits = 79.1%. National = 52%. Target: WHO ≥80%.",
     ),
     "Skilled birth attendance": (
-        95.2,
-        46.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 12 — Abia: live births delivered by a skilled provider = 95.2%. National ≈ 46%.",
+        90.0,
+        86.0,
+        "FMOH NHSRII / SWAp Quarterly Performance Dialogue Q1 2026 (DHIS2): Abia skilled birth attendance = 90%; national = 86%. (NDHS 2023-24 Abia survey baseline was 95.2% / national 46%.) Target: SDG 3 / state plan ≥90%.",
     ),
     "Facility-based delivery rate": (
         86.0,
         43.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 12 — Abia: live births delivered in a health facility = 86.0%. National ≈ 43%.",
+        "NDHS 2023-24 Key Indicators Report (PR157) — Abia: live births delivered in a health facility = 86.0%. National ≈ 43%.",
     ),
     "Postnatal care within 48 hours": (
         66.4,
         42.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 12 — Abia: postnatal check during the first 2 days after birth = 66.4%. National ≈ 42%.",
+        "NDHS 2023-24 Key Indicators Report (PR157) — Abia: postnatal check during the first 2 days after birth = 66.4%. National ≈ 42%. Target: WHO ≥80%.",
     ),
     "Immunization coverage (Penta-3)": (
-        79.7,
+        76.0,
         53.3,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 15 — Abia: DPT-HepB-Hib 3 (Penta-3) among children 12–23 months = 79.7%. National Penta-3 ≈ 53.3% (NCSAP citing NDHS).",
+        "FMOH NHSRII Q1 2026 scorecard: Abia Penta-3 coverage = 76% (down from 81% in Q4 2025). Nigeria column uses NDHS 2023-24 national Penta-3 ≈ 53.3% for survey context. Target: WHO ≥95%.",
     ),
     "Full immunisation coverage (12–23 months)": (
-        38.0,
-        39.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 15 — Abia: fully vaccinated against basic antigens (12–23 months) = 38.0% (small state sample n≈43). National ≈ 39%.",
+        112.0,
+        80.0,
+        "FMOH NHSRII Q1 2026 (DHIS2, NPC population denominators): Abia fully immunised coverage = 112% (admin coverage can exceed 100%); national fully immunised = 80% in Q1 2026. NDHS 2023-24 survey baseline Abia basic antigens = 38% / national 39%.",
     ),
     "Under-5 mortality rate": (
         69.0,
         110.0,
-        "NDHS 2023-24 Key Indicators Report (PR157), Table 11 — Abia under-5 mortality = 69 per 1,000 live births. National under-5 mortality cited ≈ 110 in NCSAP (NDHS 2023-24).",
+        "NDHS 2023-24 Key Indicators Report (PR157), Table 10 — Abia under-5 mortality = 69 per 1,000 live births. National under-5 = 110. Target: SDG 3.2 ≤25 per 1,000.",
     ),
     # --- Infectious disease / HIV ---
     "People living with HIV on ART": (
-        46788,
+        50879,
         None,
-        "ABSACA (Dr Uloaku Emma-Ukaegbu), reported in The Guardian, 24 Jul 2025: 46,788 persons on HIV treatment in Abia; prevalence 2.1% (2024).",
+        "ABSACA (Dr Uloaku Emma-Ukaegbu), National Ambassador reporting on Jul 2025 WDC sensitisation: 50,879 people in Abia receiving HIV treatment; prevalence 2.1% (2024). Earlier ABSACA figure (Jan/Jul 2025 press) cited 46,788.",
     ),
     # --- Finance & Access ---
     "Patients covered by state health insurance": (
-        157462,
+        225581,
         None,
-        "Abia State Health Insurance Scheme enrolment reported at 157,462 (Guardian / National Ambassador, 2026 coverage updates).",
+        "Federal Ministry of Health Quarterly Performance Dialogue briefing (reported Jul 2026): Abia State Health Insurance Scheme enrolment rose from 40,000 (Dec 2024) to 225,581 (as of Jul 2026).",
     ),
 }
 
 # Explicitly left blank (no reliable Abia monthly/public figure found):
 LEFT_BLANK = [
-    "Active / functional PHCs",  # Project Ekwueme completed ~200 but inauguration/staffing still in progress — not a clean 'active' count
-    "PHCs closed or non-functional",
-    "Functional health facilities rate",
+    "PHCs closed or non-functional",  # residual of 948−151 not equivalent to closed/non-functional
     "PHCs offering 24-hour services",
     "PHCs with reliable power",
     "PHCs with clean water on site",
@@ -119,15 +127,15 @@ LEFT_BLANK = [
     "Referrals made this month",
     "Referral completion rate",
     "Facility deliveries this month",
-    "Antenatal care (ANC) first visits",  # NDHS gives coverage %, not monthly visit counts
-    "Maternal mortality ratio",  # NDHS MMR is national, not Abia-specific in KIR
+    "Antenatal care (ANC) first visits",  # NDHS/Q1 give coverage ratios, not monthly visit counts
+    "Maternal mortality ratio",  # Q1 reports death counts (Abia=1), not MMR per 100,000
     "Stillbirth rate",
     "Low birth weight rate",
     "Malaria cases this month",
     "Malaria incidence",  # NMIS gives child prevalence, not incidence per 1,000 population
     "Malaria test positivity rate",
     "TB cases notified this month",
-    "TB treatment success rate",  # only single-facility study found, not statewide
+    "TB treatment success rate",  # only facility/hospital studies found, not statewide
     "New HIV diagnoses this month",
     "HIV viral load suppression rate",
     "Cholera / AWD cases this month",
@@ -213,7 +221,7 @@ def main() -> int:
     for name, (abia, ng, notes) in FILLS.items():
         ng_s = f", NG={ng}" if ng is not None else ""
         print(f"  ✓ {name} = {abia}{ng_s}")
-        print(f"      {notes[:100]}…")
+        print(f"      {notes[:120]}…")
     print("\nLEAVE BLANK:")
     for name in LEFT_BLANK:
         print(f"  · {name}")

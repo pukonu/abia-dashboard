@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Infrastructure Sector Dashboard statewide results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - Gov. Otti 3rd-anniversary / May 2026 media chat — 414 completed road
+    projects (864.12 km); 82 roads under construction (~212 km)
+    (Premium Times / Peoples Gazette / Guardian / Vanguard / THISDAY)
+  - Abia Green Shuttle — >226,000 passengers as at April 2026; 70 bus
+    shelters (30 Umuahia / 40 Aba); 68 operational (30 + 38); Umuahia
+    Multi-Modal Transport System completed; Aba terminal expected 2027
+    (Gazette / Punch / BusinessDay / Premium Times)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-infrastructure-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-infrastructure-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +31,77 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+INFRASTRUCTURE_SLUG = "infrastructure"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "Completed road projects": (
+        414,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "Gov. Alex Otti 3rd-anniversary / May 2026 media chat: administration "
+        "completed 414 road projects in three years (Premium Times / Peoples "
+        "Gazette / Guardian / Vanguard / THISDAY). Pegged to Jul 2026 as latest "
+        "published cumulative stock.",
     ),
-    "Cult-related incidents": (
-        13,
+    "Completed road length": (
+        864.12,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "Same briefing: completed roads measure about 864.12 kilometres, "
+        "including street lights and drainage where reported (THISDAY / "
+        "Peoples Gazette). Pegged to Jul 2026 as latest published cumulative.",
     ),
-    "Area commands": (
-        6,
+    "Road projects under construction": (
+        82,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "Gov. Otti May 2026 briefing: an additional 82 road projects currently "
+        "under construction at different stages of completion (Premium Times / "
+        "Peoples Gazette).",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "Road length under construction": (
+        212,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Same briefing: roads under construction measure about 212 kilometres "
+        "(THISDAY / Peoples Gazette / Premium Times).",
+    ),
+    "Green Shuttle passengers": (
+        226000,
+        None,
+        "Abia Green Shuttle Initiative: over 226,000 passengers transported as "
+        "at April 2026 (Gov. Otti May media chat / Peoples Gazette / Premium "
+        "Times). Cumulative since Dec 2025 launch — pegged to Jul 2026 as "
+        "latest published ridership figure.",
+    ),
+    "Bus shelters delivered": (
+        70,
+        None,
+        "State transport briefings: 70 bus shelters delivered — 30 in Umuahia "
+        "and 40 in Aba (Commissioner Okey Kanu / Punch / BusinessDay; also "
+        "cited in May 2026 anniversary briefing). Target: State Plan 70.",
+    ),
+    "Operational bus shelters": (
+        68,
+        None,
+        "Commissioner for Information briefing (Punch / BusinessDay): 30 "
+        "Umuahia shelters operational; 38 of 40 Aba shelters operational "
+        "(2 nearing completion) — 68 operational. Target: State Plan 70.",
+    ),
+    "Multi-modal terminals completed": (
+        1,
+        None,
+        "Gov. Otti May 2026: Umuahia Multi-Modal Transport System completed "
+        "and in use; Aba Terminal expected 2027 (Peoples Gazette / Premium "
+        "Times). Value = 1 of 2 planned terminals. Target: State Plan 2.",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Projects on schedule",  # no published % on-schedule for active portfolio
+    "State roads in good condition",  # no published statewide good-condition %
+    "Major corridors with street lighting",  # streetlights sustained; no corridor %
+    "Population with safe water access",  # no reliable Abia SDG 6 % for this period
 ]
 
 
@@ -170,17 +174,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{INFRASTRUCTURE_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Infrastructure sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    infrastructure_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{infrastructure_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-infrastructure-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 

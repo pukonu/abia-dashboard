@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-"""Create the Security "Sector Dashboard" thematic framework + executive dashboard.
+"""Create the Power "Sector Dashboard" thematic framework + executive dashboard.
 
-Adds a monthly, statewide thematic area under Security with executive-facing
-domains/indicators (crime, community policing, emergency response, assets,
-road safety). Values are left empty for manual entry or the fill script.
-Also creates a published sector dashboard whose widgets pull from this thematic.
-
-Does not modify the existing Public Safety / Emergency Preparedness thematic areas.
+Adds a monthly, statewide thematic area under Power with executive-facing
+domains/indicators (generation capacity, grid independence, supply reliability,
+expansion pipeline). Values are left empty for the companion fill script.
 
 Usage:
-  python3 scripts/seed-security-sector-dashboard-framework.py          # dry run
-  python3 scripts/seed-security-sector-dashboard-framework.py --apply
-  python3 scripts/seed-security-sector-dashboard-framework.py --apply --replace
+  python3 scripts/seed-power-sector-dashboard-framework.py          # dry run
+  python3 scripts/seed-power-sector-dashboard-framework.py --apply
+  python3 scripts/seed-power-sector-dashboard-framework.py --apply --replace
 """
 
 from __future__ import annotations
@@ -26,135 +23,185 @@ from pathlib import Path
 
 
 def q(value: str) -> str:
-    """Percent-encode a PostgREST filter value (spaces, en-dashes, etc.)."""
     return urllib.parse.quote(value, safe="")
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+POWER_SLUG = "power"
 THEMATIC_NAME = "Sector Dashboard"
 THEMATIC_DESCRIPTION = (
-    "Monthly executive security indicators for the sector dashboard — "
-    "crime reduction, community policing, emergency response, critical assets and road safety."
+    "Monthly executive power indicators for the sector dashboard — "
+    "Geometric generation capacity, grid independence, supply reliability and expansion pipeline."
 )
-DASHBOARD_NAME = "Security Executive Dashboard"
+DASHBOARD_NAME = "Power Executive Dashboard"
 DASHBOARD_DESCRIPTION = (
-    "Simple executive Security view from the Sector Dashboard thematic area — "
-    "briefing numbers, incident mix, and priority coverage scores."
+    "Simple executive Power view from the Sector Dashboard thematic area — "
+    "generation capacity, ring-fenced coverage, and expansion pipeline."
 )
 
 DOMAINS: list[dict] = [
     {
-        "name": "Crime Reduction",
-        "description": "Weekly/monthly crime volume and response performance.",
+        "name": "Generation Capacity",
+        "description": "Installed capacity and turbines at Geometric Power, Aba.",
         "indicators": [
-            {"name": "Violent crime incidents", "unit": "cases", "direction": "lower_is_better", "value_type": "number", "target": 40, "target_source": "State Plan"},
-            {"name": "Kidnapping cases", "unit": "cases", "direction": "lower_is_better", "value_type": "number", "target": 2, "target_source": "State Plan"},
-            {"name": "Armed robbery incidents", "unit": "cases", "direction": "lower_is_better", "value_type": "number", "target": 15, "target_source": "State Plan"},
-            {"name": "Cult-related incidents", "unit": "cases", "direction": "lower_is_better", "value_type": "number", "target": 5, "target_source": "State Plan"},
-            {"name": "Average response time", "unit": "minutes", "direction": "lower_is_better", "value_type": "number", "target": 15, "target_source": "State Plan"},
-            {"name": "Cases under investigation", "unit": "cases", "direction": "lower_is_better", "value_type": "number"},
-            {"name": "Cases charged to court this month", "unit": "cases", "direction": "higher_is_better", "value_type": "number"},
+            {
+                "name": "Geometric installed capacity",
+                "unit": "MW",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 266,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "Geometric turbines online",
+                "unit": "turbines",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 4,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "Geometric daily generation output",
+                "unit": "MW",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 141,
+                "target_source": "Plant capacity",
+            },
         ],
     },
     {
-        "name": "Community Policing",
-        "description": "Patrol tempo, vigilante coverage and community intelligence.",
+        "name": "Grid Independence",
+        "description": "LGAs on ring-fenced / independent power versus the national grid.",
         "indicators": [
-            {"name": "Vigilante/neighbourhood watch coverage", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 90, "target_source": "State Plan"},
-            {"name": "Planned patrols completed", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 95, "target_source": "State Plan"},
-            {"name": "Community security meetings held", "unit": "meetings", "direction": "higher_is_better", "value_type": "number", "target": 120, "target_source": "State Plan"},
-            {"name": "Tip-offs acted on within 24 hours", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 85, "target_source": "State Plan"},
-            {"name": "Active community watch groups", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
+            {
+                "name": "LGAs on independent / ring-fenced power",
+                "unit": "LGAs",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 17,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "LGAs still on national grid",
+                "unit": "LGAs",
+                "direction": "lower_is_better",
+                "value_type": "number",
+                "target": 0,
+                "target_source": "State Plan",
+            },
         ],
     },
     {
-        "name": "Security Network",
-        "description": "Size and disposition of the state security footprint.",
+        "name": "Supply Reliability",
+        "description": "Customer supply hours, outages and industrial reliability.",
         "indicators": [
-            {"name": "Police stations / divisions", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
-            {"name": "Area commands", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
-            {"name": "Civil Defence units", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
-            {"name": "Security personnel deployed", "unit": "persons", "direction": "higher_is_better", "value_type": "number"},
-            {"name": "LGAs with 24-hour security presence", "unit": "count", "direction": "higher_is_better", "value_type": "number", "target": 17, "target_source": "State Plan"},
+            {
+                "name": "Average daily supply hours",
+                "unit": "hours/day",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 24,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "Gas supply availability",
+                "unit": "%",
+                "direction": "higher_is_better",
+                "value_type": "percentage",
+                "target": 95,
+                "target_source": "Gas supply SLA",
+            },
+            {
+                "name": "Feeder uptime",
+                "unit": "%",
+                "direction": "higher_is_better",
+                "value_type": "percentage",
+                "target": 92,
+                "target_source": "Utility SLA",
+            },
         ],
     },
     {
-        "name": "Emergency Response",
-        "description": "Vehicles, joint operations and emergency readiness.",
+        "name": "Expansion Pipeline",
+        "description": "Additional turbines and independent power projects in progress.",
         "indicators": [
-            {"name": "Emergency readiness score", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 85, "target_source": "State Plan"},
-            {"name": "Functional emergency vehicles", "unit": "count", "direction": "higher_is_better", "value_type": "number", "target": 40, "target_source": "State Plan"},
-            {"name": "Joint security operations this month", "unit": "operations", "direction": "higher_is_better", "value_type": "number", "target": 12, "target_source": "State Plan"},
-            {"name": "Emergency calls received this month", "unit": "calls", "direction": "higher_is_better", "value_type": "number"},
-            {"name": "Emergency calls resolved within SLA", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 80, "target_source": "State Plan"},
-        ],
-    },
-    {
-        "name": "Critical Asset Protection",
-        "description": "Protection of government, economic and community assets.",
-        "indicators": [
-            {"name": "Critical assets under protection", "unit": "count", "direction": "higher_is_better", "value_type": "number", "target": 120, "target_source": "State Plan"},
-            {"name": "Asset protection coverage", "unit": "%", "direction": "higher_is_better", "value_type": "percentage", "target": 95, "target_source": "State Plan"},
-            {"name": "Asset-related incidents this month", "unit": "cases", "direction": "lower_is_better", "value_type": "number", "target": 0, "target_source": "State Plan"},
-        ],
-    },
-    {
-        "name": "Road Safety",
-        "description": "Traffic deaths, injuries and enforcement activity.",
-        "indicators": [
-            {"name": "Road traffic deaths", "unit": "deaths", "direction": "lower_is_better", "value_type": "number", "target": 5, "target_source": "SDG 3.6"},
-            {"name": "Road traffic injuries", "unit": "injuries", "direction": "lower_is_better", "value_type": "number", "target": 40, "target_source": "State Plan"},
-            {"name": "FRSC / traffic enforcement stops", "unit": "stops", "direction": "higher_is_better", "value_type": "number", "target": 800, "target_source": "State Plan"},
-            {"name": "Road checkpoints active", "unit": "count", "direction": "higher_is_better", "value_type": "number"},
+            {
+                "name": "Additional turbine capacity identified",
+                "unit": "MW",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 125,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "Planned ABSU independent power capacity",
+                "unit": "MW",
+                "direction": "higher_is_better",
+                "value_type": "number",
+                "target": 15,
+                "target_source": "State Plan",
+            },
+            {
+                "name": "Umuahia area power demand",
+                "unit": "MW",
+                "direction": "higher_is_better",
+                "value_type": "number",
+            },
         ],
     },
 ]
 
 INDICATOR_BRIEFINGS: dict[str, str] = {
-    "Violent crime incidents": "Reported violent crime cases in the reporting period.",
-    "Kidnapping cases": "Kidnapping incidents reported — keep near zero.",
-    "Armed robbery incidents": "Armed robbery cases reported across the state.",
-    "Cult-related incidents": "Cult / gang-related incidents requiring joint response.",
-    "Average response time": "Mean time from alert to first security presence on scene.",
-    "Vigilante/neighbourhood watch coverage": "Share of wards with active community watch structures.",
-    "Planned patrols completed": "Share of scheduled patrols completed as planned.",
-    "Tip-offs acted on within 24 hours": "Community tip-offs followed up within one day.",
-    "Police stations / divisions": "Police service points and divisions in the state network.",
-    "Area commands": "Major area commands coordinating multi-LGA operations.",
-    "Civil Defence units": "NSCDC / civil-defence units supporting asset and community safety.",
-    "Emergency readiness score": "Composite readiness across vehicles, protocols and joint ops.",
-    "Functional emergency vehicles": "Serviceable vehicles available for emergency response.",
-    "Joint security operations this month": "Coordinated multi-agency operations completed.",
-    "Critical assets under protection": "Priority assets with active protection arrangements.",
-    "Asset protection coverage": "Share of priority assets under protection.",
-    "Road traffic deaths": "Road traffic fatalities in the reporting month.",
+    "Geometric installed capacity": "Installed generation capacity at Geometric Power, Aba (three turbines).",
+    "Geometric turbines online": "Number of gas turbines currently operating at Geometric Power.",
+    "Geometric daily generation output": "Typical / reported daily generation output from Geometric Power.",
+    "LGAs on independent / ring-fenced power": "Local governments supplied via the Aba ring-fence / independent power (detached from national grid).",
+    "LGAs still on national grid": "Local governments still dependent on the national grid.",
+    "Average daily supply hours": "Average hours of electricity supply per day in served areas.",
+    "Gas supply availability": "Share of time gas feedstock is available to Geometric Power.",
+    "Feeder uptime": "Share of time distribution feeders are energised / available.",
+    "Additional turbine capacity identified": "Capacity of the additional GE gas turbine identified for Geometric acquisition (Netherlands).",
+    "Planned ABSU independent power capacity": "Planned gas-turbine IPP capacity associated with Abia State University / Uturu.",
+    "Umuahia area power demand": "Estimated power requirement for Umuahia and environs to extend independent supply.",
 }
 
-# Featured widgets aligned to indicators with published Abia figures.
 WIDGETS = [
     {
         "chart_type": "stat",
-        "title": "Executive briefing — caseload & network",
+        "title": "Executive briefing — generation capacity",
         "indicator_names": [
-            "Cases under investigation",
-            "Cult-related incidents",
-            "Area commands",
-            "Functional emergency vehicles",
+            "Geometric installed capacity",
+            "Geometric turbines online",
+            "Additional turbine capacity identified",
+            "Planned ABSU independent power capacity",
         ],
         "span": 2,
         "position": 0,
     },
     {
-        "chart_type": "bar",
-        "title": "Priority security scores",
+        "chart_type": "stat",
+        "title": "Executive briefing — grid independence",
         "indicator_names": [
-            "Cult-related incidents",
-            "Functional emergency vehicles",
+            "LGAs on independent / ring-fenced power",
+            "LGAs still on national grid",
+            "Umuahia area power demand",
         ],
         "span": 2,
         "position": 1,
+    },
+    {
+        "chart_type": "bar",
+        "title": "Priority coverage scores",
+        "indicator_names": [
+            "Geometric installed capacity",
+            "Geometric turbines online",
+            "LGAs on independent / ring-fenced power",
+            "Additional turbine capacity identified",
+        ],
+        "span": 2,
+        "position": 2,
     },
 ]
 
@@ -229,6 +276,8 @@ def indicator_row(domain_id: str, spec: dict) -> dict:
         "weight": 1,
         "target_value": spec.get("target"),
         "target_source": spec.get("target_source"),
+        "frequency": "monthly",
+        "is_published": True,
     }
 
 
@@ -248,9 +297,9 @@ def print_plan() -> int:
     return total
 
 
-def ensure_framework(sb: Supabase, security_id: str, replace: bool) -> tuple[dict, dict[str, str]]:
+def ensure_framework(sb: Supabase, sector_id: str, replace: bool) -> tuple[dict, dict[str, str]]:
     existing = sb.select(
-        f"thematic_areas?select=id,name&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id,name&sector_id=eq.{sector_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if existing and replace:
         print(f"  deleting existing thematic area {THEMATIC_NAME} ({existing[0]['id']})")
@@ -265,7 +314,7 @@ def ensure_framework(sb: Supabase, security_id: str, replace: bool) -> tuple[dic
             [
                 {
                     "id": thematic["id"],
-                    "sector_id": security_id,
+                    "sector_id": sector_id,
                     "name": THEMATIC_NAME,
                     "description": THEMATIC_DESCRIPTION,
                     "frequency": "monthly",
@@ -280,7 +329,7 @@ def ensure_framework(sb: Supabase, security_id: str, replace: bool) -> tuple[dic
             "thematic_areas",
             [
                 {
-                    "sector_id": security_id,
+                    "sector_id": sector_id,
                     "name": THEMATIC_NAME,
                     "description": THEMATIC_DESCRIPTION,
                     "frequency": "monthly",
@@ -309,6 +358,7 @@ def ensure_framework(sb: Supabase, security_id: str, replace: bool) -> tuple[dic
                         "name": dspec["name"],
                         "description": dspec["description"],
                         "weight": 1,
+                        "is_published": True,
                     }
                 ],
             )
@@ -343,7 +393,7 @@ def ensure_framework(sb: Supabase, security_id: str, replace: bool) -> tuple[dic
     return thematic, name_to_id
 
 
-def ensure_dashboard(sb: Supabase, security_id: str, name_to_id: dict[str, str], replace: bool) -> None:
+def ensure_dashboard(sb: Supabase, sector_id: str, name_to_id: dict[str, str], replace: bool) -> None:
     missing = []
     for w in WIDGETS:
         for n in w["indicator_names"]:
@@ -353,7 +403,7 @@ def ensure_dashboard(sb: Supabase, security_id: str, name_to_id: dict[str, str],
         raise RuntimeError(f"Widget indicators not found: {missing}")
 
     existing = sb.select(
-        f"dashboards?select=id,name&sector_id=eq.{security_id}&name=eq.{q(DASHBOARD_NAME)}"
+        f"dashboards?select=id,name&sector_id=eq.{sector_id}&name=eq.{q(DASHBOARD_NAME)}"
     )
     if existing and replace:
         print(f"  deleting dashboard {DASHBOARD_NAME} ({existing[0]['id']})")
@@ -361,7 +411,7 @@ def ensure_dashboard(sb: Supabase, security_id: str, name_to_id: dict[str, str],
         existing = []
     if existing:
         dash = existing[0]
-        print(f"  dashboard already exists: {dash['id']} (use --replace to recreate widgets)")
+        print(f"  dashboard already exists: {dash['id']} (recreating widgets)")
         sb.delete(f"dashboard_widgets?dashboard_id=eq.{dash['id']}")
         dash_id = dash["id"]
         sb.update(
@@ -375,7 +425,7 @@ def ensure_dashboard(sb: Supabase, security_id: str, name_to_id: dict[str, str],
             },
         )
     else:
-        others = sb.select(f"dashboards?select=id,sort_order&sector_id=eq.{security_id}")
+        others = sb.select(f"dashboards?select=id,sort_order&sector_id=eq.{sector_id}")
         for d in others or []:
             sb.update(
                 "dashboards",
@@ -389,7 +439,7 @@ def ensure_dashboard(sb: Supabase, security_id: str, name_to_id: dict[str, str],
                     "name": DASHBOARD_NAME,
                     "description": DASHBOARD_DESCRIPTION,
                     "scope": "sector",
-                    "sector_id": security_id,
+                    "sector_id": sector_id,
                     "published": True,
                     "sort_order": 0,
                 }
@@ -433,27 +483,20 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id,name,slug&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id,name,slug&slug=eq.{POWER_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Power sector not found")
         return 1
-    security = sectors[0]
-    print(f"\nApplying to Security ({security['id']})…\n")
+    sector = sectors[0]
+    print(f"\nApplying to Power ({sector['id']})…\n")
 
-    _, name_to_id = ensure_framework(sb, security["id"], replace=replace)
+    _, name_to_id = ensure_framework(sb, sector["id"], replace=replace)
     print(f"\nResolved {len(name_to_id)} indicators in {THEMATIC_NAME}")
     print("\nCreating executive dashboard…")
-    ensure_dashboard(sb, security["id"], name_to_id, replace=replace)
+    ensure_dashboard(sb, sector["id"], name_to_id, replace=replace)
 
-    others = sb.select(
-        f"dashboards?select=id,name&sector_id=eq.{security['id']}&name=neq.{q(DASHBOARD_NAME)}"
-    )
-    for d in others or []:
-        sb.update("dashboards", f"id=eq.{d['id']}", {"published": False})
-        print(f"  unpublished other dashboard: {d['name']}")
-
-    print("\nDone. Open /sectors/security in Live mode.")
-    print("Enter monthly results via /manage or run fill-security-sector-dashboard-results.py.")
+    print("\nDone. Open /sectors/power in Live mode.")
+    print("Enter monthly results via fill-power-sector-dashboard-results.py.")
     return 0
 
 

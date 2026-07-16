@@ -9,7 +9,6 @@ const SECTOR_ICON_URLS: Record<string, string> = {
   agriculture: "https://cdn.antly.co/icons/page-icons/tractor.svg",
   economy: "https://cdn.antly.co/icons/page-icons/economic.svg",
   administration: "https://cdn.antly.co/icons/page-icons/economic.svg",
-  "women-affairs": "https://cdn.antly.co/icons/page-icons/happy.svg",
   environment: "https://cdn.antly.co/icons/page-icons/planet-earth.svg",
   technology: "https://cdn.antly.co/icons/page-icons/technology.svg",
 };

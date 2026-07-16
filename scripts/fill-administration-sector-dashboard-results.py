@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Fill Security Sector Dashboard statewide results from published sources only.
+"""Fill Administration & Governance Sector Dashboard results from published sources only.
 
 Only indicators with a clear, attributable public figure are written. Everything
 else is left blank (and any previously written illustrative values for this
 thematic/period are cleared on --apply).
 
 Published sources reviewed (pegged to Jul 2026 monthly reporting):
-  - Abia CP Danladi Isa year-end 2025 briefing (TVC / The Journal / Punch) —
-    438 cases, 201 charged, 237 under investigation; 809 arrests
-  - Abia CP briefing Apr 2026 (Daily Post / National Ambassador) — 142 cases
-    Jan–2 Apr 2026; 13 cult-related cases investigated
-  - STER / Nigeria Galleria Abia police directories — named Area Commands
-  - Gov. Otti Hilux donation (Dec 2024) — 20 patrol vehicles to security agencies
-  - FRSC Abia — trend decline only; no state monthly fatality totals published
+  - BudgIT State of States 2025 — Abia 4th overall (from 17th in 2023);
+    No. 1 in capital project prioritisation with 77% of 2024 expenditure
+    on capital (Vanguard / BudgIT / Time.com.ng partnership visit May 2026)
+  - Gov. Otti May 2026 media chat / 3rd anniversary — salaries & pensions
+    paid regularly on the 28th; court halls across all 17 LGAs; ultra-modern
+    court complex commissioned (THISDAY / Newswatch / TechTrends)
+  - Abia State Governors and Deputy Governor Pensions (Repeal) Law 2024 —
+    abolishes pensions for former governors and deputies (TechTrends)
 
 Usage:
-  python3 scripts/fill-security-sector-dashboard-results.py          # dry run
-  python3 scripts/fill-security-sector-dashboard-results.py --apply
+  python3 scripts/fill-administration-sector-dashboard-results.py          # dry run
+  python3 scripts/fill-administration-sector-dashboard-results.py --apply
 """
 
 from __future__ import annotations
@@ -31,73 +32,75 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SECURITY_SLUG = "security"
+ADMINISTRATION_SLUG = "administration"
 THEMATIC_NAME = "Sector Dashboard"
 PERIOD_LABEL = "Jul 2026"
 CLEAR_PERIOD_LABELS = ("Jun 2026", "Jul 2026")
 
 # name → (abia_value, nigeria_value|None, notes)
 FILLS: dict[str, tuple[float, float | None, str]] = {
-    "Cases under investigation": (
-        237,
+    "BudgIT State of States ranking": (
+        4,
         None,
-        "Abia State Police Command CP Danladi Isa year-end 2025 briefing: of 438 "
-        "reported cases, 201 charged to court and 237 remain under investigation "
-        "(TVC News / The Journal / Punch). Pegged to Jul 2026 as latest published "
-        "investigation stock — no newer statewide stock figure found.",
+        "BudgIT State of States 2025: Abia ranked 4th overall nationally, "
+        "up from 17th in 2023 — first Top-5 entry (Vanguard / BudgIT; "
+        "reaffirmed during BudgIT visit May 2026). Rank scale: 1 = best. "
+        "Target: State Plan 1.",
     ),
-    "Cult-related incidents": (
-        13,
+    "BudgIT capital prioritisation ranking": (
+        1,
         None,
-        "Abia CP Danladi Isa briefing (Daily Post / National Ambassador, Apr 2026): "
-        "13 cult-related cases investigated Jan–2 Apr 2026 (23 arrests; 32 arms "
-        "recovered); 5 further cult cases under investigation. Pegged to Jul 2026 "
-        "as latest published cult caseload (period cumulative, not a single month). "
-        "Target: State Plan ≤5/month.",
+        "BudgIT 2025 report: Abia ranked No. 1 nationally on capital "
+        "project prioritisation (Vanguard State of States coverage). "
+        "Rank scale: 1 = best. Target: State Plan 1.",
     ),
-    "Area commands": (
-        6,
+    "Capital share of expenditure": (
+        77,
         None,
-        "Counted from published Abia police directories listing named Area Commands: "
-        "Umuahia, Aba, Ohafia, Isuikwuato, Isiala Ngwa (Isialangwa), and Akwete. "
-        "Sources: STER police-stations directory; Nigeria Galleria Abia police stations list.",
+        "BudgIT 2025: Abia dedicated 77% of total expenditure to capital "
+        "projects in 2024 — highest ratio in the country (Vanguard). "
+        "Distinct from the 2026 appropriation capital share (~80%). "
+        "Target: State Plan ≥80%.",
     ),
-    "Functional emergency vehicles": (
-        20,
+    "Salary and pension payment day": (
+        28,
         None,
-        "Gov. Alex Otti (Dec 2024): 20 brand-new Toyota Hilux patrol trucks donated "
-        "to security agencies (Police, Army, Navy, NSCDC, DSS) — Premium Times / "
-        "Abia State Government. Represents state-procured operational fleet addition; "
-        "total multi-agency fleet census unpublished. Target: State Plan ≥40.",
+        "Gov. Alex Otti 3rd-anniversary / May 2026 briefings: civil "
+        "servants and pensioners receive salaries and pensions regularly "
+        "on the 28th of every month (THISDAY / Newswatch). Target: State "
+        "Plan day 28.",
+    ),
+    "LGAs with court halls planned or under construction": (
+        17,
+        None,
+        "Gov. Otti May 2026: statewide programme to build court halls in "
+        "all 17 LGAs, equipped with renewable energy, digital libraries, "
+        "internet and water (THISDAY / Newswatch / TechTrends). Target: "
+        "State Plan 17.",
+    ),
+    "Ultra-modern court complexes commissioned": (
+        1,
+        None,
+        "TechTrends / anniversary coverage: an ultra-modern court complex "
+        "has already been commissioned, alongside the 17-LGA court-hall "
+        "programme.",
+    ),
+    "Former governors pension abolished": (
+        1,
+        None,
+        "Abia State Governors and Deputy Governor Pensions (Repeal) Law "
+        "2024 signed into law — abolishes pensions for former governors "
+        "and deputy governors (TechTrends). Value 1 = reform enacted. "
+        "Target: State Plan 1.",
     ),
 }
 
 LEFT_BLANK = [
-    "Violent crime incidents",  # 142 Jan–Apr 2026 is all offences, not violent-crime only
-    "Kidnapping cases",  # rescues reported; no clean monthly kidnapping case count
-    "Armed robbery incidents",
-    "Average response time",
-    "Cases charged to court this month",  # 201 charged in 2025 annual total — not monthly
-    "Vigilante/neighbourhood watch coverage",
-    "Planned patrols completed",
-    "Community security meetings held",
-    "Tip-offs acted on within 24 hours",
-    "Active community watch groups",
-    "Police stations / divisions",  # directories mix stations/posts/HQ; no official census
-    "Civil Defence units",
-    "Security personnel deployed",
-    "LGAs with 24-hour security presence",
-    "Emergency readiness score",
-    "Joint security operations this month",
-    "Emergency calls received this month",
-    "Emergency calls resolved within SLA",
-    "Critical assets under protection",
-    "Asset protection coverage",
-    "Asset-related incidents this month",
-    "Road traffic deaths",  # FRSC cites decline vs 2024 but no Abia monthly/annual total
-    "Road traffic injuries",
-    "FRSC / traffic enforcement stops",
-    "Road checkpoints active",
+    "Citizen complaints resolved within SLA",  # Citizens Engagement Centre cited; no published %
+    "Average complaint resolution time",
+    "Executive decisions implemented on time",
+    "Procurement milestones published",  # e-procurement gaps noted by BudgIT; no Abia %
+    "Priority projects with current status updates",
 ]
 
 
@@ -170,17 +173,17 @@ def main() -> int:
         return 1
 
     sb = Supabase(url, key)
-    sectors = sb.select(f"sectors?select=id&slug=eq.{SECURITY_SLUG}")
+    sectors = sb.select(f"sectors?select=id&slug=eq.{ADMINISTRATION_SLUG}")
     if not sectors:
-        print("Security sector not found")
+        print("Administration & Governance sector not found")
         return 1
-    security_id = sectors[0]["id"]
+    administration_id = sectors[0]["id"]
     tas = sb.select(
-        f"thematic_areas?select=id&sector_id=eq.{security_id}&name=eq.{q(THEMATIC_NAME)}"
+        f"thematic_areas?select=id&sector_id=eq.{administration_id}&name=eq.{q(THEMATIC_NAME)}"
     )
     if not tas:
         print(f"Thematic area not found: {THEMATIC_NAME}")
-        print("Run seed-security-sector-dashboard-framework.py --apply first.")
+        print("Run seed-administration-sector-dashboard-framework.py --apply first.")
         return 1
     ta_id = tas[0]["id"]
 
