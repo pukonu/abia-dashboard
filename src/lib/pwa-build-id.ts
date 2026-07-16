@@ -17,7 +17,7 @@ function incrementStamp(stamp: string): string {
   const digits = stamp.replace(/\D/g, "");
   if (digits.length !== 14) return formatViteBuildStamp();
   // BigInt avoids Number precision issues on 14-digit values.
-  return (BigInt(digits) + 1n).toString().padStart(14, "0");
+  return (BigInt(digits) + BigInt(1)).toString().padStart(14, "0");
 }
 
 /**
