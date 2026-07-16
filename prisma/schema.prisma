@@ -63,6 +63,15 @@ enum DashboardChartType {
   @@map("dashboard_chart_type")
 }
 
+enum ManageRole {
+  super_admin
+  data_analyst
+  mda_admin
+  guest
+
+  @@map("manage_role")
+}
+
 model Sector {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug          String         @unique
@@ -102,9 +111,34 @@ model Mda {
   sector       Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
   entities     Entity[]
   responsibleIndicators Indicator[]
+  userAssignments     ManageUserMda[]
 
   @@unique([sectorId, name])
   @@map("mdas")
+}
+
+/// Management role for a Supabase Auth user. The referenced auth.users row is
+/// maintained by Supabase, so this model intentionally has no Prisma relation.
+model ManageUserRole {
+  userId    String     @id @map("user_id") @db.Uuid
+  role      ManageRole @default(guest)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("manage_user_roles")
+}
+
+/// MDA assignments restrict MDA Admins, and optionally Data Analysts, to
+/// results attributable to the listed MDAs.
+model ManageUserMda {
+  userId    String   @map("user_id") @db.Uuid
+  mdaId     String   @map("mda_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  mda       Mda      @relation(fields: [mdaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mdaId])
+  @@index([mdaId], map: "idx_manage_user_mdas_mda_id")
+  @@map("manage_user_mdas")
 }
 
 model Entity {
@@ -335,6 +369,9 @@ model PwaReleaseConfig {
   forceReinstall  Boolean   @default(false) @map("force_reinstall")
   /// Optional operator message shown in the update UI.
   message         String?
+  /// Block every client with a custom operator/maintenance message.
+  maintenanceActive Boolean  @default(false) @map("maintenance_active")
+  maintenanceMessage String? @map("maintenance_message")
   effectiveAt     DateTime  @default(now()) @map("effective_at") @db.Timestamptz
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 

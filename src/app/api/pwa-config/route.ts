@@ -22,6 +22,8 @@ const EMPTY = {
   forceReload: false,
   forceReinstall: false,
   message: null as string | null,
+  maintenanceActive: false,
+  maintenanceMessage: null as string | null,
   effectiveAt: null as string | null,
 };
 
@@ -64,7 +66,7 @@ export async function GET() {
     const { data, error } = await admin
       .from("pwa_release_config")
       .select(
-        "min_client_build, latest_build, force_reload, force_reinstall, message, effective_at"
+        "min_client_build, latest_build, force_reload, force_reinstall, message, maintenance_active, maintenance_message, effective_at"
       )
       .eq("id", "default")
       .maybeSingle();
@@ -92,6 +94,8 @@ export async function GET() {
         forceReload: Boolean(data?.force_reload),
         forceReinstall: Boolean(data?.force_reinstall),
         message: data?.message ?? null,
+        maintenanceActive: Boolean(data?.maintenance_active),
+        maintenanceMessage: data?.maintenance_message ?? null,
         effectiveAt,
       },
       { headers: { ...CORS_HEADERS, "Cache-Control": "no-store" } }

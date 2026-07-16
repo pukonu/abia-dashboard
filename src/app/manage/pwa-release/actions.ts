@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase-admin";
-import { getServerUser } from "@/lib/supabase-auth";
 import { nextAutoBuildId } from "@/lib/pwa-build-id";
+import { requireSuperAdmin } from "@/lib/manage-access";
 
 function isRedirectError(err: unknown): boolean {
   return (
@@ -21,8 +21,7 @@ function cleanBuild(raw: FormDataEntryValue | null): string | null {
 }
 
 export async function savePwaReleaseConfig(formData: FormData) {
-  const user = await getServerUser();
-  if (!user) redirect("/login?next=/manage/pwa-release");
+  await requireSuperAdmin("/manage/pwa-release");
 
   const admin = getAdminClient();
   if (!admin) {
@@ -60,8 +59,7 @@ export async function savePwaReleaseConfig(formData: FormData) {
  * and require clients to reload. No manual build ID needed.
  */
 export async function publishAutoPwaUpdate(formData: FormData) {
-  const user = await getServerUser();
-  if (!user) redirect("/login?next=/manage/pwa-release");
+  await requireSuperAdmin("/manage/pwa-release");
 
   const admin = getAdminClient();
   if (!admin) {
@@ -112,8 +110,7 @@ export async function publishAutoPwaUpdate(formData: FormData) {
 
 /** Convenience: require reload for anyone below the latest build stamp. */
 export async function forceReloadToLatest() {
-  const user = await getServerUser();
-  if (!user) redirect("/login?next=/manage/pwa-release");
+  await requireSuperAdmin("/manage/pwa-release");
 
   const admin = getAdminClient();
   if (!admin) {
@@ -166,8 +163,7 @@ export async function forceReloadToLatest() {
 }
 
 export async function clearForceFlags() {
-  const user = await getServerUser();
-  if (!user) redirect("/login?next=/manage/pwa-release");
+  await requireSuperAdmin("/manage/pwa-release");
 
   const admin = getAdminClient();
   if (!admin) {
@@ -191,4 +187,40 @@ export async function clearForceFlags() {
   }
 
   redirect("/manage/pwa-release?msg=" + encodeURIComponent("Force flags cleared."));
+}
+
+export async function saveMaintenanceGate(formData: FormData) {
+  await requireSuperAdmin("/manage/pwa-release");
+  const admin = getAdminClient();
+  if (!admin) {
+    redirect(
+      "/manage/pwa-release?err=" + encodeURIComponent("Service role is not configured.")
+    );
+  }
+
+  const active = formData.get("maintenance_active") === "on";
+  const message = cleanBuild(formData.get("maintenance_message"));
+  if (active && !message) {
+    redirect(
+      "/manage/pwa-release?err=" +
+        encodeURIComponent("Add the message users should see before enabling maintenance mode.")
+    );
+  }
+
+  const { error } = await admin
+    .from("pwa_release_config")
+    .upsert(
+      {
+        id: "default",
+        maintenance_active: active,
+        maintenance_message: active ? message : null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+  if (error) redirect("/manage/pwa-release?err=" + encodeURIComponent(error.message));
+  redirect(
+    "/manage/pwa-release?msg=" +
+      encodeURIComponent(active ? "Maintenance mode enabled." : "Maintenance mode disabled.")
+  );
 }

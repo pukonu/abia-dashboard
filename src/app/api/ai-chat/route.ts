@@ -4,9 +4,41 @@ import { loadDashboardData } from "@/lib/datasource";
 
 export const runtime = "nodejs";
 
+const PWA_ORIGIN = (process.env.NEXT_PUBLIC_PWA_URL || "https://pwa-dashboard.abiaworkspace.com").replace(/\/$/, "");
+const LOCAL_PWA_ORIGINS = (process.env.PWA_LOCAL_ORIGINS || process.env.PWA_LOCAL_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+function corsHeaders(req: NextRequest): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const isLanPwa = Boolean(origin && /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/.test(origin));
+  const isLocalPwa =
+    process.env.NODE_ENV !== "production" &&
+    Boolean(
+      origin &&
+        (LOCAL_PWA_ORIGINS.includes(origin) ||
+          /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin) ||
+          isLanPwa)
+    );
+
+  if (!origin || (origin !== PWA_ORIGIN && !isLocalPwa)) return {};
+
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
+
+function json(req: NextRequest, body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: corsHeaders(req) });
 }
 
 function cleanMessages(value: unknown): ChatMessage[] {
@@ -32,28 +64,26 @@ function geminiText(data: unknown): string {
   return candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
 }
 
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+}
+
 export async function POST(req: NextRequest) {
   const data = await loadDashboardData();
   if (data.mode !== "live") {
-    return NextResponse.json(
-      { error: "The AI assistant is only available in Live mode." },
-      { status: 403 }
-    );
+    return json(req, { error: "The AI assistant is only available in Live mode." }, 403);
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY is not configured in the web app environment." },
-      { status: 503 }
-    );
+    return json(req, { error: "GEMINI_API_KEY is not configured in the web app environment." }, 503);
   }
 
   const body = await req.json().catch(() => null);
   const messages = cleanMessages(body?.messages);
   const question = latestUserQuestion(messages);
   if (!question) {
-    return NextResponse.json({ error: "Ask a question first." }, { status: 400 });
+    return json(req, { error: "Ask a question first." }, 400);
   }
 
   const model = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
@@ -99,19 +129,16 @@ export async function POST(req: NextRequest) {
 
   if (!res.ok) {
     const message = await res.text();
-    return NextResponse.json(
-      { error: `Gemini request failed for ${model}: ${message}` },
-      { status: 502 }
-    );
+    return json(req, { error: `Gemini request failed for ${model}: ${message}` }, 502);
   }
 
   const result = await res.json();
   const answer = geminiText(result);
   if (!answer) {
-    return NextResponse.json({ error: "Gemini returned an empty answer." }, { status: 502 });
+    return json(req, { error: "Gemini returned an empty answer." }, 502);
   }
 
-  return NextResponse.json({
+  return json(req, {
     answer,
     model,
     topics: context.selectedTopics,

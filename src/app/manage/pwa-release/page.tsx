@@ -7,6 +7,7 @@ import {
   clearForceFlags,
   forceReloadToLatest,
   publishAutoPwaUpdate,
+  saveMaintenanceGate,
   savePwaReleaseConfig,
 } from "./actions";
 
@@ -18,6 +19,8 @@ type ConfigRow = {
   force_reload: boolean;
   force_reinstall: boolean;
   message: string | null;
+  maintenance_active: boolean;
+  maintenance_message: string | null;
   effective_at: string | null;
   updated_at: string | null;
 };
@@ -39,7 +42,7 @@ export default async function ManagePwaReleasePage({
     const { data, error } = await admin
       .from("pwa_release_config")
       .select(
-        "min_client_build, latest_build, force_reload, force_reinstall, message, effective_at, updated_at"
+        "min_client_build, latest_build, force_reload, force_reinstall, message, maintenance_active, maintenance_message, effective_at, updated_at"
       )
       .eq("id", "default")
       .maybeSingle();
@@ -69,6 +72,49 @@ export default async function ManagePwaReleasePage({
         <div className="card card-pad text-sm text-red-800">{loadError}</div>
       ) : (
         <>
+          <form
+            action={saveMaintenanceGate}
+            className="card card-pad mb-6 space-y-4 border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/20"
+          >
+            <div>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                App-wide maintenance message
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                When enabled, every PWA user sees only this message on opening or returning to the app.
+              </p>
+            </div>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium text-zinc-800 dark:text-zinc-200">
+                Message
+              </span>
+              <textarea
+                name="maintenance_message"
+                rows={3}
+                defaultValue={row?.maintenance_message ?? ""}
+                placeholder="e.g. Scheduled maintenance until 5 PM WAT."
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="maintenance_active"
+                  defaultChecked={row?.maintenance_active ?? false}
+                  className="rounded border-zinc-300"
+                />
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">Block the app</span>
+              </label>
+              <button
+                type="submit"
+                className="rounded-md bg-red-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-red-600"
+              >
+                Save maintenance message
+              </button>
+            </div>
+          </form>
+
           <div className="card card-pad mb-6 space-y-4 border-orange-200 bg-orange-50/60 dark:border-orange-900/40 dark:bg-orange-950/20">
             <div>
               <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
