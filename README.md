@@ -151,6 +151,8 @@ check:rollups` runs the roll-up regression checks.
 LGA scores are the weighted mean of the LGA returns and facility roll-ups
 measured in each LGA.
 
+**LGA map.** The LGAs page shows a map of Abia's 17 LGAs coloured by composite score; select an LGA to open its dashboard (LGA pages show a locator). Boundaries are bundled from geoBoundaries (CC BY 4.0) in `src/lib/abia-lga-geo.ts`; `src/lib/lga-map.ts` (shared with the PWA and native app) projects them and matches names to the dashboard's LGAs.
+
 ## Tech stack
 
 - Next.js 16 with App Router

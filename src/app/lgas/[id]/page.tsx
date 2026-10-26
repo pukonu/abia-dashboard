@@ -2,6 +2,7 @@ import { MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ScoreRadarChart } from "@/components/charts";
 import CustomDashboards from "@/components/dashboard/CustomDashboards";
+import LgaMap from "@/components/LgaMap";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -59,6 +60,14 @@ export default async function LgaPage({
       />
 
       <section className="card card-pad flex flex-wrap items-center gap-6">
+        <div className="w-32 shrink-0 sm:w-40">
+          <LgaMap
+            lgas={data.lgas}
+            scores={Object.fromEntries(c.lgaScores.map((l) => [l.lga.id, l.score]))}
+            selectedId={lga.id}
+            compact
+          />
+        </div>
         <ScoreRing score={lgaComputed?.score ?? null} size={116} />
         <div>
           <div className="text-sm font-semibold text-zinc-900">LGA composite score</div>

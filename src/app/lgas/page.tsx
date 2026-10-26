@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LgaMap from "@/components/LgaMap";
 import { DeltaTag, ScoreBadge, ScoreBar } from "@/components/score";
 import { CardList, PageHeader, RowLink } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
@@ -26,6 +27,14 @@ export default async function LgasPage({
         title="Local Government Areas"
         subtitle="Composite scores for all 17 LGAs, from LGA returns and facility records rolled up to each LGA."
       />
+
+      {/* Map: select an LGA to open its dashboard */}
+      <div className="card card-pad mb-4">
+        <LgaMap
+          lgas={data.lgas}
+          scores={Object.fromEntries(c.lgaScores.map((l) => [l.lga.id, l.score]))}
+        />
+      </div>
 
       {/* Zone filter */}
       <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
