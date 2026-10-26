@@ -1,5 +1,6 @@
 import type { Computed } from "./scoring";
 import type { DashboardData, Sector } from "./types";
+import { isFacilityCollected, reportsAtState } from "./indicator-collection";
 
 const MIX_COLORS = ["#14683c", "#2563eb", "#e11d48", "#d97706", "#7c3aed", "#0891b2"];
 
@@ -78,7 +79,7 @@ export function stateExecutiveStats(data: DashboardData, c: Computed): Executive
 export function abiaFootprintStats(data: DashboardData): ExecutiveStat[] {
   // Statewide / sector roll-up indicators only — not facility-level entity readings.
   const sectorIndicatorCount = data.indicators.filter(
-    (indicator) => indicator.indicator_scope !== "entity"
+    (indicator) => reportsAtState(indicator)
   ).length;
 
   const counts = new Map<string, number>();
@@ -129,7 +130,7 @@ export function sectorIndicatorMix(data: DashboardData): MixSlice[] {
   const counts = new Map<string, number>();
 
   for (const indicator of data.indicators) {
-    if (indicator.indicator_scope === "entity") continue;
+    if (isFacilityCollected(indicator)) continue;
     const domain = domainById.get(indicator.domain_id);
     const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
     if (!thematic) continue;
@@ -151,12 +152,12 @@ export function sectorExecutiveStats(data: DashboardData, c: Computed, sector: S
   const mdaIds = new Set(mdas.map((mda) => mda.id));
   const entities = data.entities.filter((entity) => mdaIds.has(entity.mda_id));
   const stateIndicators = c.indicators.filter(
-    (item) => item.sector.id === sector.id && item.indicator.indicator_scope !== "entity"
+    (item) => item.sector.id === sector.id && item.reportsAtState
   );
   const entityIndicators = data.indicators.filter((indicator) => {
     const domain = data.domains.find((d) => d.id === indicator.domain_id);
     const thematic = domain ? data.thematicAreas.find((t) => t.id === domain.thematic_area_id) : null;
-    return thematic?.sector_id === sector.id && indicator.indicator_scope === "entity";
+    return thematic?.sector_id === sector.id && isFacilityCollected(indicator);
   });
   const bestThematic = data.thematicAreas
     .filter((thematic) => thematic.sector_id === sector.id)

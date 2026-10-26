@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadDashboardData } from "@/lib/datasource";
+import { collectedAt } from "@/lib/indicator-collection";
 import { formatScoreOptionsText } from "@/lib/indicator-input";
 
 function csvCell(v: string | number | null | undefined): string {
@@ -13,10 +14,18 @@ function csvCell(v: string | number | null | undefined): string {
  * (and optionally nigeria_value / target_value / notes) and upload the
  * file back on /manage/results.
  *
- * ?scope=entities adds one row per measured entity in the indicator's sector.
+ * One template per collection level:
+ *   ?scope=state     statewide indicators (default)
+ *   ?scope=lgas      LGA-collected indicators, one row per LGA
+ *   ?scope=entities  facility-collected indicators, one row per facility in
+ *                    the indicator's sector
+ * Statewide overrides of LGA/facility indicators go in the state template
+ * with an override_note.
  */
 export async function GET(req: NextRequest) {
-  const scope = req.nextUrl.searchParams.get("scope") === "entities" ? "entities" : "state";
+  const raw = req.nextUrl.searchParams.get("scope");
+  const scope = raw === "entities" ? "entities" : raw === "lgas" ? "lgas" : "state";
+  const level = scope === "entities" ? "facility" : scope === "lgas" ? "lga" : "state";
   const data = await loadDashboardData();
 
   const domainById = new Map(data.domains.map((d) => [d.id, d]));
@@ -35,14 +44,13 @@ export async function GET(req: NextRequest) {
   const header = [
     "indicator_id", "indicator_name", "value_type", "score_options", "unit", "direction", "sector",
     "time_period_id", "period_label",
-    "entity_id", "entity_name", "lga",
-    "abia_value", "nigeria_value", "target_value", "notes",
+    "entity_id", "entity_name", "lga_id", "lga",
+    "abia_value", "nigeria_value", "target_value", "notes", "override_note",
   ];
   const lines: string[] = [header.join(",")];
 
   for (const ind of data.indicators) {
-    if (scope === "state" && ind.indicator_scope === "entity") continue;
-    if (scope === "entities" && ind.indicator_scope !== "entity") continue;
+    if (collectedAt(ind) !== level) continue;
     const domain = domainById.get(ind.domain_id);
     const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
     const sector = thematic ? sectorById.get(thematic.sector_id) : undefined;
@@ -55,14 +63,22 @@ export async function GET(req: NextRequest) {
     ];
 
     if (scope === "state") {
-      lines.push([...base, "", "(whole state)", "", "", "", ind.target_value ?? "", ""].map(csvCell).join(","));
+      lines.push([...base, "", "(whole state)", "", "", "", "", ind.target_value ?? "", "", ""].map(csvCell).join(","));
+    } else if (scope === "lgas") {
+      for (const lga of data.lgas) {
+        lines.push(
+          [...base, "", "", lga.id, lga.name, "", "", ind.lga_target_value ?? ind.target_value ?? "", "", ""]
+            .map(csvCell)
+            .join(",")
+        );
+      }
     } else {
       const sectorEntities = data.entities.filter(
         (e) => mdaById.get(e.mda_id)?.sector_id === sector.id
       );
       for (const ent of sectorEntities) {
         lines.push(
-          [...base, ent.id, ent.name, lgaById.get(ent.lga_id)?.name ?? "", "", "", ind.target_value ?? "", ""]
+          [...base, ent.id, ent.name, ent.lga_id, lgaById.get(ent.lga_id)?.name ?? "", "", "", ind.facility_target_value ?? ind.target_value ?? "", "", ""]
             .map(csvCell)
             .join(",")
         );

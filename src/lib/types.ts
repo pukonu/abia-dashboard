@@ -1,6 +1,15 @@
 export type Frequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 export type Direction = "higher_is_better" | "lower_is_better";
 export type IndicatorScope = "state" | "entity";
+/** Where an indicator's data is collected. */
+export type CollectedAt = "state" | "lga" | "facility";
+/**
+ * How LGA or facility records combine into LGA and statewide figures.
+ * `none` keeps a facility indicator out of the statewide score entirely.
+ */
+export type RollupMethod = "sum" | "count" | "average" | "weighted_average" | "max" | "min" | "none";
+/** Comparison a record must pass to be counted by a `count` roll-up. */
+export type CountOperator = "gte" | "gt" | "eq" | "lte" | "lt";
 export type IndicatorValueType = "score" | "percentage" | "number";
 
 export interface IndicatorScoreOption {
@@ -70,9 +79,22 @@ export interface Domain {
 export interface Indicator {
   id: string;
   domain_id: string;
-  indicator_scope: IndicatorScope;
-  /** for entity indicators: the state-level indicator they roll up into */
+  /** Legacy: derived from collected_at (facility → entity) for older clients. */
+  indicator_scope?: IndicatorScope;
+  /** Legacy: always null since collection levels replaced linked indicators. */
   state_indicator_id?: string | null;
+  /** Where this indicator's data is collected; defaults to state. */
+  collected_at?: CollectedAt;
+  /** How LGA/facility records combine; ignored for state-collected indicators. */
+  rollup_method?: RollupMethod;
+  count_operator?: CountOperator | null;
+  count_threshold?: number | null;
+  /** Score-option values that qualify for a `count` roll-up (e.g. Yes = 100). */
+  count_values?: number[] | null;
+  /** Per-LGA target; when unset, sum/count targets scale by LGA population. */
+  lga_target_value?: number | null;
+  /** Per-facility target; when unset, the state target (rates) or none (sum/count). */
+  facility_target_value?: number | null;
   name: string;
   description?: string | null;
   value_type: IndicatorValueType;
@@ -105,11 +127,18 @@ export interface Result {
   id: string;
   indicator_id: string;
   time_period_id: string;
-  entity_id: string | null; // null = state-level result
+  entity_id: string | null; // null = statewide or LGA result
+  /** set for LGA returns (entity_id is then null) */
+  lga_id?: string | null;
   abia_value: number;
   nigeria_value: number | null;
   target_value: number | null; // period override; falls back to indicator.target_value
   notes?: string | null;
+  /** who last entered the value (name or email) */
+  entered_by?: string | null;
+  /** why a statewide value overrides an LGA/facility roll-up */
+  override_note?: string | null;
+  updated_at?: string | null;
 }
 
 export interface ResultEvidence {

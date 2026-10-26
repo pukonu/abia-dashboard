@@ -2,6 +2,7 @@ import { abiaFootprintStats, sectorIndicatorMix } from "./executive-insights";
 import { computeDashboard, delta, fmt, fmtValue, ratingFor, type Computed } from "./scoring";
 import { isSectorDashboardThematic, sectorDashboardThematic } from "./sector-dashboard";
 import type { DashboardData, ThematicArea } from "./types";
+import { isFacilityCollected, reportsAtState } from "./indicator-collection";
 
 /**
  * Lookup priority for the AI assistant:
@@ -159,7 +160,7 @@ function mapIndicatorRow(item: Computed["indicators"][number]) {
     hasData: item.latest != null,
     sourceLayer: isSectorDashboardThematic(item.thematicArea)
       ? ("sector_dashboard" as const)
-      : item.indicator.indicator_scope === "entity"
+      : item.collectedAt === "facility"
         ? ("entity" as const)
         : ("statewide_other" as const),
   };
@@ -170,7 +171,7 @@ function stateOverviewTool(data: DashboardData) {
   const dashboardIds = sectorDashboardIds(data);
   const sdIndicators = c.indicators.filter(
     (item) =>
-      item.indicator.indicator_scope !== "entity" && isSectorDashboardIndicator(item, dashboardIds)
+      item.reportsAtState && isSectorDashboardIndicator(item, dashboardIds)
   );
   const filled = sdIndicators.filter((item) => item.latest != null);
   return {
@@ -222,7 +223,7 @@ function sectorDashboardTool(data: DashboardData) {
         .filter(
           (item) =>
             item.sector.id === sector.id &&
-            item.indicator.indicator_scope !== "entity" &&
+            item.reportsAtState &&
             isSectorDashboardIndicator(item, dashboardIds)
         )
         .map(mapIndicatorRow);
@@ -274,7 +275,7 @@ function sectorsTool(data: DashboardData) {
     const sdIndicators = c.indicators.filter(
       (item) =>
         item.sector.id === sector.id &&
-        item.indicator.indicator_scope !== "entity" &&
+        item.reportsAtState &&
         isSectorDashboardIndicator(item, dashboardIds)
     );
     const sdFilled = sdIndicators.filter((item) => item.latest != null);
@@ -344,7 +345,7 @@ function lgasTool(data: DashboardData) {
 function indicatorsTool(data: DashboardData) {
   const c = computeDashboard(data);
   const dashboardIds = sectorDashboardIds(data);
-  const stateIndicators = c.indicators.filter((item) => item.indicator.indicator_scope !== "entity");
+  const stateIndicators = c.indicators.filter((item) => item.reportsAtState);
 
   const sectorDashboard = stateIndicators.filter((item) =>
     isSectorDashboardIndicator(item, dashboardIds)
@@ -411,18 +412,18 @@ function dataQualityTool(data: DashboardData) {
   const c = computeDashboard(data);
   const dashboardIds = sectorDashboardIds(data);
   const stateIndicatorIds = new Set(
-    data.indicators.filter((indicator) => indicator.indicator_scope !== "entity").map((i) => i.id)
+    data.indicators.filter((indicator) => reportsAtState(indicator)).map((i) => i.id)
   );
   const entityIndicatorIds = new Set(
-    data.indicators.filter((indicator) => indicator.indicator_scope === "entity").map((i) => i.id)
+    data.indicators.filter((indicator) => isFacilityCollected(indicator)).map((i) => i.id)
   );
   const sdIndicators = c.indicators.filter(
     (item) =>
-      item.indicator.indicator_scope !== "entity" && isSectorDashboardIndicator(item, dashboardIds)
+      item.reportsAtState && isSectorDashboardIndicator(item, dashboardIds)
   );
   const otherStatewide = c.indicators.filter(
     (item) =>
-      item.indicator.indicator_scope !== "entity" && !isSectorDashboardIndicator(item, dashboardIds)
+      item.reportsAtState && !isSectorDashboardIndicator(item, dashboardIds)
   );
 
   return {

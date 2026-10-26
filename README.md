@@ -108,13 +108,48 @@ Indicators are normalized against target values:
   `100 * target / value`
 
 Roll-ups are weighted means across indicators, domains and thematic areas.
+Missing indicators are skipped (not counted as zero) and shown in neutral
+grey as "Not yet reported".
 
-Current rating bands:
+Rating bands:
 
-- `>= 85` Excellent
-- `>= 70` Good
-- `>= 50` Fair
-- `< 50` Poor
+- `>= 95` Excellent
+- `>= 70` Meets expectation
+- `>= 50` Close
+- `< 50` Off track
+
+### Indicator collection levels
+
+Each indicator says where its data is collected (Manage → Indicators):
+
+| Collected at | Entry | Statewide figure |
+| --- | --- | --- |
+| **State** | one statewide value per period | the entered value |
+| **LGA** | one return per LGA per period | rolled up from the LGA returns |
+| **Facility** | one record per facility per period | rolled up from the facility records (via LGAs) |
+
+LGA and facility indicators choose a **roll-up method**: Average,
+Population-weighted average (LGA values weighted by LGA population), Sum,
+Count (records meeting a condition — a threshold or qualifying score
+values), Ceil (highest), Floor (lowest), or Don't roll up (facility/LGA
+pages only). Sum and Count targets scale to LGAs by population unless an
+LGA target is set; facility scores use the facility target (or the
+statewide target for rates).
+
+**Manual overrides.** A statewide value entered for an LGA- or
+facility-collected indicator overrides the roll-up for its period and must
+carry a reason. The roll-up is still computed and shown alongside. Apps
+badge overridden figures, and PDF reports and slides mark them `†` with
+who entered them, when and why (`*` marks rolled-up figures). Clear an
+override from Manage → Results → Active overrides.
+
+Roll-ups are computed when dashboards load (`src/lib/scoring.ts`, shared
+with the PWA and native app via `indicator-collection.ts`), so changing an
+indicator's level, method or targets takes effect immediately. `yarn
+check:rollups` runs the roll-up regression checks.
+
+LGA scores are the weighted mean of the LGA returns and facility roll-ups
+measured in each LGA.
 
 ## Tech stack
 

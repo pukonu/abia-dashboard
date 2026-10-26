@@ -1,9 +1,9 @@
 "use client";
 
-import { Building2, Check, ChevronLeft, Landmark, Paperclip } from "lucide-react";
+import { Building2, Check, ChevronLeft, Landmark, MapPin, Paperclip } from "lucide-react";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { inputClass } from "@/components/forms";
-import type { IndicatorScoreOption, IndicatorValueType } from "@/lib/types";
+import type { CollectedAt, IndicatorScoreOption, IndicatorValueType } from "@/lib/types";
 
 export interface WizardSector {
   id: string;
@@ -24,12 +24,23 @@ export interface WizardEntity {
   detail: string;
 }
 
+export interface WizardLga {
+  id: string;
+  name: string;
+  zone: string;
+}
+
 export interface WizardIndicator {
   id: string;
   domainId: string;
   name: string;
   unit: string;
-  scope: "state" | "entity";
+  /** where values are captured: statewide, per LGA or per facility */
+  collectedAt: CollectedAt;
+  /** LGA/facility indicators that roll up can take a statewide override */
+  rollsUp: boolean;
+  /** e.g. "Rolled up (average) from facility records" */
+  rollupHint: string;
   valueType: IndicatorValueType;
   scoreOptions: IndicatorScoreOption[];
   targetLabel: string;
@@ -58,6 +69,8 @@ export interface WizardExistingResult {
   indicatorId: string;
   timePeriodId: string;
   entityId: string | null;
+  lgaId: string | null;
+  overrideNote: string | null;
   abiaValue: number;
   nigeriaValue: number | null;
   notes: string | null;
@@ -68,7 +81,16 @@ type RowSaveAction = (
   formData: FormData
 ) => Promise<{ ok: true; uploaded: number } | { ok: false; error: string }>;
 
-const STEPS = ["Sector & MDA", "Entity", "Data"] as const;
+const STEPS = ["Sector & MDA", "Who", "Data"] as const;
+
+/** Wizard target encoding: "" statewide · "lga:<id>" an LGA return · otherwise a facility id. */
+const LGA_PREFIX = "lga:";
+
+function targetLocation(target: string): { entityId: string | null; lgaId: string | null } {
+  if (!target) return { entityId: null, lgaId: null };
+  if (target.startsWith(LGA_PREFIX)) return { entityId: null, lgaId: target.slice(LGA_PREFIX.length) };
+  return { entityId: target, lgaId: null };
+}
 
 const numericCompare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
@@ -119,6 +141,7 @@ export default function ResultWizard({
   sectors,
   mdas,
   entities,
+  lgas,
   indicators,
   domains,
   thematicAreas,
@@ -130,6 +153,7 @@ export default function ResultWizard({
   sectors: WizardSector[];
   mdas: WizardMda[];
   entities: WizardEntity[];
+  lgas: WizardLga[];
   indicators: WizardIndicator[];
   domains: WizardDomain[];
   thematicAreas: WizardThematicArea[];
@@ -141,7 +165,7 @@ export default function ResultWizard({
   const [step, setStep] = useState(0);
   const [sectorId, setSectorId] = useState<string | null>(null);
   const [mdaId, setMdaId] = useState<string | null>(null);
-  /** null = not chosen yet; "" = statewide; otherwise entity id */
+  /** null = not chosen yet; "" = statewide; "lga:<id>" = LGA return; otherwise entity id */
   const [entityId, setEntityId] = useState<string | null>(null);
   const [periodId, setPeriodId] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -153,6 +177,13 @@ export default function ResultWizard({
   const mda = mdas.find((m) => m.id === mdaId) ?? null;
   const entity = entities.find((e) => e.id === entityId) ?? null;
   const statewide = entityId === "";
+  const lgaTarget = entityId?.startsWith(LGA_PREFIX)
+    ? (lgas.find((l) => `${LGA_PREFIX}${l.id}` === entityId) ?? null)
+    : null;
+  const targetLevel: CollectedAt | null =
+    entityId == null ? null : statewide ? "state" : lgaTarget ? "lga" : "facility";
+  /** a statewide row on an LGA/facility indicator is an override */
+  const isOverride = (i: WizardIndicator) => statewide && i.collectedAt !== "state";
 
   const sectorMdas = useMemo(
     () => mdas.filter((m) => m.sectorId === sectorId).sort((a, b) => numericCompare(a.name, b.name)),
@@ -163,10 +194,14 @@ export default function ResultWizard({
     [entities, mdaId]
   );
 
-  /** Domains of the chosen sector, with their indicators for the chosen scope. */
+  /**
+   * Domains of the chosen sector, with the indicators collected at the chosen
+   * level. Statewide also lists roll-up indicators, entered as overrides.
+   */
   const grid = useMemo(() => {
-    if (sectorId == null || entityId == null) return [];
-    const scope = statewide ? "state" : "entity";
+    if (sectorId == null || entityId == null || targetLevel == null) return [];
+    const belongs = (i: WizardIndicator) =>
+      i.collectedAt === targetLevel || (targetLevel === "state" && i.rollsUp);
     const sectorThematicIds = new Set(thematicAreas.filter((t) => t.sectorId === sectorId).map((t) => t.id));
     const thematicById = new Map(thematicAreas.map((t) => [t.id, t]));
 
@@ -177,11 +212,14 @@ export default function ResultWizard({
         domain: d,
         thematic: thematicById.get(d.thematicAreaId),
         indicators: indicators
-          .filter((i) => i.domainId === d.id && i.scope === scope)
-          .sort((a, b) => numericCompare(a.name, b.name)),
+          .filter((i) => i.domainId === d.id && belongs(i))
+          // statewide figures first, then overrides of rolled-up indicators
+          .sort((a, b) =>
+            Number(a.collectedAt !== "state") - Number(b.collectedAt !== "state") || numericCompare(a.name, b.name)
+          ),
       }))
       .filter((g) => g.indicators.length > 0);
-  }, [domains, indicators, thematicAreas, sectorId, entityId, statewide]);
+  }, [domains, indicators, thematicAreas, sectorId, entityId, targetLevel]);
 
   const gridIndicatorCount = grid.reduce((n, g) => n + g.indicators.length, 0);
 
@@ -191,6 +229,8 @@ export default function ResultWizard({
     !query || `${i.name} ${g.domain.name}`.toLowerCase().includes(query);
   const visibleCount = grid.reduce((n, g) => n + g.indicators.filter((i) => matches(g, i)).length, 0);
   const existingResultKey = entityId === "" ? "__state__" : entityId ?? "__unset__";
+  const resultKey = (result: WizardExistingResult) =>
+    result.entityId ?? (result.lgaId ? `${LGA_PREFIX}${result.lgaId}` : "__state__");
   const existingResultByIndicator = useMemo(
     () =>
       new Map(
@@ -198,7 +238,7 @@ export default function ResultWizard({
           .filter(
             (result) =>
               result.timePeriodId === periodId &&
-              (result.entityId ?? "__state__") === existingResultKey
+              resultKey(result) === existingResultKey
           )
           .map((result) => [result.indicatorId, result] as const)
       ),
@@ -214,7 +254,7 @@ export default function ResultWizard({
 
   const summary = [
     mda ? (mda.abbreviation || mda.name) : sector?.name,
-    entityId == null ? null : statewide ? "Statewide" : entity?.name,
+    entityId == null ? null : statewide ? "Statewide" : lgaTarget ? `${lgaTarget.name} LGA` : entity?.name,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -316,9 +356,10 @@ export default function ResultWizard({
           <div>
             <h3 className="mb-1 text-sm font-semibold text-zinc-900">Who is this data for?</h3>
             <p className="mb-4 text-xs text-zinc-500">
-              Report statewide figures, or pick one of {mda?.abbreviation || mda?.name}&apos;s entities.
+              Report statewide figures, an LGA&apos;s return, or one of {mda?.abbreviation || mda?.name}&apos;s
+              facilities. Each shows only the indicators collected at that level.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={() => {
@@ -335,18 +376,49 @@ export default function ResultWizard({
                 </span>
                 <span>
                   <span className="block text-sm font-semibold text-zinc-900">Statewide</span>
-                  <span className="mt-0.5 block text-xs text-zinc-500">State-level indicator results for Abia as a whole</span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    Statewide figures, plus overrides for indicators normally rolled up from LGAs or facilities
+                  </span>
                 </span>
               </button>
+              <div className={`rounded-xl border p-4 ${lgaTarget ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200"}`}>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+                    <MapPin className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-zinc-900">An LGA return</div>
+                    <select
+                      value={lgaTarget ? `${LGA_PREFIX}${lgaTarget.id}` : ""}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setEntityId(e.target.value);
+                          resetRows();
+                          setStep(2);
+                        }
+                      }}
+                      className={`${inputClass} mt-2`}
+                    >
+                      <option value="">Select an LGA…</option>
+                      {lgas.map((l) => (
+                        <option key={l.id} value={`${LGA_PREFIX}${l.id}`}>
+                          {l.name}
+                          {l.zone ? ` — ${l.zone}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
               <div className={`rounded-xl border p-4 ${entity ? "border-zinc-950 ring-1 ring-zinc-950" : "border-zinc-200"}`}>
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
                     <Building2 className="h-4 w-4 text-zinc-600" strokeWidth={1.5} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-zinc-900">A specific entity</div>
+                    <div className="text-sm font-semibold text-zinc-900">A facility</div>
                     <select
-                      value={entityId ?? ""}
+                      value={entity ? entity.id : ""}
                       onChange={(e) => {
                         if (e.target.value) {
                           setEntityId(e.target.value);
@@ -357,7 +429,7 @@ export default function ResultWizard({
                       className={`${inputClass} mt-2`}
                     >
                       <option value="">
-                        {mdaEntities.length === 0 ? "No entities under this MDA" : "Select an entity…"}
+                        {mdaEntities.length === 0 ? "No facilities under this MDA" : "Select a facility…"}
                       </option>
                       {mdaEntities.map((e) => (
                         <option key={e.id} value={e.id}>
@@ -383,7 +455,7 @@ export default function ResultWizard({
                   {statewide ? (
                     "the whole state"
                   ) : (
-                    <span className="text-red-600">{entity?.name}</span>
+                    <span className="text-red-600">{lgaTarget ? `${lgaTarget.name} LGA` : entity?.name}</span>
                   )}
                 </h3>
                 <p className="mt-0.5 text-xs text-zinc-500">
@@ -417,7 +489,8 @@ export default function ResultWizard({
 
             {gridIndicatorCount === 0 ? (
               <p className="rounded-md border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500">
-                No {statewide ? "state" : "entity"}-level indicators configured for {sector?.name ?? "this sector"} yet.
+                No {statewide ? "statewide" : lgaTarget ? "LGA-collected" : "facility-collected"} indicators configured for{" "}
+                {sector?.name ?? "this sector"} yet.
               </p>
             ) : (
               <>
@@ -427,6 +500,7 @@ export default function ResultWizard({
                       key={`mobile-${g.domain.id}`}
                       group={g}
                       statewide={statewide}
+                      isOverride={isOverride}
                       isVisible={(i) => matches(g, i)}
                       filledRowIds={filledRowIds}
                       openEvidenceRowIds={openEvidenceRowIds}
@@ -455,6 +529,7 @@ export default function ResultWizard({
                       key={g.domain.id}
                       group={g}
                       statewide={statewide}
+                      isOverride={isOverride}
                       isVisible={(i) => matches(g, i)}
                       filledRowIds={filledRowIds}
                       openEvidenceRowIds={openEvidenceRowIds}
@@ -512,6 +587,7 @@ export default function ResultWizard({
 function SectionRows({
   group,
   statewide,
+  isOverride,
   isVisible,
   filledRowIds,
   openEvidenceRowIds,
@@ -524,6 +600,7 @@ function SectionRows({
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
   statewide: boolean;
+  isOverride: (i: WizardIndicator) => boolean;
   isVisible: (i: WizardIndicator) => boolean;
   filledRowIds: string[];
   openEvidenceRowIds: string[];
@@ -551,6 +628,7 @@ function SectionRows({
           key={`${i.id}:${entityId}:${timePeriodId}`}
           indicator={i}
           statewide={statewide}
+          override={isOverride(i)}
           visible={isVisible(i)}
           hasValue={filledRowIds.includes(i.id)}
           evidenceOpen={openEvidenceRowIds.includes(i.id)}
@@ -592,7 +670,9 @@ function useRowSaveState({
     const data = new FormData();
     data.set("indicator_id", indicator.id);
     data.set("time_period_id", timePeriodId);
-    data.set("entity_id", entityId);
+    const location = targetLocation(entityId);
+    data.set("entity_id", location.entityId ?? "");
+    data.set("lga_id", location.lgaId ?? "");
 
     const controls = rootRef.current.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[name]");
     for (const control of controls) {
@@ -603,6 +683,8 @@ function useRowSaveState({
           ? "nigeria_value"
           : control.name.startsWith(`notes_${indicator.id}`)
             ? "notes"
+            : control.name.startsWith(`override_${indicator.id}`)
+              ? "override_note"
             : control.name.startsWith(`evidence_caption_${indicator.id}`)
               ? "evidence_caption"
               : control.name.startsWith(`evidence_${indicator.id}`)
@@ -660,6 +742,7 @@ function useRowSaveState({
 function RowBlock({
   indicator,
   statewide,
+  override,
   visible,
   hasValue,
   evidenceOpen,
@@ -673,6 +756,7 @@ function RowBlock({
 }: {
   indicator: WizardIndicator;
   statewide: boolean;
+  override: boolean;
   visible: boolean;
   hasValue: boolean;
   evidenceOpen: boolean;
@@ -713,6 +797,7 @@ function RowBlock({
       <tr className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50/50">
         <td className="px-4 py-2 align-top">
           <div className="text-[13px] leading-snug text-zinc-800">{indicator.name}</div>
+          {override && <OverrideTag hint={indicator.rollupHint} />}
           <div className="mt-0.5 text-[11px] text-zinc-400">
             <span className={hasMetricPreviewValue(currentValue) ? "text-red-600" : undefined}>
               {formatMetricPreview(currentValue, indicator.unit)}
@@ -783,6 +868,16 @@ function RowBlock({
             onChange={markDirty}
             className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-200/80"
           />
+          {override && (
+            <input
+              type="text"
+              name={`override_${indicator.id}`}
+              placeholder="Override reason (required)"
+              defaultValue={existingResult?.overrideNote ?? ""}
+              onChange={markDirty}
+              className="mt-1.5 w-full rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm text-zinc-900 placeholder:text-amber-700/60 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200/80 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-zinc-100"
+            />
+          )}
         </td>
         <td className="px-3 py-2 align-top text-right">
           <div className="flex flex-col items-end gap-2">
@@ -859,6 +954,7 @@ function RowBlock({
 function MobileSectionCards({
   group,
   statewide,
+  isOverride,
   isVisible,
   filledRowIds,
   openEvidenceRowIds,
@@ -871,6 +967,7 @@ function MobileSectionCards({
 }: {
   group: { domain: WizardDomain; thematic?: WizardThematicArea; indicators: WizardIndicator[] };
   statewide: boolean;
+  isOverride: (i: WizardIndicator) => boolean;
   isVisible: (i: WizardIndicator) => boolean;
   filledRowIds: string[];
   openEvidenceRowIds: string[];
@@ -895,6 +992,7 @@ function MobileSectionCards({
             key={`mobile-row-${indicator.id}:${entityId}:${timePeriodId}`}
             indicator={indicator}
             statewide={statewide}
+            override={isOverride(indicator)}
             hasValue={filledRowIds.includes(indicator.id)}
             evidenceOpen={openEvidenceRowIds.includes(indicator.id)}
             onValueChange={onValueChange}
@@ -913,6 +1011,7 @@ function MobileSectionCards({
 function MobileRowCard({
   indicator,
   statewide,
+  override,
   hasValue,
   evidenceOpen,
   onValueChange,
@@ -924,6 +1023,7 @@ function MobileRowCard({
 }: {
   indicator: WizardIndicator;
   statewide: boolean;
+  override: boolean;
   hasValue: boolean;
   evidenceOpen: boolean;
   onValueChange: (indicatorId: string, hasValue: boolean) => void;
@@ -960,6 +1060,7 @@ function MobileRowCard({
     >
       <div>
         <div className="text-sm font-medium leading-snug text-zinc-900">{indicator.name}</div>
+        {override && <OverrideTag hint={indicator.rollupHint} />}
         <div className="mt-1 text-[11px] text-zinc-400">
           <span className={hasMetricPreviewValue(currentValue) ? "text-red-600" : undefined}>
             {formatMetricPreview(currentValue, indicator.unit)}
@@ -1038,6 +1139,21 @@ function MobileRowCard({
           className={`${inputClass} w-full`}
         />
       </label>
+      {override && (
+        <label className="block">
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+            Override reason (required)
+          </span>
+          <input
+            type="text"
+            name={`override_${indicator.id}`}
+            placeholder="e.g. LGA returns incomplete — figure from SMoH annual report"
+            defaultValue={existingResult?.overrideNote ?? ""}
+            onChange={markDirty}
+            className={`${inputClass} w-full border-amber-300`}
+          />
+        </label>
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
@@ -1098,6 +1214,15 @@ function MobileRowCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Marks a statewide row that overrides an LGA/facility roll-up. */
+function OverrideTag({ hint }: { hint: string }) {
+  return (
+    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-500/40">
+      Override · {hint}
     </div>
   );
 }

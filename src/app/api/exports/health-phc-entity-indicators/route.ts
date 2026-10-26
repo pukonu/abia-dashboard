@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { loadDashboardData } from "@/lib/datasource";
 import { resolveIndicatorScoreOptions } from "@/lib/indicator-input";
 import type { Indicator } from "@/lib/types";
+import { isFacilityCollected } from "@/lib/indicator-collection";
 
 function questionKey(name: string): [number, number, string] {
   const match = name.match(/^(\d+)\.(\d+)\s+/);
@@ -65,7 +66,7 @@ export async function GET() {
       domain.id,
       [...data.indicators]
         .filter(
-          (indicator) => indicator.domain_id === domain.id && indicator.indicator_scope === "entity"
+          (indicator) => indicator.domain_id === domain.id && isFacilityCollected(indicator)
         )
         .sort((a, b) => {
           const [ad, aq, an] = questionKey(a.name);

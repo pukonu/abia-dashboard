@@ -5,6 +5,7 @@ import { ActionLink, Crumbs, PageHeader } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { indicatorFrequency } from "@/lib/indicator-frequency";
 import { saveResultRow } from "../actions";
+import { reportsAtState } from "@/lib/indicator-collection";
 
 export const metadata = { title: "Sector Dashboard data" };
 
@@ -37,7 +38,7 @@ export default async function SectorDashboardDataPage({
     name: d.name,
   }));
   const entryIndicators = data.indicators
-    .filter((i) => i.indicator_scope !== "entity")
+    .filter((i) => reportsAtState(i))
     .map((i) => {
       const domain = data.domains.find((d) => d.id === i.domain_id);
       const thematic = data.thematicAreas.find((t) => t.id === domain?.thematic_area_id);

@@ -166,7 +166,7 @@ function sectorIndicatorData(
   }
 
   for (const ic of c.indicators) {
-    if (ic.sector.id !== sectorId || ic.indicator.indicator_scope === "entity") continue;
+    if (ic.sector.id !== sectorId || !ic.reportsAtState) continue;
     const frequency = indicatorFrequency(ic.indicator, ic.thematicArea);
     const editPeriods = periodsForFrequency(c.data.timePeriods, frequency);
     const series: WidgetSeriesPoint[] = [...ic.series]

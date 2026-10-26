@@ -4,7 +4,8 @@
  */
 import { join } from "node:path";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { Computed } from "./scoring";
+import { coverageLabel, describeSource } from "./indicator-collection";
+import type { Computed, IndicatorComputed } from "./scoring";
 import { delta, fmt, fmtValue, ratingFor } from "./scoring";
 import { isSectorDashboardThematic } from "./sector-dashboard";
 import type { Lga, Sector, ThematicArea } from "./types";
@@ -126,6 +127,32 @@ function Table({ cols, rows }: { cols: Col[]; rows: Array<Array<{ text: string; 
   );
 }
 
+/** Abia value with a provenance marker: † manual override, * rolled up. */
+function valueText(i: IndicatorComputed): string {
+  const text = fmtValue(i.latest?.abia ?? null, i.indicator.unit);
+  if (i.latest?.source === "override") return `${text} †`;
+  if (i.latest?.source === "rollup") return `${text} *`;
+  return text;
+}
+
+/** Footnotes explaining every overridden or rolled-up figure in a table. */
+function ProvenanceNotes({ items }: { items: IndicatorComputed[] }) {
+  const noted = items.filter((i) => i.latest && i.latest.source !== "entered");
+  if (noted.length === 0) return null;
+  return (
+    <View style={{ marginTop: 6 }}>
+      {noted.map((i) => (
+        <Text key={i.indicator.id} style={{ fontSize: 7.5, color: i.latest?.source === "override" ? "#92400e" : "#71717a", marginTop: 1.5 }}>
+          {i.latest?.source === "override" ? "†" : "*"} {i.indicator.name} ({i.latest?.period.label}): {describeSource(i.latest!)}
+          {i.latest?.source === "override" && i.latest.rollup
+            ? `. Roll-up without override: ${fmtValue(i.latest.rollup.value, i.indicator.unit)}.`
+            : ""}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 function generatedAt(): string {
   return new Date().toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
 }
@@ -142,7 +169,7 @@ function deltaText(pair: { score: number | null; prevScore: number | null }): st
 
 export function StateReport({ c }: { c: Computed }) {
   const attention = [...c.indicators]
-    .filter((i) => i.indicator.indicator_scope !== "entity")
+    .filter((i) => i.reportsAtState)
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
     .slice(0, 8);
@@ -158,7 +185,7 @@ export function StateReport({ c }: { c: Computed }) {
         <Summary
           label="Abia State Performance Index"
           score={c.stateScore.score}
-          note={`Composite of ${c.indicators.filter((i) => i.indicator.indicator_scope !== "entity").length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}.`}
+          note={`Composite of ${c.indicators.filter((i) => i.reportsAtState).length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}.`}
         />
 
         <View style={styles.section}>
@@ -216,12 +243,13 @@ export function StateReport({ c }: { c: Computed }) {
             rows={attention.map((i) => [
               { text: i.indicator.name, bold: true },
               { text: i.sector.name },
-              { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+              { text: valueText(i) },
               { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
               { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
               { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
             ])}
           />
+          <ProvenanceNotes items={attention} />
         </View>
         <Footer generatedAt={generatedAt()} />
       </Page>
@@ -233,7 +261,7 @@ export function SectorReport({ c, sector }: { c: Computed; sector: Sector }) {
   const pair = c.sectorScores.get(sector.id) ?? { score: null, prevScore: null };
   const thematics = c.data.thematicAreas.filter((t) => t.sector_id === sector.id);
   const mdas = c.mdaScores.filter((m) => m.sector.id === sector.id);
-  const indicators = c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity");
+  const indicators = c.indicators.filter((i) => i.sector.id === sector.id && i.reportsAtState);
 
   return (
     <Document title={`State of ${sector.name} — Abia State`}>
@@ -286,12 +314,13 @@ export function SectorReport({ c, sector }: { c: Computed; sector: Sector }) {
                 rows={taIndicators.map((i) => [
                   { text: i.indicator.name, bold: true },
                   { text: i.domain.name },
-                  { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+                  { text: valueText(i) },
                   { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
                   { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
                   { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
                 ])}
               />
+              <ProvenanceNotes items={taIndicators} />
             </View>
           );
         })}
@@ -315,7 +344,7 @@ export function WeeklyDigestReport({ c }: { c: Computed }) {
   );
 
   const attention = [...c.indicators]
-    .filter((i) => i.indicator.indicator_scope !== "entity")
+    .filter((i) => i.reportsAtState)
     .filter((i) => digestThematicIds.has(i.thematicArea.id))
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
@@ -338,7 +367,7 @@ export function WeeklyDigestReport({ c }: { c: Computed }) {
         <Summary
           label="Abia State Performance Index"
           score={c.stateScore.score}
-          note={`Composite of ${c.indicators.filter((i) => i.indicator.indicator_scope !== "entity").length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}. This digest details the ${digestSectors.length} sector${digestSectors.length === 1 ? "" : "s"} with a Sector Dashboard thematic area.`}
+          note={`Composite of ${c.indicators.filter((i) => i.reportsAtState).length} state indicators across ${c.data.sectors.length} sectors, scored 0–100 against WHO, SDG and State Plan targets. Change vs previous period: ${deltaText(c.stateScore)}. This digest details the ${digestSectors.length} sector${digestSectors.length === 1 ? "" : "s"} with a Sector Dashboard thematic area.`}
         />
 
         <View style={styles.section}>
@@ -396,12 +425,13 @@ export function WeeklyDigestReport({ c }: { c: Computed }) {
             rows={attention.map((i) => [
               { text: i.indicator.name, bold: true },
               { text: i.sector.name },
-              { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+              { text: valueText(i) },
               { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
               { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
               { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
             ])}
           />
+          <ProvenanceNotes items={attention} />
         </View>
         <Footer generatedAt={asOf} />
       </Page>
@@ -415,7 +445,7 @@ export function WeeklyDigestReport({ c }: { c: Computed }) {
         const indicators = c.indicators.filter(
           (i) =>
             i.sector.id === sector.id &&
-            i.indicator.indicator_scope !== "entity" &&
+            i.reportsAtState &&
             digestThematicIds.has(i.thematicArea.id)
         );
 
@@ -469,12 +499,13 @@ export function WeeklyDigestReport({ c }: { c: Computed }) {
                     rows={taIndicators.map((i) => [
                       { text: i.indicator.name, bold: true },
                       { text: i.domain.name },
-                      { text: fmtValue(i.latest?.abia ?? null, i.indicator.unit) },
+                      { text: valueText(i) },
                       { text: fmtValue(i.latest?.nigeria ?? null, i.indicator.unit) },
                       { text: fmtValue(i.latest?.target ?? null, i.indicator.unit) },
                       { text: i.score == null ? "—" : fmt(i.score, 0), color: ratingColor(i.score) },
                     ])}
                   />
+                  <ProvenanceNotes items={taIndicators} />
                 </View>
               );
             })}
@@ -502,6 +533,9 @@ export function LgaReport({ c, lga }: { c: Computed; lga: Lga }) {
   const lc = c.lgaScores.find((l) => l.lga.id === lga.id);
   const entities = c.entityScores.filter((e) => e.lga.id === lga.id);
   const rank = c.lgaScores.filter((l) => l.score != null).findIndex((l) => l.lga.id === lga.id);
+  const values = c.lgaIndicators
+    .filter((v) => v.lga.id === lga.id)
+    .sort((a, b) => a.ic.sector.sort_order - b.ic.sector.sort_order || a.ic.indicator.name.localeCompare(b.ic.indicator.name));
 
   return (
     <Document title={`State of ${lga.name} LGA — Abia State`}>
@@ -513,11 +547,31 @@ export function LgaReport({ c, lga }: { c: Computed; lga: Lga }) {
         <Summary
           label={`${lga.name} composite score`}
           score={lc?.score ?? null}
-          note={`${rank >= 0 ? `Ranked ${rank + 1} of ${c.lgaScores.filter((l) => l.score != null).length} LGAs. ` : ""}Aggregated from ${lc?.readings ?? 0} latest readings across ${entities.length} measured entities. Change vs previous period: ${lc ? deltaText(lc) : "—"}.`}
+          note={`${rank >= 0 ? `Ranked ${rank + 1} of ${c.lgaScores.filter((l) => l.score != null).length} LGAs. ` : ""}Weighted across ${lc?.readings ?? 0} indicators measured in ${lga.name} (LGA returns and facility records rolled up to the LGA). Change vs previous period: ${lc ? deltaText(lc) : "—"}.`}
         />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Measured entities in {lga.name}</Text>
+          <Text style={styles.sectionTitle}>Indicators measured in {lga.name}</Text>
+          <Table
+            cols={[
+              { label: "Indicator", width: "36%" },
+              { label: "Sector", width: "16%" },
+              { label: "Value", width: "14%", align: "right" },
+              { label: "Source", width: "22%" },
+              { label: "Score", width: "12%", align: "right" },
+            ]}
+            rows={values.map((v) => [
+              { text: v.ic.indicator.name, bold: true },
+              { text: v.ic.sector.name },
+              { text: fmtValue(v.value, v.ic.indicator.unit) },
+              { text: v.source === "lga" ? `LGA return · ${v.period.label}` : `${coverageLabel("facility", v.coverage)} · ${v.period.label}` },
+              { text: v.score == null ? "—" : fmt(v.score, 1), color: ratingColor(v.score) },
+            ])}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Measured facilities in {lga.name}</Text>
           <Table
             cols={[
               { label: "Entity", width: "38%" },

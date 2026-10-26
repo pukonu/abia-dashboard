@@ -68,6 +68,9 @@ export type Slide =
       previousLabel?: string | null;
       /** MDA accountable for reporting this indicator */
       responsibleMdaLabel?: string | null;
+      /** Where the figure came from — overrides and roll-ups are always labelled */
+      sourceKind?: "entered" | "override" | "rollup";
+      sourceNote?: string | null;
       chart?: {
         points: Array<{ label: string; Abia: number | null; Nigeria: number | null }>;
         target: number | null;
@@ -260,6 +263,7 @@ function SlideBody({ slide }: { slide: Slide }) {
             <div className="mt-3 text-sm text-zinc-500">
               {slide.periodLabel ?? `${slide.period} assessment`}
             </div>
+            <SlideSource slide={slide} />
             {slide.responsibleMdaLabel ? (
               <div className="mt-2 text-sm text-zinc-400">
                 Reported by{" "}
@@ -323,6 +327,7 @@ function SlideBody({ slide }: { slide: Slide }) {
                 </div>
               )}
               <div>{slide.periodLabel ?? `${slide.period} assessment`}</div>
+              <SlideSource slide={slide} />
               {slide.responsibleMdaLabel ? (
                 <div>
                   Reported by{" "}
@@ -481,3 +486,16 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
 
 /** @deprecated Prefer PresentationDeck — kept for existing entity imports. */
 export const EntityPresentation = PresentationDeck;
+
+/** Provenance line for rolled-up and overridden figures (plain entries stay quiet). */
+function SlideSource({ slide }: { slide: Extract<Slide, { kind: "question" }> }) {
+  if (!slide.sourceNote || slide.sourceKind === "entered") return null;
+  return (
+    <div
+      className={`mt-2 text-sm ${slide.sourceKind === "override" ? "font-semibold text-amber-300" : "text-sky-300"}`}
+    >
+      {slide.sourceKind === "override" ? "† " : ""}
+      {slide.sourceNote}
+    </div>
+  );
+}

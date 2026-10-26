@@ -32,7 +32,7 @@ export default async function OverviewPage() {
   const bottomLgas = rankedLgas.slice(-3).reverse();
 
   const attention = [...c.indicators]
-    .filter((i) => i.indicator.indicator_scope !== "entity")
+    .filter((i) => i.reportsAtState)
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
     .slice(0, 5);
@@ -214,6 +214,7 @@ export default async function OverviewPage() {
                 <div className="truncate text-sm font-medium text-zinc-900">{i.indicator.name}</div>
                 <IndicatorResultLine
                   result={i.latest?.abia ?? null}
+                  source={i.latest}
                   nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
                   target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
                   unit={i.indicator.unit}

@@ -24,6 +24,7 @@ import { sectorDashboardThematic } from "@/lib/sector-dashboard";
 import { computeDashboard, delta } from "@/lib/scoring";
 import { securityLandingInsights } from "@/lib/security-insights";
 import { getServerUser } from "@/lib/supabase-auth";
+import { isFacilityCollected, reportsAtState } from "@/lib/indicator-collection";
 
 const FREQ_LABEL: Record<string, string> = {
   daily: "Daily",
@@ -77,7 +78,7 @@ export default async function SectorPage({
         (domainsByThematic.get(ta.id) ?? []).every((dom) =>
           data.indicators
             .filter((indicator) => indicator.domain_id === dom.id)
-            .every((indicator) => indicator.indicator_scope !== "entity")
+            .every((indicator) => reportsAtState(indicator))
         )
       ),
     },
@@ -88,7 +89,7 @@ export default async function SectorPage({
       items: thematics.filter((ta) =>
         (domainsByThematic.get(ta.id) ?? []).some((dom) =>
           data.indicators.some(
-            (indicator) => indicator.domain_id === dom.id && indicator.indicator_scope === "entity"
+            (indicator) => indicator.domain_id === dom.id && isFacilityCollected(indicator)
           )
         )
       ),
@@ -126,7 +127,7 @@ export default async function SectorPage({
         indicatorCount: domains.reduce(
           (sum, domain) =>
             sum +
-            c.indicators.filter((i) => i.domain.id === domain.id && i.indicator.indicator_scope !== "entity").length,
+            c.indicators.filter((i) => i.domain.id === domain.id && i.reportsAtState).length,
           0
         ),
       };
@@ -139,7 +140,7 @@ export default async function SectorPage({
   const sectorEntityCount = lgaSectorEntities?.length ?? null;
   const sectorReadingCount =
     lgaSectorEntities?.reduce((sum, item) => sum + item.readings, 0) ??
-    c.indicators.filter((i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity").length;
+    c.indicators.filter((i) => i.sector.id === sector.id && i.reportsAtState).length;
 
   // Live sector pages show Sector Dashboard latest+trends when configured,
   // plus any published custom dashboards from the builder.
@@ -1066,7 +1067,7 @@ export default async function SectorPage({
                     (sum, domain) =>
                       sum +
                       c.indicators.filter(
-                        (i) => i.domain.id === domain.id && i.indicator.indicator_scope !== "entity"
+                        (i) => i.domain.id === domain.id && i.reportsAtState
                       ).length,
                     0
                   );
@@ -1126,7 +1127,7 @@ export default async function SectorPage({
               {effectiveThematic.domains.map((dom) => {
                 const domPair = c.domainScores.get(dom.id) ?? { score: null, prevScore: null };
                 const domIndicators = c.indicators.filter(
-                  (i) => i.domain.id === dom.id && i.indicator.indicator_scope !== "entity"
+                  (i) => i.domain.id === dom.id && i.reportsAtState
                 );
                 return (
                   <div key={dom.id} className="border-b border-zinc-100 last:border-b-0">
@@ -1148,6 +1149,7 @@ export default async function SectorPage({
                           <div className="truncate text-sm text-zinc-800">{i.indicator.name}</div>
                           <IndicatorResultLine
                             result={i.latest?.abia ?? null}
+                            source={i.latest}
                             nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
                             target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
                             unit={i.indicator.unit}

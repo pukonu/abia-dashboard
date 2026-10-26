@@ -54,7 +54,7 @@ export function buildDigestEmail(c: Computed, unsubscribeUrl: string): { subject
   });
 
   const attention = [...c.indicators]
-    .filter((i) => i.indicator.indicator_scope !== "entity")
+    .filter((i) => i.reportsAtState)
     .filter((i) => digestThematicIds.has(i.thematicArea.id))
     .filter((i) => i.score != null)
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))

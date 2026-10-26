@@ -1371,6 +1371,8 @@ export function buildDemoData(): DashboardData {
     },
   ];
 
+  applyDemoCollectionLevels(indicators, results, lgas);
+
   return {
     sectors,
     lgas,
@@ -1388,6 +1390,81 @@ export function buildDemoData(): DashboardData {
     mode: "demo",
     supabaseConfigured: false,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Collection levels in the demo                                       */
+/* ------------------------------------------------------------------ */
+
+/** Demo indicator collected as one return per LGA (population-weighted roll-up). */
+const DEMO_LGA_COLLECTED = "ind-under-5-mortality-rate";
+/** Demo facility indicator whose latest statewide figure is a manual override. */
+const DEMO_OVERRIDE = "ind-skilled-birth-attendance";
+
+/**
+ * Turns the generated dataset into a mix of collection levels so every view
+ * has something to show: facility-level indicators roll up from their
+ * facility records, one indicator is collected per LGA, and one latest
+ * statewide figure is a manual override of its roll-up.
+ */
+function applyDemoCollectionLevels(indicators: Indicator[], results: Result[], lgas: Lga[]) {
+  const facilityIds = new Set(
+    results.filter((r) => r.entity_id).map((r) => r.indicator_id)
+  );
+  const latestPeriodByIndicator = new Map<string, string>();
+  for (const r of results) {
+    if (r.entity_id || r.indicator_id !== DEMO_OVERRIDE) continue;
+    const current = latestPeriodByIndicator.get(r.indicator_id);
+    if (!current || r.time_period_id > current) latestPeriodByIndicator.set(r.indicator_id, r.time_period_id);
+  }
+
+  for (const ind of indicators) {
+    if (facilityIds.has(ind.id)) {
+      ind.collected_at = "facility";
+      ind.rollup_method = "average";
+    } else if (ind.id === DEMO_LGA_COLLECTED) {
+      ind.collected_at = "lga";
+      ind.rollup_method = "weighted_average";
+    }
+  }
+
+  const kept: Result[] = [];
+  for (const r of results) {
+    const ind = indicators.find((i) => i.id === r.indicator_id);
+    if (!ind || r.entity_id) {
+      kept.push(r);
+      continue;
+    }
+    if (ind.collected_at === "facility") {
+      // Statewide figures now come from the facility roll-up — except one override.
+      if (ind.id === DEMO_OVERRIDE && latestPeriodByIndicator.get(ind.id) === r.time_period_id) {
+        kept.push({
+          ...r,
+          entered_by: "Demo analyst",
+          override_note: "LGA returns incomplete — figure from the 2026 household survey",
+          updated_at: "2026-07-03T10:00:00Z",
+        });
+      }
+      continue;
+    }
+    if (ind.collected_at === "lga") {
+      // One return per LGA, spread around the generated statewide figure.
+      for (const lga of lgas) {
+        const perf = 1 + lgaBias(lga.name) + noise(`${ind.id}:${r.time_period_id}:${lga.id}`) * 0.05;
+        const value = ind.direction === "higher_is_better" ? r.abia_value * perf : r.abia_value / Math.max(perf, 0.5);
+        kept.push({
+          ...r,
+          id: `${r.id}-${lga.id}`,
+          lga_id: lga.id,
+          abia_value: clampValue(value, ind.unit),
+          nigeria_value: null,
+        });
+      }
+      continue;
+    }
+    kept.push(r);
+  }
+  results.splice(0, results.length, ...kept);
 }
 
 let cached: DashboardData | null = null;

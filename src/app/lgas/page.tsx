@@ -24,7 +24,7 @@ export default async function LgasPage({
     <>
       <PageHeader
         title="Local Government Areas"
-        subtitle="Composite scores for all 17 LGAs, aggregated from the latest results of every measured entity located in each LGA."
+        subtitle="Composite scores for all 17 LGAs, from LGA returns and facility records rolled up to each LGA."
       />
 
       {/* Zone filter */}
@@ -57,7 +57,7 @@ export default async function LgasPage({
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-zinc-900">{l.lga.name}</div>
                   <div className="mt-0.5 text-xs text-zinc-500">
-                    {l.lga.zone} · {l.entityIds.length} entit{l.entityIds.length === 1 ? "y" : "ies"} · {l.readings} readings
+                    {l.lga.zone} · {l.readings} indicator{l.readings === 1 ? "" : "s"} · {l.entityIds.length} facilit{l.entityIds.length === 1 ? "y" : "ies"}
                   </div>
                 </div>
               </div>

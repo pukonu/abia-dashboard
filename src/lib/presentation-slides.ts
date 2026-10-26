@@ -11,6 +11,7 @@ import {
   type IndicatorFreshness,
 } from "@/lib/time-period";
 import type { DashboardData, Direction, Sector } from "@/lib/types";
+import { describeSource } from "./indicator-collection";
 
 function periodLabel(asOf: string): string {
   if (!asOf) return "Latest reporting period";
@@ -119,6 +120,8 @@ function buildQuestionSlide(
 
   return {
     kind: "question",
+    sourceKind: item.latest?.source ?? "entered",
+    sourceNote: item.latest ? describeSource(item.latest) : null,
     domainLabel: item.domain.name,
     code,
     question: item.indicator.name,
@@ -158,7 +161,7 @@ function buildQuestionSlide(
 export function buildOverviewSlides(data: DashboardData, c: Computed): Slide[] {
   const asOf = asOfFromComputed(c);
   const period = periodLabel(asOf);
-  const stateIndicators = c.indicators.filter((i) => i.indicator.indicator_scope !== "entity");
+  const stateIndicators = c.indicators.filter((i) => i.reportsAtState);
   const rankedLgas = c.lgaScores.filter((l) => l.score != null);
   const topLgas = rankedLgas.slice(0, 3);
   const bottomLgas = rankedLgas.slice(-3).reverse();
@@ -253,7 +256,7 @@ export function buildSectorSlides(data: DashboardData, c: Computed, sector: Sect
     .filter(
       (i) =>
         i.sector.id === sector.id &&
-        i.indicator.indicator_scope !== "entity" &&
+        i.reportsAtState &&
         isSectorDashboardThematic(i.thematicArea)
     )
     .sort((a, b) => a.indicator.name.localeCompare(b.indicator.name, undefined, { numeric: true }));

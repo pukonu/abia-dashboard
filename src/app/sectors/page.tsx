@@ -35,7 +35,7 @@ export default async function SectorsPage() {
           const mdas = data.mdas.filter((m) => m.sector_id === s.id);
           const thematics = data.thematicAreas.filter((t) => t.sector_id === s.id);
           const indicatorCount = c.indicators.filter(
-            (i) => i.sector.id === s.id && i.indicator.indicator_scope !== "entity"
+            (i) => i.sector.id === s.id && i.reportsAtState
           ).length;
           return (
             <Link key={s.id} href={`/sectors/${s.slug}`} className="card card-pad group transition-shadow hover:shadow-md">

@@ -1,4 +1,4 @@
-import type { Computed, EntityComputed, ScorePair } from "./scoring";
+import type { Computed, EntityComputed, LgaIndicatorValue, ScorePair } from "./scoring";
 import { weightedMean } from "./scoring";
 import type { DashboardData, Lga, Mda, Sector } from "./types";
 
@@ -11,11 +11,17 @@ export interface LgaSectorMda {
   entityCount: number;
 }
 
+/** Latest values of the sector's LGA- and facility-collected indicators in one LGA. */
+export function sectorIndicatorsForLga(c: Computed, sector: Sector, lga: Lga): LgaIndicatorValue[] {
+  return c.lgaIndicators.filter((v) => v.lga.id === lga.id && v.ic.sector.id === sector.id);
+}
+
+/** A sector's score inside an LGA: its LGA returns and facility roll-ups there. */
 export function sectorPairForLga(c: Computed, sector: Sector, lga: Lga): ScorePair {
-  const entities = c.entityScores.filter((item) => item.sector.id === sector.id && item.lga.id === lga.id);
+  const values = sectorIndicatorsForLga(c, sector, lga);
   return {
-    score: weightedMean(entities.map((item) => ({ score: item.score, weight: 1 }))),
-    prevScore: weightedMean(entities.map((item) => ({ score: item.prevScore, weight: 1 }))),
+    score: weightedMean(values.map((v) => ({ score: v.score, weight: v.ic.indicator.weight }))),
+    prevScore: weightedMean(values.map((v) => ({ score: v.prevScore, weight: v.ic.indicator.weight }))),
   };
 }
 

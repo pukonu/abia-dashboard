@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { fmtValue } from "@/lib/scoring";
+import { SourceBadge } from "@/components/provenance";
+import { fmtValue, type SeriesPoint } from "@/lib/scoring";
 
 type Value = number | string | null | undefined;
 
@@ -18,6 +19,7 @@ export function IndicatorResultLine({
   resultLabel = "Result",
   prefix,
   className = "",
+  source,
 }: {
   result: Value;
   nigeria: Value;
@@ -27,6 +29,8 @@ export function IndicatorResultLine({
   resultLabel?: string;
   prefix?: ReactNode;
   className?: string;
+  /** latest statewide point — shows a Rolled up / Override pill next to the result */
+  source?: SeriesPoint | null;
 }) {
   const targetText = formatIndicatorMetric(target, unit);
   const targetSuffix =
@@ -37,6 +41,12 @@ export function IndicatorResultLine({
       {prefix ? <span>{prefix}</span> : null}
       <span>
         {resultLabel} <strong className="text-zinc-700">{formatIndicatorMetric(result, unit)}</strong>
+        {source ? (
+          <>
+            {" "}
+            <SourceBadge point={source} />
+          </>
+        ) : null}
       </span>
       <span>
         Nigeria <strong className="text-zinc-700">{formatIndicatorMetric(nigeria, unit)}</strong>

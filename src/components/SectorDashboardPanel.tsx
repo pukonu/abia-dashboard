@@ -39,7 +39,7 @@ export default function SectorDashboardPanel({
     .filter(
       (i) =>
         i.sector.id === sector.id &&
-        i.indicator.indicator_scope !== "entity" &&
+        i.reportsAtState &&
         isSectorDashboardThematic(i.thematicArea)
     )
     .sort((a, b) => a.indicator.name.localeCompare(b.indicator.name, undefined, { numeric: true }));

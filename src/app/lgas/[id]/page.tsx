@@ -6,7 +6,9 @@ import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { ActionLink, CardList, Crumbs, EmptyState, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
 import { sectorNigeriaScore } from "@/lib/benchmark-comparisons";
-import { computeDashboard, delta } from "@/lib/scoring";
+import { coverageLabel } from "@/lib/indicator-collection";
+import { sectorPairForLga } from "@/lib/lga-sector-context";
+import { computeDashboard, delta, fmtValue } from "@/lib/scoring";
 
 export default async function LgaPage({
   params,
@@ -23,15 +25,18 @@ export default async function LgaPage({
   const rank = c.lgaScores.filter((l) => l.score != null).findIndex((l) => l.lga.id === lga.id);
   const entities = c.entityScores.filter((e) => e.lga.id === lga.id);
 
+  // LGA returns and facility roll-ups measured in this LGA
+  const lgaValues = c.lgaIndicators
+    .filter((v) => v.lga.id === lga.id)
+    .sort((a, b) => a.ic.sector.sort_order - b.ic.sector.sort_order || a.ic.indicator.name.localeCompare(b.ic.indicator.name));
+
   // Per-sector composite within this LGA
   const sectorBreakdown = data.sectors
-    .map((s) => {
-      const items = entities.filter((e) => e.sector.id === s.id && e.score != null);
-      const score = items.length
-        ? items.reduce((sum, e) => sum + (e.score ?? 0), 0) / items.length
-        : null;
-      return { sector: s, score, count: items.length };
-    })
+    .map((s) => ({
+      sector: s,
+      score: sectorPairForLga(c, s, lga).score,
+      count: lgaValues.filter((v) => v.ic.sector.id === s.id).length,
+    }))
     .filter((x) => x.count > 0);
 
   return (
@@ -45,7 +50,7 @@ export default async function LgaPage({
           </span>
         }
         title={lga.name}
-        subtitle={`Population ≈ ${lga.population.toLocaleString()} · ${entities.length} measured entit${entities.length === 1 ? "y" : "ies"}`}
+        subtitle={`Population ≈ ${lga.population.toLocaleString()} · ${lgaValues.length} indicator${lgaValues.length === 1 ? "" : "s"} measured · ${entities.length} facilit${entities.length === 1 ? "y" : "ies"}`}
         actions={
           <ActionLink href={`/api/reports/lga/${lga.id}`} primary>
             LGA report (PDF)
@@ -67,7 +72,8 @@ export default async function LgaPage({
             {rank >= 0
               ? `Ranked ${rank + 1} of ${c.lgaScores.filter((l) => l.score != null).length} LGAs, `
               : ""}
-            aggregated from {lgaComputed?.readings ?? 0} latest entity-level indicator readings.
+            weighted across {lgaComputed?.readings ?? 0} indicator{lgaComputed?.readings === 1 ? "" : "s"} measured here — LGA
+            returns and facility records rolled up to {lga.name}.
           </p>
         </div>
       </section>
@@ -105,7 +111,7 @@ export default async function LgaPage({
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-zinc-800">{sector.name}</div>
                       <div className="text-xs text-zinc-500">
-                        {count} measured entit{count === 1 ? "y" : "ies"} in {lga.name}
+                        {count} indicator{count === 1 ? "" : "s"} measured in {lga.name}
                       </div>
                     </div>
                   </div>
@@ -121,7 +127,34 @@ export default async function LgaPage({
         </>
       )}
 
-      <SectionTitle>Measured entities</SectionTitle>
+      <SectionTitle hint="LGA returns and facility roll-ups, latest period">Indicators measured in {lga.name}</SectionTitle>
+      {lgaValues.length === 0 ? (
+        <EmptyState>
+          No LGA-level data for {lga.name} yet. Indicators collected per LGA or per facility appear here once their
+          returns are recorded.
+        </EmptyState>
+      ) : (
+        <CardList>
+          {lgaValues.map((v) => (
+            <RowLink
+              key={v.ic.indicator.id}
+              href={`/indicators/${v.ic.indicator.id}`}
+              left={
+                <>
+                  <div className="truncate text-sm font-medium text-zinc-900">{v.ic.indicator.name}</div>
+                  <div className="mt-0.5 truncate text-xs text-zinc-500">
+                    {v.ic.sector.name} · {fmtValue(v.value, v.ic.indicator.unit)} · {v.period.label} ·{" "}
+                    {v.source === "lga" ? "LGA return" : `from ${coverageLabel("facility", v.coverage)}`}
+                  </div>
+                </>
+              }
+              right={<ScoreBadge score={v.score} />}
+            />
+          ))}
+        </CardList>
+      )}
+
+      <SectionTitle>Measured facilities</SectionTitle>
       {entities.length === 0 ? (
         <EmptyState>
           No measured entities in {lga.name} yet. Add entities under an MDA (with this LGA) and record

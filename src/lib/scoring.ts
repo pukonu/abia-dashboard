@@ -1,4 +1,5 @@
 import type {
+  CollectedAt,
   DashboardData,
   Direction,
   Domain,
@@ -7,10 +8,21 @@ import type {
   Lga,
   Mda,
   Result,
+  RollupMethod,
   Sector,
   ThematicArea,
   TimePeriod,
 } from "./types";
+import {
+  collectedAt,
+  combineValues,
+  isAdditiveMethod,
+  meetsCountCondition,
+  rollupMethod,
+  type Coverage,
+  type RollupSummary,
+  type ValueSource,
+} from "./indicator-collection";
 import { indicatorFrequency } from "./indicator-frequency";
 import { isIndicatorPublic } from "./visibility";
 
@@ -54,10 +66,11 @@ export interface RatingBand {
 export function ratingFor(score: number | null): RatingBand {
   if (score == null)
     return {
-      label: "No data",
-      color: "#ef4444",
-      textClass: "text-red-800 dark:text-red-300",
-      bgClass: "border border-red-300 bg-red-50 dark:border-red-500/50 dark:bg-red-950/60",
+      // Neutral, not red: missing data is a reporting gap, not poor performance.
+      label: "Not yet reported",
+      color: "#a1a1aa",
+      textClass: "text-zinc-600 dark:text-zinc-300",
+      bgClass: "border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800",
     };
   if (score >= 95)
     return {
@@ -125,14 +138,28 @@ export function benchmarkScore(
 
 /* ------------------------------------------------------------------ */
 /* Computed model                                                      */
+/*                                                                     */
+/* Indicators are collected at the state, LGA or facility level (see   */
+/* indicator-collection.ts). LGA and facility records roll up into     */
+/* per-LGA values and a statewide value using each indicator's roll-up */
+/* method; a statewide result on an LGA- or facility-collected         */
+/* indicator is a manual override and always wins for its period.      */
 /* ------------------------------------------------------------------ */
 
 export interface SeriesPoint {
   period: TimePeriod;
+  /** the statewide value used for scoring (entered, override or roll-up) */
   abia: number;
   nigeria: number | null;
   target: number | null;
   score: number | null;
+  /** where the statewide value came from */
+  source: ValueSource;
+  /** the LGA/facility roll-up for this period — kept even when an override wins */
+  rollup: RollupSummary | null;
+  enteredBy: string | null;
+  updatedAt: string | null;
+  overrideNote: string | null;
 }
 
 export interface IndicatorComputed {
@@ -140,12 +167,33 @@ export interface IndicatorComputed {
   domain: Domain;
   thematicArea: ThematicArea;
   sector: Sector;
-  /** state-level results in chronological order */
+  collectedAt: CollectedAt;
+  rollupMethod: RollupMethod;
+  /** has a statewide figure (state-collected or rolled up) — counts toward scores */
+  reportsAtState: boolean;
+  /** statewide values in chronological order */
   series: SeriesPoint[];
   latest: SeriesPoint | null;
   previous: SeriesPoint | null;
   score: number | null;
   prevScore: number | null;
+}
+
+/** An LGA- or facility-collected indicator's latest value in one LGA. */
+export interface LgaIndicatorValue {
+  ic: IndicatorComputed;
+  lga: Lga;
+  period: TimePeriod;
+  value: number;
+  target: number | null;
+  score: number | null;
+  prevPeriod: TimePeriod | null;
+  prevValue: number | null;
+  prevScore: number | null;
+  /** LGA return, or rolled up from the LGA's facilities */
+  source: "lga" | "facility";
+  /** facilities reporting / expected in this LGA (1 of 1 for LGA returns) */
+  coverage: Coverage;
 }
 
 export interface ScorePair {
@@ -155,7 +203,7 @@ export interface ScorePair {
 
 export interface LgaComputed extends ScorePair {
   lga: Lga;
-  /** number of entity-level indicator readings feeding the composite */
+  /** number of LGA-level indicator values feeding the composite */
   readings: number;
   entityIds: string[];
 }
@@ -193,50 +241,93 @@ export interface Computed {
   lgaScores: LgaComputed[];
   mdaScores: MdaComputed[];
   entityScores: EntityComputed[];
+  /** latest value of every LGA/facility-collected indicator in each LGA */
+  lgaIndicators: LgaIndicatorValue[];
   /** quarterly composite trend for the state and each sector */
   trend: TrendPoint[];
 }
 
 /* ------------------------------------------------------------------ */
 
+type ByPeriod<T> = Map<string, T>;
+
+function latestWins(a: Result | undefined, b: Result): Result {
+  if (!a) return b;
+  return (b.updated_at ?? "") >= (a.updated_at ?? "") ? b : a;
+}
+
+function mean(values: number[]): number | null {
+  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
+}
+
 export function computeDashboard(data: DashboardData): Computed {
   const periodById = new Map(data.timePeriods.map((p) => [p.id, p]));
   const domainById = new Map(data.domains.map((d) => [d.id, d]));
   const thematicById = new Map(data.thematicAreas.map((t) => [t.id, t]));
   const sectorById = new Map(data.sectors.map((s) => [s.id, s]));
-  const indicatorById = new Map(data.indicators.map((i) => [i.id, i]));
   const mdaById = new Map(data.mdas.map((m) => [m.id, m]));
   const lgaById = new Map(data.lgas.map((l) => [l.id, l]));
-  const isStateIndicator = (ind: Indicator) => ind.indicator_scope !== "entity";
-  const isEntityIndicator = (ind: Indicator) => ind.indicator_scope === "entity";
+  const entityById = new Map(data.entities.map((e) => [e.id, e]));
+  const totalPopulation = data.lgas.reduce((sum, l) => sum + (l.population > 0 ? l.population : 0), 0);
 
-  // Group results
-  const stateResults = new Map<string, Result[]>(); // indicator id → results
-  const entityResults = new Map<string, Result[]>(); // `${indicator}|${entity}` → results
+  // Group results by location: statewide, LGA return, or facility record.
+  const stateRows = new Map<string, ByPeriod<Result>>();
+  const lgaRows = new Map<string, ByPeriod<Map<string, Result>>>();
+  const facilityRows = new Map<string, ByPeriod<Map<string, Result>>>();
   for (const r of data.results) {
-    if (r.entity_id == null) {
-      const list = stateResults.get(r.indicator_id) ?? [];
-      list.push(r);
-      stateResults.set(r.indicator_id, list);
+    if (r.entity_id) {
+      const byPeriod = facilityRows.get(r.indicator_id) ?? new Map();
+      const byEntity = byPeriod.get(r.time_period_id) ?? new Map();
+      byEntity.set(r.entity_id, latestWins(byEntity.get(r.entity_id), r));
+      byPeriod.set(r.time_period_id, byEntity);
+      facilityRows.set(r.indicator_id, byPeriod);
+    } else if (r.lga_id) {
+      const byPeriod = lgaRows.get(r.indicator_id) ?? new Map();
+      const byLga = byPeriod.get(r.time_period_id) ?? new Map();
+      byLga.set(r.lga_id, latestWins(byLga.get(r.lga_id), r));
+      byPeriod.set(r.time_period_id, byLga);
+      lgaRows.set(r.indicator_id, byPeriod);
     } else {
-      const key = `${r.indicator_id}|${r.entity_id}`;
-      const list = entityResults.get(key) ?? [];
-      list.push(r);
-      entityResults.set(key, list);
+      const byPeriod = stateRows.get(r.indicator_id) ?? new Map();
+      byPeriod.set(r.time_period_id, latestWins(byPeriod.get(r.time_period_id), r));
+      stateRows.set(r.indicator_id, byPeriod);
     }
   }
 
-  const byStart = (a: Result, b: Result) => {
-    const pa = periodById.get(a.time_period_id);
-    const pb = periodById.get(b.time_period_id);
-    return (pa?.start_date ?? "").localeCompare(pb?.start_date ?? "");
+  // Facilities expected to report a facility-collected indicator: those of
+  // its responsible MDA when set, otherwise every facility in its sector.
+  const expectedCache = new Map<string, Entity[]>();
+  const expectedFacilities = (ind: Indicator, sector: Sector): Entity[] => {
+    const key = ind.responsible_mda_id ? `mda:${ind.responsible_mda_id}` : `sector:${sector.id}`;
+    let list = expectedCache.get(key);
+    if (!list) {
+      list = data.entities.filter((e) =>
+        ind.responsible_mda_id
+          ? e.mda_id === ind.responsible_mda_id
+          : mdaById.get(e.mda_id)?.sector_id === sector.id
+      );
+      expectedCache.set(key, list);
+    }
+    return list;
   };
-  stateResults.forEach((list) => list.sort(byStart));
-  entityResults.forEach((list) => list.sort(byStart));
 
   /* ---------- indicator level ---------- */
 
   const indicatorsComputed: IndicatorComputed[] = [];
+  // per indicator: chronological per-LGA values, used for LGA pages and scores
+  type LgaPoint = {
+    period: TimePeriod;
+    value: number;
+    target: number | null;
+    score: number | null;
+    source: "lga" | "facility";
+    coverage: Coverage;
+  };
+  const lgaSeries = new Map<string, Map<string, LgaPoint[]>>();
+  // per indicator + facility: chronological facility scores (entity composites)
+  type FacilityPoints = { indicator: Indicator; entityId: string; points: Array<{ period: TimePeriod; score: number | null }> };
+  const facilitySeries = new Map<string, FacilityPoints[]>();
+
   for (const ind of data.indicators) {
     const domain = domainById.get(ind.domain_id);
     const thematicArea = domain ? thematicById.get(domain.thematic_area_id) : undefined;
@@ -245,22 +336,177 @@ export function computeDashboard(data: DashboardData): Computed {
     // Unpublished domain or indicator — omit from public rollups / Present / Sector Dashboard.
     if (!isIndicatorPublic(ind, domainById)) continue;
 
+    const level = collectedAt(ind);
+    const method = rollupMethod(ind);
     const expectedFrequency = indicatorFrequency(ind, thematicArea);
-    const series: SeriesPoint[] = (stateResults.get(ind.id) ?? [])
-      .map((r) => {
-        const period = periodById.get(r.time_period_id);
-        if (!period || period.frequency !== expectedFrequency) return null;
-        const target = r.target_value ?? ind.target_value;
-        return {
+    const periodFor = (periodId: string): TimePeriod | null => {
+      const period = periodById.get(periodId);
+      return period && period.frequency === expectedFrequency ? period : null;
+    };
+    const additive = isAdditiveMethod(method);
+    const lgaTarget = (lga: Lga): number | null => {
+      if (ind.lga_target_value != null) return ind.lga_target_value;
+      if (ind.target_value == null) return null;
+      if (!additive) return ind.target_value;
+      return totalPopulation > 0 && lga.population > 0 ? (ind.target_value * lga.population) / totalPopulation : null;
+    };
+    const facilityTarget = ind.facility_target_value ?? (additive ? null : ind.target_value);
+    const facilityScore = (value: number): number | null =>
+      method === "count"
+        ? meetsCountCondition(ind, value)
+          ? 100
+          : 0
+        : scoreValue(value, facilityTarget, ind.direction);
+
+    // Roll-ups per period: per-LGA values and the statewide figure.
+    const rollupByPeriod = new Map<string, RollupSummary>();
+    const perLga = new Map<string, LgaPoint[]>();
+    const pushLga = (lgaId: string, entry: LgaPoint) => {
+      const list = perLga.get(lgaId) ?? [];
+      list.push(entry);
+      perLga.set(lgaId, list);
+    };
+
+    if (level === "lga") {
+      for (const [periodId, byLga] of lgaRows.get(ind.id) ?? []) {
+        const period = periodFor(periodId);
+        if (!period) continue;
+        const values: number[] = [];
+        const weights: number[] = [];
+        for (const [lgaId, row] of byLga) {
+          const lga = lgaById.get(lgaId);
+          if (!lga) continue;
+          values.push(row.abia_value);
+          weights.push(lga.population);
+          const target = lgaTarget(lga);
+          pushLga(lgaId, {
+            period,
+            value: row.abia_value,
+            target,
+            score: scoreValue(row.abia_value, target, ind.direction),
+            source: "lga",
+            coverage: { reported: 1, expected: 1 },
+          });
+        }
+        const value = combineValues(ind, method, values, weights);
+        if (value != null) {
+          rollupByPeriod.set(periodId, {
+            value,
+            method,
+            level: "lga",
+            coverage: { reported: values.length, expected: data.lgas.length },
+          });
+        }
+      }
+    }
+
+    if (level === "facility") {
+      const expected = expectedFacilities(ind, sector);
+      const perEntity = new Map<string, Array<{ period: TimePeriod; score: number | null }>>();
+      for (const [periodId, byEntity] of facilityRows.get(ind.id) ?? []) {
+        const period = periodFor(periodId);
+        if (!period) continue;
+        const all: number[] = [];
+        const byLga = new Map<string, { values: number[]; scores: number[] }>();
+        for (const [entityId, row] of byEntity) {
+          const entity = entityById.get(entityId);
+          if (!entity) continue;
+          const score = facilityScore(row.abia_value);
+          all.push(row.abia_value);
+          const bucket = byLga.get(entity.lga_id) ?? { values: [], scores: [] };
+          bucket.values.push(row.abia_value);
+          if (score != null) bucket.scores.push(score);
+          byLga.set(entity.lga_id, bucket);
+          const points = perEntity.get(entityId) ?? [];
+          points.push({ period, score });
+          perEntity.set(entityId, points);
+        }
+        const lgaAverages: number[] = [];
+        const lgaWeights: number[] = [];
+        for (const [lgaId, bucket] of byLga) {
+          const lga = lgaById.get(lgaId);
+          if (!lga) continue;
+          const coverage = {
+            reported: bucket.values.length,
+            expected: Math.max(bucket.values.length, expected.filter((e) => e.lga_id === lgaId).length),
+          };
+          if (method === "none") {
+            // Facility-only indicator: the LGA view averages facility scores.
+            const value = mean(bucket.values);
+            if (value != null) {
+              pushLga(lgaId, { period, value, target: facilityTarget, score: mean(bucket.scores), source: "facility", coverage });
+            }
+            continue;
+          }
+          const value = combineValues(ind, method === "weighted_average" ? "average" : method, bucket.values);
+          if (value == null) continue;
+          lgaAverages.push(value);
+          lgaWeights.push(lga.population);
+          const target = lgaTarget(lga);
+          pushLga(lgaId, { period, value, target, score: scoreValue(value, target, ind.direction), source: "facility", coverage });
+        }
+        const value =
+          method === "weighted_average"
+            ? combineValues(ind, method, lgaAverages, lgaWeights)
+            : combineValues(ind, method, all);
+        if (value != null) {
+          rollupByPeriod.set(periodId, {
+            value,
+            method,
+            level: "facility",
+            coverage: { reported: all.length, expected: Math.max(all.length, expected.length) },
+          });
+        }
+      }
+      facilitySeries.set(
+        ind.id,
+        [...perEntity].map(([entityId, points]) => ({
+          indicator: ind,
+          entityId,
+          points: points.sort((a, b) => a.period.start_date.localeCompare(b.period.start_date)),
+        }))
+      );
+    }
+
+    // Statewide series: a statewide row wins (entered or override), else the roll-up.
+    const manualRows = stateRows.get(ind.id) ?? new Map<string, Result>();
+    const periodIds = new Set<string>([...manualRows.keys(), ...(level === "state" ? [] : rollupByPeriod.keys())]);
+    const series: SeriesPoint[] = [];
+    for (const periodId of periodIds) {
+      const period = periodFor(periodId);
+      if (!period) continue;
+      const manual = manualRows.get(periodId);
+      const rollup = level === "state" ? null : (rollupByPeriod.get(periodId) ?? null);
+      if (manual) {
+        const target = manual.target_value ?? ind.target_value;
+        series.push({
           period,
-          abia: r.abia_value,
-          nigeria: r.nigeria_value,
+          abia: manual.abia_value,
+          nigeria: manual.nigeria_value,
           target,
-          score: scoreValue(r.abia_value, target, ind.direction),
-        };
-      })
-      .filter((pt): pt is SeriesPoint => pt != null)
-      .sort((a, b) => a.period.start_date.localeCompare(b.period.start_date));
+          score: scoreValue(manual.abia_value, target, ind.direction),
+          source: level === "state" ? "entered" : "override",
+          rollup,
+          enteredBy: manual.entered_by ?? null,
+          updatedAt: manual.updated_at ?? null,
+          overrideNote: manual.override_note ?? null,
+        });
+      } else if (rollup) {
+        series.push({
+          period,
+          abia: rollup.value,
+          nigeria: null,
+          target: ind.target_value,
+          score: scoreValue(rollup.value, ind.target_value, ind.direction),
+          source: "rollup",
+          rollup,
+          enteredBy: null,
+          updatedAt: null,
+          overrideNote: null,
+        });
+      }
+    }
+    series.sort((a, b) => a.period.start_date.localeCompare(b.period.start_date));
 
     const latest = series.at(-1) ?? null;
     const previous = series.at(-2) ?? null;
@@ -269,12 +515,21 @@ export function computeDashboard(data: DashboardData): Computed {
       domain,
       thematicArea,
       sector,
+      collectedAt: level,
+      rollupMethod: method,
+      reportsAtState: level === "state" || method !== "none",
       series,
       latest,
       previous,
       score: latest?.score ?? null,
       prevScore: previous?.score ?? null,
     });
+    if (perLga.size > 0) {
+      for (const list of perLga.values()) {
+        list.sort((a, b) => a.period.start_date.localeCompare(b.period.start_date));
+      }
+      lgaSeries.set(ind.id, perLga);
+    }
   }
   const indicatorComputedById = new Map(indicatorsComputed.map((i) => [i.indicator.id, i]));
 
@@ -282,7 +537,7 @@ export function computeDashboard(data: DashboardData): Computed {
 
   const domainScores = new Map<string, ScorePair>();
   for (const d of data.domains) {
-    const items = indicatorsComputed.filter((i) => i.domain.id === d.id && isStateIndicator(i.indicator));
+    const items = indicatorsComputed.filter((i) => i.domain.id === d.id && i.reportsAtState);
     domainScores.set(d.id, {
       score: weightedMean(items.map((i) => ({ score: i.score, weight: i.indicator.weight }))),
       prevScore: weightedMean(items.map((i) => ({ score: i.prevScore, weight: i.indicator.weight }))),
@@ -320,38 +575,47 @@ export function computeDashboard(data: DashboardData): Computed {
     ),
   };
 
+  /* ---------- LGA indicator values ---------- */
+
+  const lgaIndicators: LgaIndicatorValue[] = [];
+  for (const [indicatorId, perLga] of lgaSeries) {
+    const ic = indicatorComputedById.get(indicatorId);
+    if (!ic) continue;
+    for (const [lgaId, list] of perLga) {
+      const lga = lgaById.get(lgaId);
+      const latest = list.at(-1);
+      if (!lga || !latest) continue;
+      const prev = list.at(-2) ?? null;
+      lgaIndicators.push({
+        ic,
+        lga,
+        period: latest.period,
+        value: latest.value,
+        target: latest.target,
+        score: latest.score,
+        prevPeriod: prev?.period ?? null,
+        prevValue: prev?.value ?? null,
+        prevScore: prev?.score ?? null,
+        source: latest.source,
+        coverage: latest.coverage,
+      });
+    }
+  }
+
   /* ---------- entity / MDA / LGA composites ---------- */
 
-  interface EntityAgg {
-    latest: Array<{ score: number | null; weight: number }>;
-    prev: Array<{ score: number | null; weight: number }>;
+  type ScoreItems = Array<{ score: number | null; weight: number }>;
+  const entityAgg = new Map<string, { latest: ScoreItems; prev: ScoreItems }>();
+  for (const list of facilitySeries.values()) {
+    for (const item of list) {
+      const latest = item.points.at(-1);
+      const prev = item.points.at(-2);
+      const agg = entityAgg.get(item.entityId) ?? { latest: [], prev: [] };
+      if (latest) agg.latest.push({ score: latest.score, weight: item.indicator.weight });
+      if (prev) agg.prev.push({ score: prev.score, weight: item.indicator.weight });
+      entityAgg.set(item.entityId, agg);
+    }
   }
-  const entityAgg = new Map<string, EntityAgg>();
-  entityResults.forEach((list, key) => {
-    const [indicatorId, entityId] = key.split("|");
-    const ind = indicatorById.get(indicatorId);
-    if (!ind || !isEntityIndicator(ind)) return;
-    const domain = domainById.get(ind.domain_id);
-    const thematic = domain ? thematicById.get(domain.thematic_area_id) : undefined;
-    const expectedFrequency = indicatorFrequency(ind, thematic ?? null);
-    const matching = list.filter((r) => periodById.get(r.time_period_id)?.frequency === expectedFrequency);
-    const latest = matching.at(-1);
-    const prev = matching.at(-2);
-    const agg = entityAgg.get(entityId) ?? { latest: [], prev: [] };
-    if (latest) {
-      agg.latest.push({
-        score: scoreValue(latest.abia_value, latest.target_value ?? ind.target_value, ind.direction),
-        weight: ind.weight,
-      });
-    }
-    if (prev) {
-      agg.prev.push({
-        score: scoreValue(prev.abia_value, prev.target_value ?? ind.target_value, ind.direction),
-        weight: ind.weight,
-      });
-    }
-    entityAgg.set(entityId, agg);
-  });
 
   const entityScores: EntityComputed[] = [];
   for (const e of data.entities) {
@@ -387,15 +651,17 @@ export function computeDashboard(data: DashboardData): Computed {
   }
   mdaScores.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 
+  // An LGA's composite is the weighted mean of every LGA- or facility-
+  // collected indicator measured there (LGA returns and facility roll-ups).
   const lgaScores: LgaComputed[] = [];
   for (const l of data.lgas) {
-    const ents = entityScores.filter((e) => e.lga.id === l.id);
+    const values = lgaIndicators.filter((v) => v.lga.id === l.id);
     lgaScores.push({
       lga: l,
-      entityIds: ents.map((e) => e.entity.id),
-      readings: ents.reduce((n, e) => n + e.readings, 0),
-      score: weightedMean(ents.map((e) => ({ score: e.score, weight: 1 }))),
-      prevScore: weightedMean(ents.map((e) => ({ score: e.prevScore, weight: 1 }))),
+      entityIds: entityScores.filter((e) => e.lga.id === l.id && e.readings > 0).map((e) => e.entity.id),
+      readings: values.length,
+      score: weightedMean(values.map((v) => ({ score: v.score, weight: v.ic.indicator.weight }))),
+      prevScore: weightedMean(values.map((v) => ({ score: v.prevScore, weight: v.ic.indicator.weight }))),
     });
   }
   lgaScores.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
@@ -407,7 +673,7 @@ export function computeDashboard(data: DashboardData): Computed {
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
   const trend: TrendPoint[] = quarters.map((q) => {
-    // score of each indicator "as of" the quarter end (latest result on or before it)
+    // score of each indicator "as of" the quarter end (latest value on or before it)
     const asOfScores = new Map<string, number | null>();
     for (const ic of indicatorsComputed) {
       let score: number | null = null;
@@ -420,7 +686,7 @@ export function computeDashboard(data: DashboardData): Computed {
     const sectorAsOf = (sectorId: string): number | null => {
       // simple weighted mean of indicator scores within the sector
       const items = indicatorsComputed
-        .filter((i) => i.sector.id === sectorId && isStateIndicator(i.indicator))
+        .filter((i) => i.sector.id === sectorId && i.reportsAtState)
         .map((i) => ({ score: asOfScores.get(i.indicator.id) ?? null, weight: i.indicator.weight }));
       return weightedMean(items);
     };
@@ -444,6 +710,7 @@ export function computeDashboard(data: DashboardData): Computed {
     lgaScores,
     mdaScores,
     entityScores,
+    lgaIndicators,
     trend,
   };
 }

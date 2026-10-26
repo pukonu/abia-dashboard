@@ -1,9 +1,16 @@
 import { notFound } from "next/navigation";
 import { IndicatorTrendChart } from "@/components/charts";
 import { formatIndicatorMetric, IndicatorResultLine } from "@/components/indicator-result-line";
+import { SourceBadge, SourceNote } from "@/components/provenance";
 import { DeltaTag, ScoreBadge, ScoreBar, ScoreRing } from "@/components/score";
 import { CardList, Crumbs, PageHeader, RowLink, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import {
+  COLLECTED_AT_OPTIONS,
+  coverageLabel,
+  describeCountCondition,
+  rollupMethodLabel,
+} from "@/lib/indicator-collection";
 import { computeDashboard, delta, fmt, fmtValue, scoreValue } from "@/lib/scoring";
 
 const FREQ_LABEL: Record<string, string> = {
@@ -60,13 +67,30 @@ export default async function IndicatorPage({
         entity,
         lga: lgaById.get(entity.lga_id) ?? null,
         reading,
-        score: scoreValue(reading.value, indicator.target_value, indicator.direction),
+        score: scoreValue(
+          reading.value,
+          indicator.facility_target_value ?? indicator.target_value,
+          indicator.direction
+        ),
       };
     })
     .filter((x): x is NonNullable<typeof x> => x != null)
     .sort((a, b) =>
       higherBetter ? b.reading.value - a.reading.value : a.reading.value - b.reading.value
     );
+
+  const lgaRows = c.lgaIndicators
+    .filter((v) => v.ic.indicator.id === indicator.id)
+    .sort((a, b) => (higherBetter ? b.value - a.value : a.value - b.value));
+  const levelLabel = COLLECTED_AT_OPTIONS.find((o) => o.value === ic.collectedAt)?.label ?? "State";
+  const collectionSummary =
+    ic.collectedAt === "state"
+      ? "Collected statewide — one figure per period."
+      : ic.rollupMethod === "none"
+        ? "Collected per facility — shown on facility, MDA and LGA pages only, not rolled up statewide."
+        : `Collected per ${ic.collectedAt === "lga" ? "LGA" : "facility"} and rolled up statewide by ${rollupMethodLabel(
+            ic.rollupMethod
+          ).toLowerCase()}${ic.rollupMethod === "count" ? ` (counting records where ${describeCountCondition(indicator)})` : ""}. A statewide value entered by hand overrides the roll-up for its period.`;
 
   const gapToNigeria =
     ic.latest?.abia != null && ic.latest?.nigeria != null
@@ -155,6 +179,31 @@ export default async function IndicatorPage({
         </div>
       </div>
 
+      {/* Provenance */}
+      <div className="card card-pad mt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">How this figure is built</span>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            {levelLabel}
+          </span>
+          <SourceBadge point={ic.latest} showEntered />
+        </div>
+        <p className="mt-2 text-sm text-zinc-600">{collectionSummary}</p>
+        {ic.latest && (
+          <p className="mt-1 text-sm">
+            <span className="font-medium text-zinc-900">{ic.latest.period.label}: </span>
+            <SourceNote point={ic.latest} />
+          </p>
+        )}
+        {ic.latest?.source === "override" && (
+          <p className="mt-1 text-sm text-zinc-600">
+            {ic.latest.rollup
+              ? `Without the override, the roll-up from ${coverageLabel(ic.latest.rollup.level, ic.latest.rollup.coverage)} gives ${fmtValue(ic.latest.rollup.value, indicator.unit)}.`
+              : "No LGA or facility records have been reported for this period yet."}
+          </p>
+        )}
+      </div>
+
       {/* Trend */}
       <SectionTitle hint={`${ic.series.length} ${FREQ_LABEL[thematicArea.frequency].toLowerCase()} periods`}>
         Result vs Nigeria vs target
@@ -166,6 +215,76 @@ export default async function IndicatorPage({
           unit={indicator.unit}
         />
       </div>
+
+      {/* Statewide values by period with their source */}
+      {ic.series.length > 0 && (
+        <>
+          <SectionTitle hint="Where each statewide figure came from">Reported values</SectionTitle>
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-2">Period</th>
+                  <th className="px-3 py-2">Value</th>
+                  <th className="hidden px-3 py-2 sm:table-cell">Source</th>
+                  <th className="px-3 py-2 text-right">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...ic.series].reverse().map((pt) => (
+                  <tr key={pt.period.id} className="border-b border-zinc-100 last:border-0">
+                    <td className="px-4 py-2 text-zinc-900">{pt.period.label}</td>
+                    <td className="px-3 py-2 tabular-nums text-zinc-900">
+                      {fmtValue(pt.abia, indicator.unit)} <SourceBadge point={pt} />
+                    </td>
+                    <td className="hidden px-3 py-2 text-xs sm:table-cell">
+                      <SourceNote point={pt} />
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <ScoreBadge score={pt.score} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* LGA breakdown */}
+      {lgaRows.length > 0 && (
+        <>
+          <SectionTitle hint={ic.collectedAt === "lga" ? "Latest LGA returns, best first" : "Facility records rolled up per LGA"}>
+            Breakdown by LGA
+          </SectionTitle>
+          <CardList>
+            {lgaRows.map((row) => (
+              <RowLink
+                key={row.lga.id}
+                href={`/lgas/${row.lga.id}`}
+                left={
+                  <>
+                    <div className="truncate text-sm font-medium text-zinc-900">{row.lga.name}</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">
+                      {fmtValue(row.value, indicator.unit)} · {row.period.label}
+                      {row.source === "facility" ? ` · ${coverageLabel("facility", row.coverage)}` : " · LGA return"}
+                      {row.target != null ? ` · target ${fmtValue(row.target, indicator.unit)}` : ""}
+                    </div>
+                  </>
+                }
+                right={
+                  <div className="flex items-center gap-3">
+                    <div className="hidden w-28 sm:block">
+                      <ScoreBar score={row.score} />
+                    </div>
+                    <ScoreBadge score={row.score} />
+                  </div>
+                }
+              />
+            ))}
+          </CardList>
+        </>
+      )}
 
       {/* Evidence */}
       {(() => {

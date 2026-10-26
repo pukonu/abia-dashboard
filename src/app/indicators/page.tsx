@@ -29,7 +29,7 @@ export default async function IndicatorsPage({
   const c = computeDashboard(data);
 
   const activeSector = data.sectors.find((s) => s.slug === sectorParam) ?? null;
-  const stateIndicators = c.indicators.filter((i) => i.indicator.indicator_scope !== "entity");
+  const stateIndicators = c.indicators.filter((i) => i.reportsAtState);
   const visible = activeSector
     ? stateIndicators.filter((i) => i.sector.id === activeSector.id)
     : stateIndicators;
@@ -218,6 +218,7 @@ export default async function IndicatorsPage({
                           <div className="truncate text-sm text-zinc-800">{text}</div>
                           <IndicatorResultLine
                             result={i.latest?.abia ?? null}
+                            source={i.latest}
                             nigeria={i.latest?.nigeria ?? i.domain.benchmark_nigeria ?? null}
                             target={i.domain.benchmark_target ?? i.latest?.target ?? i.indicator.target_value}
                             unit={i.indicator.unit}

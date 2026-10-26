@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getDataMode, isSupabaseConfigured } from "./data-mode";
 import { getDemoData } from "./demo-data";
+import { normalizeCollectionFields } from "./indicator-collection";
 import { normalizeIndicatorValueType, resolveIndicatorScoreOptions } from "./indicator-input";
 import type {
   CustomDashboard,
@@ -168,13 +169,18 @@ export async function loadDashboardData(opts?: { forceLive?: boolean }): Promise
         weight: Number(i.weight ?? 1),
         frequency: i.frequency ?? "monthly",
         is_published: i.is_published !== false,
+        ...normalizeCollectionFields(i as unknown as Record<string, unknown>),
       })),
       timePeriods: timePeriods.data ?? [],
       results: (results.data ?? []).map((r) => ({
         ...r,
+        lga_id: r.lga_id ?? null,
         abia_value: Number(r.abia_value),
         nigeria_value: r.nigeria_value == null ? null : Number(r.nigeria_value),
         target_value: r.target_value == null ? null : Number(r.target_value),
+        entered_by: r.entered_by ?? null,
+        override_note: r.override_note ?? null,
+        updated_at: r.updated_at ?? null,
       })),
       evidence: evidenceRows,
       dashboards: customDashboards.dashboards,

@@ -1,4 +1,12 @@
 import type { DashboardData } from "./types";
+import {
+  collectedAt,
+  COLLECTED_AT_OPTIONS,
+  COUNT_OPERATOR_OPTIONS,
+  rollupMethod,
+  rollupMethodLabel,
+  ROLLUP_METHOD_OPTIONS,
+} from "./indicator-collection";
 import { formatScoreOptionsText } from "./indicator-input";
 
 export type FieldType = "text" | "number" | "textarea" | "select" | "checkbox";
@@ -12,7 +20,7 @@ export interface FieldSpec {
   help?: string;
   /** for selects: fixed options or a reference to another dataset */
   options?: Array<{ value: string; label: string }>;
-  optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains" | "state_indicators";
+  optionsFrom?: "sectors" | "lgas" | "mdas" | "thematic_areas" | "domains";
   /** checkbox only — used when creating a new record with no defaultValue */
   defaultChecked?: boolean;
 }
@@ -63,11 +71,6 @@ const FREQUENCY_OPTIONS = ["daily", "weekly", "monthly", "quarterly", "yearly"].
 const DIRECTION_OPTIONS = [
   { value: "higher_is_better", label: "Higher is better" },
   { value: "lower_is_better", label: "Lower is better" },
-];
-
-const INDICATOR_SCOPE_OPTIONS = [
-  { value: "state", label: "State-level indicator" },
-  { value: "entity", label: "Entity-level indicator" },
 ];
 
 const INDICATOR_VALUE_TYPE_OPTIONS = [
@@ -236,8 +239,36 @@ export const DATASETS: DatasetSpec[] = [
     collection: "indicators",
     fields: [
       { name: "domain_id", label: "Domain", type: "select", required: true, optionsFrom: "domains" },
-      { name: "indicator_scope", label: "Scope", type: "select", required: true, options: INDICATOR_SCOPE_OPTIONS },
-      { name: "state_indicator_id", label: "Rolls up into", type: "select", optionsFrom: "state_indicators", help: "Choose the state-level indicator for entity indicators. Leave empty for state-level indicators." },
+      {
+        name: "collected_at",
+        label: "Collected at",
+        type: "select",
+        required: true,
+        options: COLLECTED_AT_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} — ${o.hint}` })),
+        help: "Where values are captured. LGA and facility records roll up into the statewide figure; a statewide value entered for an LGA/facility indicator is a manual override that always wins for its period.",
+      },
+      {
+        name: "rollup_method",
+        label: "Roll-up method",
+        type: "select",
+        options: ROLLUP_METHOD_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} — ${o.hint}` })),
+        help: "How LGA or facility records combine. Ignored for state-collected indicators.",
+      },
+      {
+        name: "count_operator",
+        label: "Count condition",
+        type: "select",
+        options: COUNT_OPERATOR_OPTIONS.map((o) => ({ value: o.value, label: `value ${o.label} threshold` })),
+        help: "Count roll-ups only: a record counts when its value meets this condition.",
+      },
+      { name: "count_threshold", label: "Count threshold", type: "number", help: "Count roll-ups only, e.g. 80. Leave empty to count any value above 0." },
+      {
+        name: "count_values",
+        label: "Count these score values",
+        type: "text",
+        placeholder: "e.g. 100",
+        help: "Count roll-ups on score indicators: comma-separated option scores that qualify (e.g. 100 for 'Yes'). Overrides the threshold.",
+      },
       { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Immunization coverage (Penta-3)" },
       { name: "description", label: "Description", type: "textarea" },
       { name: "value_type", label: "Value type", type: "select", required: true, options: INDICATOR_VALUE_TYPE_OPTIONS },
@@ -264,7 +295,19 @@ export const DATASETS: DatasetSpec[] = [
         optionsFrom: "mdas",
         help: "Ministry or agency accountable for reporting this indicator on the Sector Dashboard.",
       },
-      { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach" },
+      { name: "target_value", label: "Target value", type: "number", help: "The level Abia should reach (statewide)" },
+      {
+        name: "lga_target_value",
+        label: "LGA target",
+        type: "number",
+        help: "Per-LGA target. Leave empty to use the statewide target (rates) or scale it by LGA population (sum/count).",
+      },
+      {
+        name: "facility_target_value",
+        label: "Facility target",
+        type: "number",
+        help: "Per-facility target used for facility and entity scores. Leave empty to use the statewide target (rates).",
+      },
       { name: "target_source", label: "Target source", type: "text", placeholder: "SDG, WHO, UN, State Plan…" },
       { name: "weight", label: "Weight within domain", type: "number", placeholder: "1" },
       {
@@ -288,7 +331,7 @@ export const DATASETS: DatasetSpec[] = [
         return {
           id: i.id,
           title: i.name,
-          subtitle: `${i.indicator_scope === "entity" ? "entity" : "state"} · ${freq}${
+          subtitle: `${collectedAt(i)}${collectedAt(i) === "state" ? "" : ` · ${rollupMethodLabel(rollupMethod(i)).toLowerCase()}`} · ${freq}${
             mdaLabel ? ` · ${mdaLabel}` : ""
           } · ${domain?.name ?? ""}${unpublished ? " · Unpublished" : ""} · target ${i.target_value ?? "—"} ${i.unit}`,
         };
@@ -409,12 +452,5 @@ export function optionsFor(
         value: d.id,
         label: `${d.name} — ${data.thematicAreas.find((t) => t.id === d.thematic_area_id)?.name ?? ""}`,
       }));
-    case "state_indicators":
-      return data.indicators
-        .filter((i) => i.indicator_scope !== "entity")
-        .map((i) => ({
-          value: i.id,
-          label: `${i.name} — ${data.domains.find((d) => d.id === i.domain_id)?.name ?? ""}`,
-        }));
   }
 }

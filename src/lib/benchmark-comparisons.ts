@@ -9,7 +9,7 @@ import {
 export function domainNigeriaScore(c: Computed, domain: Domain): number | null {
   const direct = weightedMean(
     c.indicators
-      .filter((i) => i.domain.id === domain.id && i.indicator.indicator_scope !== "entity")
+      .filter((i) => i.domain.id === domain.id && i.reportsAtState)
       .map((i) => ({
         score:
           i.latest?.nigeria != null

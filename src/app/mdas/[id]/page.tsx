@@ -34,7 +34,7 @@ export default async function MdaPage({
   const mdaComputed = c.mdaScores.find((m) => m.mda.id === mda.id);
   const entities = c.entityScores.filter((e) => e.mda.id === mda.id);
   const sectorIndicators = c.indicators.filter(
-    (i) => i.sector.id === sector.id && i.indicator.indicator_scope !== "entity"
+    (i) => i.sector.id === sector.id && i.reportsAtState
   );
 
   // Thematic area → domain → indicators (ordered by question number)

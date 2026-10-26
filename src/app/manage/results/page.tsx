@@ -2,9 +2,17 @@ import { DemoModeNotice, Flash } from "@/components/forms";
 import ResultWizard from "@/components/manage/ResultWizard";
 import { ActionLink, Crumbs, PageHeader, SectionTitle } from "@/components/ui";
 import { loadDashboardData } from "@/lib/datasource";
+import {
+  collectedAt,
+  coverageLabel,
+  describeSource,
+  rollupMethod,
+  rollupMethodLabel,
+} from "@/lib/indicator-collection";
 import { resolveIndicatorScoreOptions } from "@/lib/indicator-input";
+import { computeDashboard, fmtValue } from "@/lib/scoring";
 import Link from "next/link";
-import { importResultsCsv, saveResultRow } from "../actions";
+import { clearStateOverride, importResultsCsv, saveResultRow } from "../actions";
 
 export const metadata = { title: "Record results" };
 
@@ -55,7 +63,11 @@ export default async function ResultsEntryPage({
     domainId: i.domain_id,
     name: i.name,
     unit: i.unit,
-    scope: i.indicator_scope,
+    collectedAt: collectedAt(i),
+    rollsUp: collectedAt(i) !== "state" && rollupMethod(i) !== "none",
+    rollupHint: `${rollupMethodLabel(rollupMethod(i)).toLowerCase()} of ${
+      collectedAt(i) === "lga" ? "LGA returns" : "facility records"
+    }`,
     valueType: i.value_type,
     scoreOptions: resolveIndicatorScoreOptions(i) ?? [],
     targetLabel: i.target_value != null ? `target ${i.target_value}${i.unit === "%" ? "%" : ""}` : "",
@@ -74,11 +86,23 @@ export default async function ResultsEntryPage({
     indicatorId: result.indicator_id,
     timePeriodId: result.time_period_id,
     entityId: result.entity_id,
+    lgaId: result.lga_id ?? null,
+    overrideNote: result.override_note ?? null,
     abiaValue: result.abia_value,
     nigeriaValue: result.nigeria_value,
     notes: result.notes ?? null,
     evidenceCount: evidenceCountByResultId.get(result.id) ?? 0,
   }));
+
+  const wizardLgas = [...data.lgas]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((l) => ({ id: l.id, name: l.name, zone: l.zone }));
+
+  // Statewide overrides of LGA/facility roll-ups, newest period first.
+  const c = computeDashboard(data);
+  const overrides = c.indicators
+    .flatMap((ic) => ic.series.filter((p) => p.source === "override").map((point) => ({ ic, point })))
+    .sort((a, b) => b.point.period.start_date.localeCompare(a.point.period.start_date));
 
   return (
     <>
@@ -86,7 +110,7 @@ export default async function ResultsEntryPage({
       <PageHeader
         eyebrow="Data entry"
         title="Record results"
-        subtitle="A guided flow: pick the sector and MDA, then the entity (or statewide), then fill values across the domain grid. Entity entries automatically roll up into their linked state indicator."
+        subtitle="A guided flow: pick the sector and MDA, then statewide, an LGA or a facility, then fill values across the domain grid. LGA and facility records roll up into the statewide figure using each indicator's roll-up method."
         actions={
           <ActionLink href="/manage/sector-dashboard" primary>
             Sector Dashboard data
@@ -110,6 +134,7 @@ export default async function ResultsEntryPage({
         sectors={wizardSectors}
         mdas={wizardMdas}
         entities={wizardEntities}
+        lgas={wizardLgas}
         indicators={wizardIndicators}
         domains={wizardDomains}
         thematicAreas={wizardThematicAreas}
@@ -119,21 +144,65 @@ export default async function ResultsEntryPage({
         disabled={!live}
       />
 
+      {/* Statewide overrides */}
+      <SectionTitle>Active overrides</SectionTitle>
+      <div className="card card-pad">
+        <p className="text-sm text-zinc-600">
+          A statewide value entered for an LGA- or facility-collected indicator overrides its roll-up for that
+          period. Clear an override to hand the period back to the roll-up.
+        </p>
+        {overrides.length === 0 ? (
+          <p className="mt-3 text-sm text-zinc-400">No overrides — every rolled-up indicator uses its LGA or facility data.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-zinc-100">
+            {overrides.map(({ ic, point }) => (
+              <li key={`${ic.indicator.id}:${point.period.id}`} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-zinc-900">{ic.indicator.name}</div>
+                  <div className="mt-0.5 text-xs text-zinc-500">
+                    {point.period.label} · override {fmtValue(point.abia, ic.indicator.unit)}
+                    {point.rollup
+                      ? ` · roll-up ${fmtValue(point.rollup.value, ic.indicator.unit)} from ${coverageLabel(point.rollup.level, point.rollup.coverage)}`
+                      : " · no LGA/facility data yet"}
+                  </div>
+                  <div className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">{describeSource(point)}</div>
+                </div>
+                <form action={clearStateOverride}>
+                  <input type="hidden" name="indicator_id" value={ic.indicator.id} />
+                  <input type="hidden" name="time_period_id" value={point.period.id} />
+                  <input type="hidden" name="_back" value="/manage/results" />
+                  <button
+                    type="submit"
+                    disabled={!live}
+                    className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Clear override
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* CSV import */}
       <div id="csv" />
       <SectionTitle>Bulk upload via CSV</SectionTitle>
       <div className="card card-pad">
         <ol className="list-decimal space-y-1.5 pl-5 text-sm text-zinc-600">
-          <li>Download a template — state and entity templates are separated and prefilled with matching indicators and periods.</li>
-          <li>Fill the <code className="rounded bg-zinc-100 px-1">abia_value</code> column (and optionally <code className="rounded bg-zinc-100 px-1">nigeria_value</code>, <code className="rounded bg-zinc-100 px-1">target_value</code>, <code className="rounded bg-zinc-100 px-1">notes</code>). Leave rows blank to skip them.</li>
+          <li>Download a template — one per collection level, prefilled with matching indicators, periods and LGAs or facilities.</li>
+          <li>Fill the <code className="rounded bg-zinc-100 px-1">abia_value</code> column (and optionally <code className="rounded bg-zinc-100 px-1">nigeria_value</code>, <code className="rounded bg-zinc-100 px-1">target_value</code>, <code className="rounded bg-zinc-100 px-1">notes</code>). Leave rows blank to skip them. To override a rolled-up indicator statewide, add a row with no LGA or facility and an <code className="rounded bg-zinc-100 px-1">override_note</code>.</li>
           <li>Upload the file — results are created or updated for each filled row.</li>
         </ol>
         <div className="mt-4 flex flex-wrap gap-2">
           <ActionLink href="/api/csv-template" download>
-            Template — state-level results
+            Template — statewide results
+          </ActionLink>
+          <ActionLink href="/api/csv-template?scope=lgas" download>
+            Template — LGA returns
           </ActionLink>
           <ActionLink href="/api/csv-template?scope=entities" download>
-            Template — entity-level results
+            Template — facility results
           </ActionLink>
         </div>
         <form action={importResultsCsv} className="mt-5 border-t border-zinc-100 pt-4">

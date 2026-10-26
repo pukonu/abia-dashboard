@@ -38,6 +38,39 @@ enum IndicatorScope {
   @@map("indicator_scope")
 }
 
+/// Where an indicator's data is collected (see migration 18).
+enum IndicatorCollectedAt {
+  state
+  lga
+  facility
+
+  @@map("indicator_collected_at")
+}
+
+/// How LGA or facility records combine into LGA and statewide figures.
+enum IndicatorRollupMethod {
+  sum
+  count
+  average
+  weighted_average
+  max
+  min
+  none
+
+  @@map("indicator_rollup_method")
+}
+
+/// Comparison a record must pass to be counted by a `count` roll-up.
+enum IndicatorCountOperator {
+  gte
+  gt
+  eq
+  lte
+  lt
+
+  @@map("indicator_count_operator")
+}
+
 enum IndicatorValueType {
   score
   percentage
@@ -67,6 +100,7 @@ enum ManageRole {
   super_admin
   data_analyst
   mda_admin
+  lga_officer
   guest
 
   @@map("manage_role")
@@ -97,6 +131,8 @@ model Lga {
   createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
   entities   Entity[]
   dashboards Dashboard[]
+  results    Result[]
+  officers   ManageUserLga[]
 
   @@map("lgas")
 }
@@ -139,6 +175,18 @@ model ManageUserMda {
   @@id([userId, mdaId])
   @@index([mdaId], map: "idx_manage_user_mdas_mda_id")
   @@map("manage_user_mdas")
+}
+
+/// LGAs an `lga_officer` may capture results for.
+model ManageUserLga {
+  userId    String   @map("user_id") @db.Uuid
+  lgaId     String   @map("lga_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  lga       Lga      @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lgaId])
+  @@index([lgaId], map: "idx_manage_user_lgas_lga_id")
+  @@map("manage_user_lgas")
 }
 
 model Entity {
@@ -200,9 +248,18 @@ model Domain {
 model Indicator {
   id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   domainId          String          @map("domain_id") @db.Uuid
+  /// Legacy: derived from collectedAt by a trigger (facility → entity) for older clients.
   indicatorScope    IndicatorScope  @default(state) @map("indicator_scope")
-  /// For entity indicators: which state-level indicator receives the rollup.
+  /// Legacy: always null since migration 18 merged linked entity indicators.
   stateIndicatorId  String?         @map("state_indicator_id") @db.Uuid
+  collectedAt       IndicatorCollectedAt @default(state) @map("collected_at")
+  rollupMethod      IndicatorRollupMethod @default(average) @map("rollup_method")
+  countOperator     IndicatorCountOperator? @map("count_operator")
+  countThreshold    Decimal?        @map("count_threshold") @db.Decimal
+  /// Score-option values that qualify for a `count` roll-up (e.g. Yes = 100).
+  countValues       Decimal[]       @map("count_values") @db.Decimal
+  lgaTargetValue    Decimal?        @map("lga_target_value") @db.Decimal
+  facilityTargetValue Decimal?      @map("facility_target_value") @db.Decimal
   name              String
   description       String?
   valueType         IndicatorValueType @default(number) @map("value_type")
@@ -248,13 +305,20 @@ model Result {
   indicatorId  String           @map("indicator_id") @db.Uuid
   timePeriodId String           @map("time_period_id") @db.Uuid
   entityId     String?          @map("entity_id") @db.Uuid
+  /// Set for LGA returns; a result belongs to the state, one LGA or one facility.
+  lgaId        String?          @map("lga_id") @db.Uuid
   abiaValue    Decimal          @map("abia_value") @db.Decimal
   nigeriaValue Decimal?         @map("nigeria_value") @db.Decimal
   targetValue  Decimal?         @map("target_value") @db.Decimal
   notes        String?
+  /// Who last entered the value (name or email).
+  enteredBy    String?          @map("entered_by")
+  /// Why a statewide value overrides an LGA/facility roll-up.
+  overrideNote String?          @map("override_note")
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime         @default(now()) @map("updated_at") @db.Timestamptz
   indicator    Indicator        @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  lga          Lga?             @relation(fields: [lgaId], references: [id], onDelete: Cascade)
   timePeriod   TimePeriod       @relation(fields: [timePeriodId], references: [id], onDelete: Cascade)
   entity       Entity?          @relation(fields: [entityId], references: [id], onDelete: Cascade)
   evidence     ResultEvidence[]
@@ -262,6 +326,9 @@ model Result {
   @@index([indicatorId], map: "idx_results_indicator")
   @@index([timePeriodId], map: "idx_results_period")
   @@index([entityId], map: "idx_results_entity")
+  @@index([lgaId], map: "idx_results_lga")
+  // Partial unique indexes (one row per indicator, period and location) and
+  // the single-location check live in migration 18 — Prisma can't model them.
   @@map("results")
 }
 

@@ -2,29 +2,41 @@ import { redirect } from "next/navigation";
 import { getAdminClient } from "./supabase-admin";
 import { getServerUser } from "./supabase-auth";
 
-export type ManageRole = "super_admin" | "data_analyst" | "mda_admin" | "guest";
+export type ManageRole = "super_admin" | "data_analyst" | "mda_admin" | "lga_officer" | "guest";
+
+export const MANAGE_ROLE_OPTIONS: Array<{ value: ManageRole; label: string; hint: string }> = [
+  { value: "super_admin", label: "Super admin", hint: "Everything, including users and settings" },
+  { value: "data_analyst", label: "Data analyst", hint: "Enter any result, statewide overrides included" },
+  { value: "mda_admin", label: "MDA admin", hint: "Results for their MDAs' facilities and indicators" },
+  { value: "lga_officer", label: "LGA officer", hint: "LGA returns and facility results in their LGAs" },
+  { value: "guest", label: "Guest", hint: "View only" },
+];
 
 export type ManageAccess = {
   userId: string;
   role: ManageRole;
   mdaIds: string[];
+  lgaIds: string[];
 };
 
 export async function getManageAccess(): Promise<ManageAccess | null> {
   const user = await getServerUser();
   if (!user) return null;
   const admin = getAdminClient();
-  if (!admin) return { userId: user.id, role: "guest", mdaIds: [] };
+  if (!admin) return { userId: user.id, role: "guest", mdaIds: [], lgaIds: [] };
 
-  const [{ data: roleRow }, { data: assignments }] = await Promise.all([
+  const [{ data: roleRow }, { data: assignments }, { data: lgaAssignments }] = await Promise.all([
     admin.from("manage_user_roles").select("role").eq("user_id", user.id).maybeSingle(),
     admin.from("manage_user_mdas").select("mda_id").eq("user_id", user.id),
+    // manage_user_lgas arrives with migration 18; older databases return an error → no LGAs.
+    admin.from("manage_user_lgas").select("lga_id").eq("user_id", user.id),
   ]);
 
   return {
     userId: user.id,
     role: (roleRow?.role as ManageRole | undefined) ?? "guest",
     mdaIds: (assignments ?? []).map((assignment) => assignment.mda_id),
+    lgaIds: (lgaAssignments ?? []).map((assignment) => assignment.lga_id),
   };
 }
 
