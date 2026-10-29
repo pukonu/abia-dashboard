@@ -1,0 +1,36 @@
+# Abia Executive Dashboard — deployment settings.
+# Values come from deploy/ansible/.env (template: .env.example). Override any
+# of them for one run with -e key=value.
+
+deploy_env_file: "{{ inventory_dir }}/.env"
+
+deploy_host: "{{ lookup('ansible.builtin.ini', 'DEPLOY_HOST', type='properties', file=deploy_env_file) }}"
+deploy_user: "{{ lookup('ansible.builtin.ini', 'DEPLOY_USER', type='properties', file=deploy_env_file, default='ubuntu') }}"
+deploy_ssh_key: "{{ lookup('ansible.builtin.ini', 'DEPLOY_SSH_KEY', type='properties', file=deploy_env_file) | expanduser }}"
+
+# The one folder on the server that holds everything.
+deploy_root: "{{ lookup('ansible.builtin.ini', 'DEPLOY_ROOT', type='properties', file=deploy_env_file) }}"
+
+# The web dashboard's hostname, the PWA's hostname, and the Let's Encrypt contact.
+domain: "{{ lookup('ansible.builtin.ini', 'DEPLOY_DOMAIN', type='properties', file=deploy_env_file) }}"
+pwa_domain: "{{ lookup('ansible.builtin.ini', 'DEPLOY_PWA_DOMAIN', type='properties', file=deploy_env_file) }}"
+acme_email: "{{ lookup('ansible.builtin.ini', 'DEPLOY_ACME_EMAIL', type='properties', file=deploy_env_file) }}"
+# Extra hostnames that serve the web dashboard as-is.
+aliases: "{{ lookup('ansible.builtin.ini', 'DEPLOY_ALIASES', type='properties', file=deploy_env_file, default='') | split(',') | map('trim') | select | list }}"
+# Every name the one certificate must cover.
+cert_names: "{{ [domain, pwa_domain] + aliases }}"
+
+# Production app env on this machine, copied to {{ deploy_root }}/app.env (0600).
+# The PWA's build env is derived from it (see site.yml), so there is no second file.
+app_env_file: "{{ inventory_dir }}/{{ lookup('ansible.builtin.ini', 'DEPLOY_APP_ENV_FILE', type='properties', file=deploy_env_file, default='.env.production') }}"
+
+app_port: "{{ lookup('ansible.builtin.ini', 'DEPLOY_APP_PORT', type='properties', file=deploy_env_file, default='7401') }}"
+mem_limit: "{{ lookup('ansible.builtin.ini', 'DEPLOY_MEM_LIMIT', type='properties', file=deploy_env_file, default='768m') }}"
+keep_releases: "{{ lookup('ansible.builtin.ini', 'DEPLOY_KEEP_RELEASES', type='properties', file=deploy_env_file, default='5') }}"
+
+# The PWA's source, relative to this folder (a sibling repo of webapp/).
+pwa_dir: "{{ (inventory_dir ~ '/' ~ lookup('ansible.builtin.ini', 'DEPLOY_PWA_DIR', type='properties', file=deploy_env_file, default='../../../pwa')) | realpath }}"
+
+# Image name, and the platform it is built for (the EC2 host is x86_64).
+image_name: abia-dashboard-web
+image_platform: linux/amd64

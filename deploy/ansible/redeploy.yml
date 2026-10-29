@@ -1,0 +1,90 @@
+# Restart the release already on the server with fresh settings, without
+# rebuilding: re-uploads the production env, re-renders compose.yml and the
+# nginx site, and recreates the container.
+#
+#   make redeploy
+#
+# Use it after changing a server-side value in .env.production (SendGrid,
+# Gemini, CRON_SECRET, the Supabase service role key, …) or a DEPLOY_* setting
+# such as the memory cap. NEXT_PUBLIC_* values are baked into the build, so a
+# change to those needs `make deploy`.
+
+- name: Redeploy the Abia Executive Dashboard (no rebuild)
+  hosts: abia_dashboard
+  gather_facts: false
+
+  vars:
+    build_dir: "{{ playbook_dir }}/.build"
+
+  tasks:
+    - name: Read the release being served
+      ansible.builtin.shell: "sed -n 's/^IMAGE_TAG=//p' {{ deploy_root }}/.env 2>/dev/null || true"
+      register: served
+      changed_when: false
+
+    - name: Stop if nothing has been deployed yet
+      ansible.builtin.assert:
+        that: served.stdout | trim | length > 0
+        fail_msg: Nothing is deployed in {{ deploy_root }} yet; run make deploy first.
+
+    - name: Refresh settings and restart
+      block:
+        - name: Create the local build folder
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ build_dir }}"
+            state: directory
+            mode: "0700"
+
+        - name: Stage the production env
+          delegate_to: localhost
+          ansible.builtin.copy:
+            src: "{{ app_env_file }}"
+            dest: "{{ build_dir }}/app.env"
+            mode: "0600"
+
+        - name: Force the public URLs to https://{{ domain }} and https://{{ pwa_domain }}
+          delegate_to: localhost
+          ansible.builtin.lineinfile:
+            path: "{{ build_dir }}/app.env"
+            regexp: "^{{ item.key }}="
+            line: "{{ item.key }}=https://{{ item.value }}"
+          loop: "{{ {'NEXT_PUBLIC_APP_URL': domain, 'NEXT_PUBLIC_PWA_URL': pwa_domain} | dict2items }}"
+
+        - name: Upload the production env
+          ansible.builtin.copy:
+            src: "{{ build_dir }}/app.env"
+            dest: "{{ deploy_root }}/app.env"
+            mode: "0600"
+
+        - name: Render compose.yml
+          ansible.builtin.template:
+            src: templates/compose.yml.j2
+            dest: "{{ deploy_root }}/compose.yml"
+            mode: "0644"
+
+        - name: Recreate release {{ served.stdout | trim }} and wait for it to be healthy
+          ansible.builtin.command:
+            cmd: docker compose up -d --force-recreate --wait --wait-timeout 180
+            chdir: "{{ deploy_root }}"
+          changed_when: true
+
+        - name: Read whether a certificate exists
+          become: true
+          ansible.builtin.stat:
+            path: /etc/letsencrypt/live/{{ domain }}/fullchain.pem
+          register: cert
+
+        - name: Use HTTPS in the nginx site if it does
+          ansible.builtin.set_fact:
+            have_cert: "{{ cert.stat.exists }}"
+
+        - name: Re-install the nginx site
+          ansible.builtin.include_tasks: tasks/nginx-site.yml
+
+      always:
+        - name: Remove the staged env
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ build_dir }}/app.env"
+            state: absent

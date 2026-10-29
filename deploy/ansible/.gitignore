@@ -1,0 +1,7 @@
+# Local tooling and build output (make deploy-setup / make deploy)
+.venv/
+collections/
+.build/
+# Deploy settings and the production app env hold secrets; only the example is committed.
+.env*
+!.env.example

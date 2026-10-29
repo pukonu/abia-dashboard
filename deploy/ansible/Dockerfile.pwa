@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.7
+# Abia Dashboard PWA: a static Vite build, exported as files (no image is shipped).
+# Built on the Mac by site.yml with pwa/ as context:
+#   docker buildx build -f deploy/ansible/Dockerfile.pwa --secret id=pwaenv,src=<pwa env> \
+#     --build-arg VITE_APP_BUILD=<release id> --output type=local,dest=<dir> ../pwa
+# Building in a container keeps the Mac's pwa/.env.local (dev URLs) out of it.
+# The env is a build secret, so it never lands in a layer; the VITE_* values
+# it holds are public anyway once they're in the bundle.
+
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN --mount=type=cache,target=/root/.yarn/berry/cache \
+    yarn install --immutable
+
+COPY . .
+# Stamps dist/build.json and the in-app build id with the release id.
+ARG VITE_APP_BUILD
+RUN --mount=type=secret,id=pwaenv,target=/app/.env.production.local \
+    VITE_APP_BUILD=${VITE_APP_BUILD} yarn build
+
+FROM scratch AS dist
+COPY --from=build /app/dist /

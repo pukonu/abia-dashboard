@@ -1,0 +1,18 @@
+# Build context is webapp/. Keep secrets, local builds and tooling out of the image.
+**/.env*
+**/*.pem
+**/.DS_Store
+**/__pycache__
+.git
+.yarn
+node_modules
+.next
+tsconfig.tsbuildinfo
+deploy
+# Terraform state holds secrets; seed scripts and spreadsheets aren't served.
+infrastructure
+scripts
+supabase
+*.xlsx
+.claude
+.cursor

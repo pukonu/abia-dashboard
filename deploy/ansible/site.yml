@@ -1,0 +1,348 @@
+# Abia Executive Dashboard — build the web app image and the PWA on this
+# machine and run them on the shared EC2 host, inside deploy_root
+# (deploy/ansible/.env).
+#
+#   make deploy        # build, ship, switch, reload nginx
+#
+# On the server, everything lives in deploy_root:
+#   compose.yml      the web service (127.0.0.1:<port>, memory cap)
+#   .env             IMAGE_TAG of the release being served
+#   app.env          production env (0600)
+#   pwa/releases/<release id>/   PWA builds; pwa/current links to the one served
+#   nginx/<domain>.conf   site file for both hostnames, symlinked into /etc/nginx/sites-enabled
+#   acme/            certbot webroot
+#   images/          image tarball while it is being loaded
+# Outside it: the sites-enabled symlink and the Let's Encrypt certificate.
+#
+# The database is Supabase (managed), so nothing here migrates it.
+
+- name: Deploy the Abia Executive Dashboard
+  hosts: abia_dashboard
+  gather_facts: false
+
+  vars:
+    build_dir: "{{ playbook_dir }}/.build"
+    app_dir: "{{ playbook_dir | dirname | dirname }}"
+    image_ref: "{{ image_name }}:{{ release_id }}"
+    tarball: "{{ image_name }}-{{ release_id }}.tar.gz"
+    pwa_build: "{{ build_dir }}/pwa-{{ release_id }}"
+    pwa_tarball: "abia-dashboard-pwa-{{ release_id }}.tar.gz"
+
+  pre_tasks:
+    # Fixed once here; a lookup in vars would be re-evaluated on every use.
+    - name: Name this release
+      ansible.builtin.set_fact:
+        release_id: "{{ lookup('pipe', 'date -u +%Y%m%d%H%M%S') }}"
+
+    - name: Check deploy settings
+      ansible.builtin.assert:
+        that:
+          - deploy_host | length > 0
+          - deploy_root | length > 0
+          - domain | length > 0
+          - pwa_domain | length > 0
+        fail_msg: Fill in DEPLOY_HOST, DEPLOY_ROOT, DEPLOY_DOMAIN and DEPLOY_PWA_DOMAIN in {{ deploy_env_file }} (template .env.example).
+
+    - name: Check the production app env and the PWA source exist
+      delegate_to: localhost
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ app_env_file }}"
+        - "{{ pwa_dir }}/package.json"
+      register: local_files
+
+    - name: Stop if either is missing
+      ansible.builtin.assert:
+        that: local_files.results | map(attribute='stat.exists') | min
+        fail_msg: >-
+          Missing {{ local_files.results | rejectattr('stat.exists') | map(attribute='item') | join(', ') }}.
+          For the app env, copy webapp/.env.example there and fill in the production values
+          (Supabase URL and keys, SendGrid, Gemini, CRON_SECRET, …). For the PWA, set DEPLOY_PWA_DIR.
+
+  tasks:
+    - name: Build, ship and switch
+      block:
+        # --- Build on this machine ---------------------------------------------
+
+        - name: Create the local build folder
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ build_dir }}"
+            state: directory
+            mode: "0700"
+
+        - name: Stage the production env
+          delegate_to: localhost
+          ansible.builtin.copy:
+            src: "{{ app_env_file }}"
+            dest: "{{ build_dir }}/app.env"
+            mode: "0600"
+
+        - name: Force the public URLs to https://{{ domain }} and https://{{ pwa_domain }}
+          delegate_to: localhost
+          ansible.builtin.lineinfile:
+            path: "{{ build_dir }}/app.env"
+            regexp: "^{{ item.key }}="
+            line: "{{ item.key }}=https://{{ item.value }}"
+          loop: "{{ {'NEXT_PUBLIC_APP_URL': domain, 'NEXT_PUBLIC_PWA_URL': pwa_domain} | dict2items }}"
+
+        # The PWA needs the same public Supabase settings as the web app, under
+        # its own names, so it is derived rather than kept as a second file.
+        - name: Derive the PWA's build env from the production env
+          delegate_to: localhost
+          ansible.builtin.shell: |
+            set -o pipefail
+            umask 077
+            {
+              sed -n -e 's/^NEXT_PUBLIC_SUPABASE_URL=/VITE_SUPABASE_URL=/p' \
+                     -e 's/^NEXT_PUBLIC_SUPABASE_ANON_KEY=/VITE_SUPABASE_ANON_KEY=/p' \
+                     -e 's/^NEXT_PUBLIC_EVIDENCE_BUCKET=/VITE_EVIDENCE_BUCKET=/p' app.env
+              echo "VITE_WEBAPP_URL=https://{{ domain }}"
+              echo "VITE_PWA_URL=https://{{ pwa_domain }}"
+            } > pwa.env
+            grep -q '^VITE_SUPABASE_URL=.' pwa.env && grep -q '^VITE_SUPABASE_ANON_KEY=.' pwa.env
+          args:
+            chdir: "{{ build_dir }}"
+            executable: /bin/bash
+          register: pwa_env
+          changed_when: true
+          failed_when: pwa_env.rc != 0
+
+        - name: Build the image {{ image_ref }} ({{ image_platform }})
+          delegate_to: localhost
+          ansible.builtin.command:
+            argv:
+              - docker
+              - buildx
+              - build
+              - --platform={{ image_platform }}
+              - --file={{ playbook_dir }}/Dockerfile
+              - --secret=id=appenv,src={{ build_dir }}/app.env
+              - --target=web
+              - --tag={{ image_ref }}
+              - --load
+              - "{{ app_dir }}"
+          changed_when: true
+
+        # Static files only, so it builds for this machine's platform and is
+        # exported as a folder rather than an image.
+        - name: Build the PWA (release {{ release_id }})
+          delegate_to: localhost
+          ansible.builtin.command:
+            argv:
+              - docker
+              - buildx
+              - build
+              - --file={{ playbook_dir }}/Dockerfile.pwa
+              - --secret=id=pwaenv,src={{ build_dir }}/pwa.env
+              - --build-arg=VITE_APP_BUILD={{ release_id }}
+              - --target=dist
+              - --output=type=local,dest={{ pwa_build }}
+              - "{{ pwa_dir }}"
+          changed_when: true
+
+        - name: Export the image and pack the PWA
+          delegate_to: localhost
+          ansible.builtin.shell: |
+            set -o pipefail
+            docker save {{ image_ref }} | gzip -1 > {{ build_dir }}/{{ tarball }}
+            tar -czf {{ build_dir }}/{{ pwa_tarball }} -C {{ pwa_build }} .
+          args:
+            executable: /bin/bash
+          changed_when: true
+
+        # --- Ship to the server --------------------------------------------------
+
+        - name: Create the folder layout
+          ansible.builtin.file:
+            path: "{{ deploy_root }}/{{ item }}"
+            state: directory
+            mode: "0755"
+          loop: ["", nginx, acme, images, pwa, pwa/releases, "pwa/releases/{{ release_id }}"]
+
+        - name: Upload the production env
+          ansible.builtin.copy:
+            src: "{{ build_dir }}/app.env"
+            dest: "{{ deploy_root }}/app.env"
+            mode: "0600"
+
+        - name: Upload the image
+          ansible.posix.synchronize:
+            src: "{{ build_dir }}/{{ tarball }}"
+            dest: "{{ deploy_root }}/images/{{ tarball }}"
+
+        - name: Load the image
+          ansible.builtin.command: "docker load -i {{ deploy_root }}/images/{{ tarball }}"
+          changed_when: true
+
+        - name: Remove the uploaded tarball
+          ansible.builtin.file:
+            path: "{{ deploy_root }}/images/{{ tarball }}"
+            state: absent
+
+        - name: Upload the PWA into pwa/releases/{{ release_id }}
+          ansible.builtin.unarchive:
+            src: "{{ build_dir }}/{{ pwa_tarball }}"
+            dest: "{{ deploy_root }}/pwa/releases/{{ release_id }}"
+
+        - name: Render compose.yml
+          ansible.builtin.template:
+            src: templates/compose.yml.j2
+            dest: "{{ deploy_root }}/compose.yml"
+            mode: "0644"
+
+        - name: Read the release being served
+          ansible.builtin.shell: "sed -n 's/^IMAGE_TAG=//p' {{ deploy_root }}/.env 2>/dev/null || true"
+          register: served
+          changed_when: false
+
+        # --- Switch ----------------------------------------------------------------
+
+        - name: Point .env at release {{ release_id }}
+          ansible.builtin.copy:
+            dest: "{{ deploy_root }}/.env"
+            content: "IMAGE_TAG={{ release_id }}\n"
+            mode: "0644"
+
+        - name: Start release {{ release_id }} and wait for it to be healthy
+          block:
+            - name: Run docker compose up
+              ansible.builtin.command:
+                cmd: docker compose up -d --wait --wait-timeout 180
+                chdir: "{{ deploy_root }}"
+              changed_when: true
+          rescue:
+            - name: Put the previous release back
+              when: served.stdout | trim | length > 0
+              ansible.builtin.copy:
+                dest: "{{ deploy_root }}/.env"
+                content: "IMAGE_TAG={{ served.stdout | trim }}\n"
+                mode: "0644"
+
+            - name: Restart the previous release
+              when: served.stdout | trim | length > 0
+              ansible.builtin.command:
+                cmd: docker compose up -d web
+                chdir: "{{ deploy_root }}"
+              changed_when: true
+
+            - name: Fail the deploy
+              ansible.builtin.fail:
+                msg: >-
+                  Release {{ release_id }} did not become healthy, so
+                  {{ served.stdout | trim | default('nothing', true) }} is serving again
+                  (the PWA was not switched). Logs: docker compose -f {{ deploy_root }}/compose.yml logs web
+
+        # Only once the web app it talks to is healthy.
+        - name: Serve PWA release {{ release_id }}
+          ansible.builtin.file:
+            src: releases/{{ release_id }}
+            dest: "{{ deploy_root }}/pwa/current"
+            state: link
+            force: true
+
+        # --- nginx + certificate -------------------------------------------------
+
+        - name: Read which names the certificate covers
+          become: true
+          ansible.builtin.shell: |
+            f=/etc/letsencrypt/live/{{ domain }}/fullchain.pem
+            [ -f "$f" ] && openssl x509 -in "$f" -noout -text | grep -o 'DNS:[^,]*' | cut -d: -f2 || true
+          register: cert_has
+          changed_when: false
+
+        - name: Note whether the certificate covers every name
+          ansible.builtin.set_fact:
+            have_cert: "{{ cert_has.stdout_lines | length > 0 }}"
+            cert_missing: "{{ cert_names | difference(cert_has.stdout_lines) }}"
+
+        - name: Install the nginx site
+          ansible.builtin.include_tasks: tasks/nginx-site.yml
+
+        - name: Get (or expand) the certificate once DNS points here
+          when: cert_missing | length > 0
+          block:
+            - name: Resolve {{ cert_names | join(', ') }}
+              ansible.builtin.shell: "getent ahostsv4 {{ item }} | awk 'NR==1{print $1}'"
+              loop: "{{ cert_names }}"
+              register: resolved
+              changed_when: false
+
+            - name: Request the certificate (webroot) for {{ cert_names | join(', ') }}
+              when: resolved.results | map(attribute='stdout') | select('equalto', deploy_host) | list | length == cert_names | length
+              become: true
+              ansible.builtin.command:
+                argv: "{{ ['certbot', 'certonly', '--webroot', '--webroot-path=' ~ deploy_root ~ '/acme',
+                         '--cert-name=' ~ domain, '--expand']
+                         + (cert_names | map('regex_replace', '^', '--domain=') | list)
+                         + ['--email=' ~ acme_email, '--agree-tos', '--non-interactive',
+                            '--deploy-hook=systemctl reload nginx'] }}"
+              register: certbot
+              changed_when: true
+
+            # A fact, not include vars: set_fact outranks vars on include_tasks.
+            - name: Mark the certificate as present
+              when: certbot is changed
+              ansible.builtin.set_fact:
+                have_cert: true
+
+            - name: Switch the nginx site to HTTPS
+              when: certbot is changed
+              ansible.builtin.include_tasks: tasks/nginx-site.yml
+
+            - name: Say why there is no HTTPS yet
+              when: certbot is skipped
+              ansible.builtin.debug:
+                msg: >-
+                  {{ cert_names }} resolve to
+                  {{ resolved.results | map(attribute='stdout') | list }}, not all {{ deploy_host }}.
+                  Serving without HTTPS for now; fix the Route 53 records and re-run make deploy.
+
+        # --- Check and tidy up -------------------------------------------------------
+
+        - name: Check the app answers on 127.0.0.1:{{ app_port }}
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ app_port }}/"
+            status_code: [200, 301, 302, 307, 308]
+          register: health
+          retries: 10
+          delay: 3
+          until: health is succeeded
+
+        # Through the host nginx, so it also proves the site file and pwa/current.
+        # -k: this checks content, and a certificate still being expanded may not cover the name yet.
+        - name: Check nginx serves PWA release {{ release_id }} for {{ pwa_domain }}
+          ansible.builtin.command:
+            argv: "{{ ['curl', '-fsSk', '--resolve', pwa_domain ~ ':443:127.0.0.1', 'https://' ~ pwa_domain ~ '/build.json']
+                      if have_cert | bool else
+                      ['curl', '-fsS', '-H', 'Host: ' ~ pwa_domain, 'http://127.0.0.1/build.json'] }}"
+          register: pwa_build_json
+          changed_when: false
+          failed_when: release_id not in pwa_build_json.stdout
+
+        - name: Remove old images and PWA releases (keep {{ keep_releases }})
+          ansible.builtin.shell: |
+            set -o pipefail
+            docker image ls {{ image_name }} --format '{% raw %}{{.Tag}}{% endraw %}' | sort -r \
+              | tail -n +{{ keep_releases | int + 1 }} | { grep -vx '{{ release_id }}' || true; } \
+              | xargs -r -I{} docker rmi {{ image_name }}:{}
+            ls -1 {{ deploy_root }}/pwa/releases | sort -r \
+              | tail -n +{{ keep_releases | int + 1 }} | { grep -vx '{{ release_id }}' || true; } \
+              | xargs -r -I{} rm -rf {{ deploy_root }}/pwa/releases/{}
+          args:
+            executable: /bin/bash
+          changed_when: false
+
+      always:
+        - name: Remove local build files (staged envs, tarballs, PWA build)
+          delegate_to: localhost
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ build_dir }}/app.env"
+            - "{{ build_dir }}/pwa.env"
+            - "{{ build_dir }}/{{ tarball }}"
+            - "{{ build_dir }}/{{ pwa_tarball }}"
+            - "{{ pwa_build }}"

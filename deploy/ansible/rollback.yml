@@ -1,0 +1,63 @@
+# Serve the previous release again (web image and PWA build together).
+#
+#   make deploy-rollback                               # the release before the current one
+#   make deploy-rollback DEPLOY_ARGS="-e to=20261028153000"
+#
+# The database is Supabase and is not touched.
+
+- name: Roll back the Abia Executive Dashboard
+  hosts: abia_dashboard
+  gather_facts: false
+
+  tasks:
+    - name: Pick the release to roll back to
+      ansible.builtin.shell: |
+        set -o pipefail
+        {% if to is defined %}
+        docker image ls {{ image_name }} --format '{% raw %}{{.Tag}}{% endraw %}' | grep -x '{{ to }}'
+        {% else %}
+        current=$(sed -n 's/^IMAGE_TAG=//p' {{ deploy_root }}/.env)
+        docker image ls {{ image_name }} --format '{% raw %}{{.Tag}}{% endraw %}' | sort -r \
+          | awk -v c="$current" 'found {print; exit} $0 == c {found=1}'
+        {% endif %}
+      args:
+        executable: /bin/bash
+      register: target
+      changed_when: false
+      failed_when: false
+
+    - name: Stop if there is nothing to roll back to
+      ansible.builtin.assert:
+        that: target.stdout | trim | length > 0
+        fail_msg: No earlier {{ image_name }} image on the server.
+
+    - name: Point .env at {{ target.stdout | trim }}
+      ansible.builtin.copy:
+        dest: "{{ deploy_root }}/.env"
+        content: "IMAGE_TAG={{ target.stdout | trim }}\n"
+        mode: "0644"
+
+    - name: Start the web app and wait for it to be healthy
+      ansible.builtin.command:
+        cmd: docker compose up -d --wait --wait-timeout 180 web
+        chdir: "{{ deploy_root }}"
+      changed_when: true
+
+    # Web and PWA releases share their id, so the PWA goes back with the web app.
+    - name: Look for the matching PWA build
+      ansible.builtin.stat:
+        path: "{{ deploy_root }}/pwa/releases/{{ target.stdout | trim }}"
+      register: pwa_release
+
+    - name: Serve PWA release {{ target.stdout | trim }}
+      when: pwa_release.stat.exists
+      ansible.builtin.file:
+        src: releases/{{ target.stdout | trim }}
+        dest: "{{ deploy_root }}/pwa/current"
+        state: link
+        force: true
+
+    - name: Say the PWA was left as it is
+      when: not pwa_release.stat.exists
+      ansible.builtin.debug:
+        msg: No PWA build {{ target.stdout | trim }} on the server; the PWA keeps serving its current release.

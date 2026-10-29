@@ -1,0 +1,10 @@
+# Build context is pwa/. Keep the Mac's env files (dev URLs) and local builds out.
+**/.env*
+**/*.pem
+**/.DS_Store
+.git
+.yarn
+node_modules
+dist
+dev-dist
+.claude

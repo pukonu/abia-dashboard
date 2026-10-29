@@ -1,0 +1,127 @@
+# {{ ansible_managed }}
+# Host nginx site for the Abia Executive Dashboard ({{ domain }}) and its PWA
+# ({{ pwa_domain }}). Lives in {{ deploy_root }}/nginx and is symlinked into
+# /etc/nginx/sites-enabled by site.yml. Certificates come from
+# `certbot certonly --webroot` (webroot {{ deploy_root }}/acme), so certbot never
+# edits this file; the existing certbot timer renews them.
+{% macro app_proxy() %}
+    # Evidence files and CSV/Excel imports go through the app.
+    client_max_body_size 50m;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ app_port }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Stream AI chat replies as they are written.
+        proxy_buffering off;
+        proxy_cache off;
+        # Longest route maxDuration is 300s (weekly digest).
+        proxy_read_timeout 310s;
+        proxy_send_timeout 310s;
+    }
+{% endmacro %}
+{% macro pwa_static() %}
+    # The release being served; site.yml / rollback.yml switch this symlink.
+    root {{ deploy_root }}/pwa/current;
+
+    # Single-page app: unknown paths get the shell.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # The service worker and app shell must never be cached hard, or installed
+    # apps would keep running stale builds after a deploy (as on Amplify).
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
+    location = /build.json {
+        add_header Cache-Control "no-cache";
+    }
+    location = /manifest.webmanifest {
+        # nginx 1.14's mime.types has no .webmanifest.
+        types { }
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+    }
+
+    # Vite puts a content hash in every file name under /assets.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+{% endmacro %}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ ([domain] + aliases) | join(' ') }};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root {{ deploy_root }}/acme;
+    }
+
+{% if have_cert | bool %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    # No certificate yet (DNS not pointing here): serve over plain HTTP.
+{{ app_proxy() }}
+{% endif %}
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ pwa_domain }};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root {{ deploy_root }}/acme;
+    }
+
+{% if have_cert | bool %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    # No certificate yet (DNS not pointing here): serve over plain HTTP.
+    # (Service workers and installs need HTTPS, so the PWA is browse-only here.)
+{{ pwa_static() }}
+{% endif %}
+}
+{% if have_cert | bool %}
+
+# No http2 on these listens: on nginx 1.14 it would switch HTTP/2 on for every
+# other site sharing :443 on this host (e.g. the websocket sites).
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    # Aliases serve the app as-is: a redirect would turn API POSTs into GETs.
+    server_name {{ ([domain] + aliases) | join(' ') }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+{{ app_proxy() }}
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name {{ pwa_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+{{ pwa_static() }}
+}
+{% endif %}

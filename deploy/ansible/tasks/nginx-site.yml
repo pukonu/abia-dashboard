@@ -1,0 +1,36 @@
+# Render the nginx site into deploy_root, link it into sites-enabled, and
+# reload nginx only if `nginx -t` passes. The host serves other sites, so a bad
+# config is unlinked again instead of being left in place. Needs have_cert.
+
+- name: Render nginx/{{ domain }}.conf (https={{ have_cert | bool }})
+  ansible.builtin.template:
+    src: templates/nginx-site.conf.j2
+    dest: "{{ deploy_root }}/nginx/{{ domain }}.conf"
+    mode: "0644"
+
+- name: Enable the site and reload nginx
+  become: true
+  block:
+    - name: Link it into sites-enabled
+      ansible.builtin.file:
+        src: "{{ deploy_root }}/nginx/{{ domain }}.conf"
+        dest: /etc/nginx/sites-enabled/{{ domain }}
+        state: link
+
+    - name: Test the nginx config
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+  rescue:
+    - name: Unlink the site again
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/{{ domain }}
+        state: absent
+
+    - name: Fail
+      ansible.builtin.fail:
+        msg: nginx -t rejected the Abia Dashboard site; it was unlinked and nginx was not reloaded.

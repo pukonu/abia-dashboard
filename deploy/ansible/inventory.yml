@@ -1,0 +1,9 @@
+# Host, user and key come from .env (see group_vars/all.yml); nothing to edit here.
+all:
+  children:
+    abia_dashboard:
+      hosts:
+        prod:
+          ansible_host: "{{ deploy_host }}"
+          ansible_user: "{{ deploy_user }}"
+          ansible_ssh_private_key_file: "{{ deploy_ssh_key }}"
