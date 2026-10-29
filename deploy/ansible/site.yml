@@ -142,12 +142,15 @@
               - "{{ pwa_dir }}"
           changed_when: true
 
+        # The PWA folder is world-readable so the host nginx (www-data) can serve
+        # it; COPYFILE_DISABLE keeps macOS tar from adding ._* AppleDouble files.
         - name: Export the image and pack the PWA
           delegate_to: localhost
           ansible.builtin.shell: |
             set -o pipefail
             docker save {{ image_ref }} | gzip -1 > {{ build_dir }}/{{ tarball }}
-            tar -czf {{ build_dir }}/{{ pwa_tarball }} -C {{ pwa_build }} .
+            chmod -R u=rwX,go=rX {{ pwa_build }}
+            COPYFILE_DISABLE=1 tar -czf {{ build_dir }}/{{ pwa_tarball }} -C {{ pwa_build }} .
           args:
             executable: /bin/bash
           changed_when: true
